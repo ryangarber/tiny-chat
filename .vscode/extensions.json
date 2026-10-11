@@ -1,11 +1,11 @@
 {
 	"recommendations": [
-		"tauri-apps.tauri-vscode",
 		"github.vscode-github-actions",
 		"prisma.prisma",
 		"ms-ossdata.vscode-pgsql",
 		"rust-lang.rust-analyzer",
 		"vitest.explorer",
-		"biomejs.biome"
+		"biomejs.biome",
+		"webnative.webnative"
 	]
 }

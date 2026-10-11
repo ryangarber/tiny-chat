@@ -426,9 +426,12 @@ export default function Chat() {
 					w="100%"
 					maw={inputMaxWidth}
 					m="0 auto"
-					p={isMobile ? "0 10px 10px 10px" : "0 20px 20px 20px"}
+					px={isMobile ? 10 : 20}
 					ref={inputRef}
 					style={{
+						// Clear of the home indicator, which a keyboard covers.
+						paddingBottom: `calc(${isMobile ? 10 : 20}px + max(0px, env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px)))`,
+						transition: "padding-bottom var(--keyboard-transition, 0s)",
 						position: "absolute",
 						left: 0,
 						right: 0,

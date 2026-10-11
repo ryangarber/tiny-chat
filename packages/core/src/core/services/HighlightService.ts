@@ -52,7 +52,7 @@ export const HighlightService = {
 				themes: [],
 				langs: [],
 				// Oniguruma rather than the JS regex engine: the latter mis-tokenizes
-				// on JavaScriptCore (Bun, and WebKit in Tauri), and its startup cost
+				// on JavaScriptCore (Bun, and WebKit in the apps), and its startup cost
 				// no longer matters off the main thread. The WASM is inlined, so
 				// it bundles the same under Vite and Bun.
 				engine: createOnigurumaEngine(import("shiki/wasm")),

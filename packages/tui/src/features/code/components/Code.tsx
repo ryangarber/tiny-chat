@@ -4,7 +4,7 @@ import { Text } from "ink";
 import { useMemo } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import Content from "#tui/core/components/Content.tsx";
-import { CliUtils } from "#tui/core/utils/CliUtils.ts";
+import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import CodeLines from "#tui/features/code/components/CodeLines.tsx";
 import Highlight from "#tui/features/code/components/Highlight.tsx";
 
@@ -32,7 +32,7 @@ export const Code = ({
 
 	// tabs are expanded before highlighting so the tokens Ink measures are the
 	// same width the terminal draws
-	const displayed = useMemo(() => CliUtils.display(code), [code]);
+	const displayed = useMemo(() => TuiUtils.display(code), [code]);
 
 	const { highlighted } = useCode({
 		code: displayed,

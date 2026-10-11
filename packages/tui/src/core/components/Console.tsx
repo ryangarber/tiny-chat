@@ -1,11 +1,12 @@
-import { useInput, useWindowSize } from "ink";
-import { useContext } from "react";
+import { type DOMElement, useInput, useWindowSize } from "ink";
+import { useContext, useRef } from "react";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
 import { useConsoleStore } from "#client/core/stores/useConsoleStore.ts";
 import Box from "#tui/core/components/Box.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
 import LogView from "#tui/core/components/LogView.tsx";
 import Text from "#tui/core/components/Text.tsx";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 
 /**
@@ -20,6 +21,9 @@ export default function Console() {
 	const logs = useConsoleStore((state) => state.logs);
 	const clearLogs = useConsoleStore((state) => state.clearLogs);
 
+	const ref = useRef<DOMElement>(null);
+	useMouseLayer(ref);
+
 	usePage();
 	useInput((input) => {
 		if (input === "c") clearLogs();
@@ -27,6 +31,7 @@ export default function Console() {
 
 	return (
 		<Box
+			ref={ref}
 			position="absolute"
 			top={0}
 			left={0}

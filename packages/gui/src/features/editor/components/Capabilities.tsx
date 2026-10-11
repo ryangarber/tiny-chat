@@ -34,7 +34,8 @@ import {
 	XCircleIcon,
 } from "@phosphor-icons/react";
 import { hashKey, useIsFetching } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useContext, useState } from "react";
+import { ClientContext } from "#client/client.ts";
 import { useBrowser } from "#client/features/agent/hooks/useBrowser.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { mcpServerQueryKey } from "#client/features/agent/hooks/useMcp.ts";
@@ -68,7 +69,6 @@ import {
 import scrollable from "#gui/core/styles/scrollable.module.css";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 import ConfigPanel from "#gui/features/editor/components/ConfigPanel.tsx";
-import { useTauri } from "#gui/features/tauri/hooks/useTauri.ts";
 import Dropzone from "#gui/features/upload/components/Dropzone.tsx";
 
 const SHELL_TOOLSET = "shell";
@@ -536,7 +536,7 @@ function ToolsetView({
 }: {
 	toolsets: McpToolset[] | Toolset<any>[];
 }) {
-	const { isTauriDesktop } = useTauri();
+	const client = useContext(ClientContext);
 
 	return toolsets.map((toolset) => {
 		const toolsetName = ToolUtils.name({ toolset });
@@ -545,7 +545,7 @@ function ToolsetView({
 				key={toolsetName}
 				toolset={toolset}
 				panel={
-					toolsetName === BROWSER_TOOLSET && isTauriDesktop.data ? (
+					toolsetName === BROWSER_TOOLSET && client.desktop ? (
 						<BrowserView />
 					) : toolsetName === SUBAGENTS_TOOLSET ? (
 						<SubagentView />
@@ -681,7 +681,7 @@ function SubagentView() {
 	return (
 		<Stack gap={5}>
 			<Text size="xs" c="dimmed">
-				The model, tools and skills subagents run with
+				Subagent settings
 			</Text>
 			<ConfigPanel
 				config={subagentConfig}
@@ -770,7 +770,7 @@ function SkillView({ skills, native }: { skills: zSkill[]; native?: boolean }) {
 }
 
 export default function Capabilities() {
-	const { isTauriDesktop } = useTauri();
+	const client = useContext(ClientContext);
 	const { nativeTools, mcpTools, refreshMcpServers } = useTools();
 	const { localSkills, nativeSkills } = useSkills();
 	const { mcpServerSettingsUnparsed, setMcpServerSettings } =
@@ -825,8 +825,8 @@ export default function Capabilities() {
 								<GraduationCapIcon size={16} />
 							</Box>
 							<Tabs.Tab value="skills:native">Native</Tabs.Tab>
-							{(isTauriDesktop.data ?? !isMobile) && (
-								<Tabs.Tab value="skills:local" disabled={!isTauriDesktop.data}>
+							{(client.desktop || !isMobile) && (
+								<Tabs.Tab value="skills:local" disabled={!client.desktop}>
 									Local
 								</Tabs.Tab>
 							)}

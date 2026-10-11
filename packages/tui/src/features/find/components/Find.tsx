@@ -4,6 +4,7 @@ import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import { useFocused } from "#tui/core/components/Panel.tsx";
 import Text from "#tui/core/components/Text.tsx";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import {
 	type Focus,
 	selectFocus,
@@ -95,6 +96,9 @@ export default function Find({
 		return true;
 	};
 
+	// The highlights are left to the text they mark; only the bar takes the mouse.
+	useMouseLayer(barRef, isOpen);
+
 	if (!isOpen) return null;
 
 	return (
@@ -145,7 +149,7 @@ export default function Find({
 				<Text color="textSubtle">{find.label ?? "0/0"}</Text>
 				<Button label="↑" onClick={find.previous} />
 				<Button label="↓" onClick={find.next} />
-				<Button label="x" onClick={close} />
+				<Button label="×" onClick={close} />
 			</Box>
 		</>
 	);

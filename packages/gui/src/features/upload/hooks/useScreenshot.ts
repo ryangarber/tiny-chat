@@ -1,11 +1,13 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
-import { TauriUtils } from "#gui/features/tauri/utils/TauriUtils.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 
 const uploadScreenshotMutationKey = ["useScreenshot", "uploadScreenshot"];
 
 export const useScreenshot = () => {
+	const runtime = useRuntime();
+
 	// Check for support
 	const isScreenshotSupported = useState(() => {
 		if (typeof window === "undefined") return false;
@@ -13,7 +15,8 @@ export const useScreenshot = () => {
 			typeof navigator !== "undefined" &&
 			!!navigator.mediaDevices &&
 			"getDisplayMedia" in navigator.mediaDevices;
-		return hasMediaDevices && !TauriUtils.isTauri();
+		// An app's webview has no screen picker.
+		return hasMediaDevices && runtime.platform === "web";
 	});
 
 	const { upload } = useUploads();

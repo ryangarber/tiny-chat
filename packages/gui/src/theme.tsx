@@ -3,7 +3,7 @@ import {
 	createTheme,
 	type MantineThemeOverride,
 } from "@mantine/core";
-import { palettes } from "#client/core/components/ThemeContext.tsx";
+import { buildTheme, palettes } from "#client/core/components/ThemeContext.tsx";
 
 export default createTheme({
 	fontFamily: "'Rubik', sans-serif",
@@ -161,16 +161,16 @@ export const cssResolver: CSSVariablesResolver = () => ({
 		"--mantine-color-body": "var(--tc-surface)",
 	},
 	light: {
-		"--tc-exterior": "var(--mantine-color-gray-0)",
-		"--tc-surface": "var(--mantine-color-gray-1)",
-		"--tc-interior": "var(--mantine-color-gray-2)",
+		"--tc-exterior": buildTheme("light").colorScheme.exterior,
+		"--tc-surface": buildTheme("light").colorScheme.surface,
+		"--tc-interior": buildTheme("light").colorScheme.interior,
 		"--tc-highlight": "rgba(0, 0, 0, 0.05)",
 		"--tc-shadow": "0 10px 40px rgba(0, 0, 0, 0.2)",
 	},
 	dark: {
-		"--tc-exterior": "var(--mantine-color-dark-7)",
-		"--tc-surface": "var(--mantine-color-dark-6)",
-		"--tc-interior": "var(--mantine-color-dark-5)",
+		"--tc-exterior": buildTheme("dark").colorScheme.exterior,
+		"--tc-surface": buildTheme("dark").colorScheme.surface,
+		"--tc-interior": buildTheme("dark").colorScheme.interior,
 		"--tc-highlight": "rgba(255, 255, 255, 0.05)",
 		"--tc-shadow": "0 10px 40px rgba(0, 0, 0, 0.2)",
 	},

@@ -23,7 +23,7 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import SidebarContent from "#gui/features/sidebar/components/SidebarContent.tsx";
-import { version } from "../../../../../../apps/app/tauri.conf.json";
+import workspace from "../../../../../../package.json" with { type: "json" };
 
 export default function SidebarExpanded({
 	chat,
@@ -127,7 +127,7 @@ export default function SidebarExpanded({
 					<Group justify="space-between" wrap="nowrap">
 						Settings
 						<Text size="sm" c="dimmed" pr={5}>
-							{version}
+							{workspace.version}
 						</Text>
 					</Group>
 				}

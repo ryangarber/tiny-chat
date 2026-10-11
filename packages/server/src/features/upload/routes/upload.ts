@@ -32,7 +32,11 @@ export const upload = router({
 		.input(
 			z
 				.instanceof(FormData)
-				.transform((fd) => Object.fromEntries(fd.entries()))
+				.transform((formData) => {
+					const entries: IterableIterator<[string, string | File]> =
+						formData.entries();
+					return Object.fromEntries(entries);
+				})
 				.pipe(
 					z.object({
 						kind: z.enum(Enum.UploadKind.values),

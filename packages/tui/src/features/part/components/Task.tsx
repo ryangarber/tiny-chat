@@ -169,7 +169,15 @@ namespace Task {
 		}
 
 		return (
-			<Box flexDirection="column" paddingLeft={2} {...detailsProps} {...props}>
+			<Box
+				flexDirection="column"
+				paddingY={1}
+				paddingLeft={2}
+				borderStyle="single"
+				borderLeft={true}
+				{...detailsProps}
+				{...props}
+			>
 				{children}
 			</Box>
 		);

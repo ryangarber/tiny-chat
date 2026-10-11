@@ -12,8 +12,6 @@ import ToolCall, {
 	toStatusParts,
 } from "#tui/features/part/components/ToolCall.tsx";
 
-const DETAILS_PROPS = { paddingY: 1, backgroundColor: "surface" } as const;
-
 function CompactionBadge({
 	compaction,
 	id,
@@ -65,7 +63,7 @@ export default function ToolGroup({
 	));
 
 	return (
-		<Task.Group detailsProps={DETAILS_PROPS}>
+		<Task.Group>
 			{parts.length === 1 ? (
 				// A lone call is its own header.
 				items[0]

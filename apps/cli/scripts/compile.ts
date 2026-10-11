@@ -1,14 +1,15 @@
-import "../src/env.ts";
-
 import { fileURLToPath } from "node:url";
 import * as Babel from "@babel/core";
 import chalk from "chalk";
-import { zEnv } from "#core/core/types/env.ts";
+import { zClientEnv } from "#core/core/types/env.ts";
+import { buildAfmize } from "../../../scripts/build-afmize.ts";
+import { useEnv } from "../../../scripts/use-env.ts";
 import { create, print } from "../../../scripts/use-stdout.ts";
-import { buildAfmize } from "./afmize.ts";
 
+// biome-ignore lint/correctness/useHookAtTopLevel: not a hook
+const env = useEnv({ type: zClientEnv });
 export const environment = Object.fromEntries(
-	Object.entries(zEnv.parse(process.env)).map(([key, value]) => [
+	Object.entries(env).map(([key, value]) => [
 		`process.env.${key}`,
 		JSON.stringify(value),
 	]),

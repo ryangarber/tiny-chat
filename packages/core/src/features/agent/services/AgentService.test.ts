@@ -54,7 +54,7 @@ describe("AgentService", () => {
 										{
 											id: "prompt",
 											type: "text",
-											value: tools ? "!bench tools 1" : "!bench text 1",
+											value: tools ? "%bench tools 1" : "%bench text 1",
 										},
 									],
 								],
@@ -129,7 +129,7 @@ describe("AgentService", () => {
 
 	it("streams a tool call's input before the call is complete", async () => {
 		// Paced like a real model, so the input is parsed between tokens.
-		const { data, events } = run("!bench tools 1 ~5");
+		const { data, events } = run("%bench tools 1 ~5");
 		const seen: unknown[] = [];
 		for await (const event of events) {
 			if (event.type !== "toolInput") continue;
@@ -164,7 +164,7 @@ describe("AgentService", () => {
 
 	it("drops a tool call the model never finished writing", async () => {
 		const abort = new AbortController();
-		const { data, events } = run("!bench tools 1 ~5", abort.signal);
+		const { data, events } = run("%bench tools 1 ~5", abort.signal);
 		let started = false;
 		for await (const event of events) {
 			if (event.type === "toolInput" && event.delta && !started) {
@@ -235,7 +235,7 @@ describe("AgentService", () => {
 								config,
 								createdAt: null,
 								data: [
-									[{ id: "prompt", type: "text", value: "!bench tools 1 ~0" }],
+									[{ id: "prompt", type: "text", value: "%bench tools 1 ~0" }],
 								],
 							},
 							{ id: "reply", author: "MODEL", config, createdAt: null, data },
@@ -377,7 +377,7 @@ describe("AgentService", () => {
 
 		it("runs calls made together at the same time", async () => {
 			const { toolset, log, release } = gated({});
-			const { data, events } = generate("!bench tools 1", toolset);
+			const { data, events } = generate("%bench tools 1", toolset);
 			const done = drain(events);
 
 			// The second finishes first, which it only can if both are running.
@@ -411,7 +411,7 @@ describe("AgentService", () => {
 
 		it("runs a sequential call alone", async () => {
 			const { toolset, log, release } = gated({ sequential: ["write_file"] });
-			const { events } = generate("!bench tools 1", toolset);
+			const { events } = generate("%bench tools 1", toolset);
 			const done = drain(events);
 
 			await release("write_file");
@@ -428,7 +428,7 @@ describe("AgentService", () => {
 
 		it("carries on while a background call runs, then reports it", async () => {
 			const { toolset, log, release } = gated({ background: ["write_file"] });
-			const { data, events } = generate("!bench tasks", toolset);
+			const { data, events } = generate("%bench tasks", toolset);
 			const done = drain(events);
 
 			// The model gets past the batch with the write still running.
@@ -479,7 +479,7 @@ describe("AgentService", () => {
 		it("stops background calls with the generation", async () => {
 			const { toolset, release } = gated({ background: ["write_file"] });
 			const abort = new AbortController();
-			const { data, events } = generate("!bench tasks", toolset, abort.signal);
+			const { data, events } = generate("%bench tasks", toolset, abort.signal);
 			const done = drain(events);
 
 			await release("read_dir");
@@ -532,7 +532,7 @@ describe("AgentService", () => {
 				const { toolset, log, release } = gated({ approval: ["write_file"] });
 				const { toolFeedback, answer } = answering();
 				const { data, events } = generate(
-					"!bench tools 1",
+					"%bench tools 1",
 					toolset,
 					undefined,
 					{
@@ -566,7 +566,7 @@ describe("AgentService", () => {
 					background: ["write_file"],
 				});
 				const { toolFeedback, answer } = answering();
-				const { data, events } = generate("!bench tasks", toolset, undefined, {
+				const { data, events } = generate("%bench tasks", toolset, undefined, {
 					toolFeedback,
 				});
 				const done = drain(events);
@@ -595,7 +595,7 @@ describe("AgentService", () => {
 				const { toolset, log, release } = gated({ approval: ["write_file"] });
 				const { toolFeedback, answer } = answering();
 				const { data, events } = generate(
-					"!bench tools 1",
+					"%bench tools 1",
 					toolset,
 					undefined,
 					{
@@ -621,7 +621,7 @@ describe("AgentService", () => {
 				const { toolset, release } = gated({ approval: ["write_file"] });
 				const { toolFeedback, waits } = answering();
 				const { data, events } = generate(
-					"!bench tools 1",
+					"%bench tools 1",
 					toolset,
 					undefined,
 					{
@@ -664,7 +664,7 @@ describe("AgentService", () => {
 						},
 					],
 				];
-				const { events } = generate("!bench tools 1", toolset, undefined, {
+				const { events } = generate("%bench tools 1", toolset, undefined, {
 					data,
 					toolFeedback: async () => ({ approved: true }),
 				});

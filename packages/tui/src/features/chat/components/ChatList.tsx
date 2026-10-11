@@ -2,7 +2,6 @@ import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { usePanel } from "#tui/core/components/Panel.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useSentinel } from "#tui/core/hooks/useSentinel.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
@@ -45,11 +44,8 @@ export default function ChatList({
 	return (
 		<Completions
 			fill={fill}
-			itemProps={fill ? { flexGrow: 1, minWidth: 0 } : undefined}
-			renderItem={
-				fill
-					? ({ item }) => <Text wrap="truncate-end">{item.name}</Text>
-					: undefined
+			itemProps={
+				fill ? { flexGrow: 1, minWidth: 0, wrap: "truncate-end" } : undefined
 			}
 			groups={[
 				{

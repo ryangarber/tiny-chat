@@ -1,6 +1,5 @@
-import { Box, type DOMElement, useApp, useInput, useWindowSize } from "ink";
-import { type ReactNode, useContext, useEffect, useRef } from "react";
-import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
+import { type DOMElement, useApp, useInput, useWindowSize } from "ink";
+import { type ReactNode, useEffect, useRef } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject.ts";
@@ -8,7 +7,9 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useEstimatedTokens } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { MessageProvider } from "#client/features/message/components/MessageProvider.tsx";
+import Box from "#tui/core/components/Box.tsx";
 import Console from "#tui/core/components/Console.tsx";
+import { ContentFullscreen } from "#tui/core/components/Content.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
 import StatusText from "#tui/core/components/StatusText.tsx";
 import type { Color } from "#tui/core/hooks/useColor.ts";
@@ -42,7 +43,6 @@ const panelWidth = (columns: number) =>
 	Math.floor((32 + Math.min(64, Math.floor(columns * 0.4))) / 2);
 
 export default function App() {
-	const { colorScheme } = useContext(ThemeContext);
 	usePrepareCode();
 	useDefaultProject();
 
@@ -102,7 +102,6 @@ export default function App() {
 	});
 
 	const panels = useAppStore((state) => state.panels);
-	const closePanel = useAppStore((state) => state.closePanel);
 	const sidebars = columns >= SIDEBAR_COLUMNS;
 	const left = sidebars && panels.chats ? panelWidth(columns) : 0;
 	const right = sidebars && panels.files ? panelWidth(columns) : 0;
@@ -110,32 +109,19 @@ export default function App() {
 	const panelCount = Number(panels.chats) + Number(panels.files);
 	const bottomWidth = Math.floor(columns / Math.max(1, panelCount));
 
-	const panel = (name: PanelName, children: ReactNode) => (
-		<Panel
-			id={name}
-			title={name}
-			closable
-			onClose={() => closePanel(name)}
-			flexGrow={1}
-			minHeight={0}
-			padding={1}
-			backgroundColor="interior"
-		>
-			{children}
-		</Panel>
-	);
-
 	return (
 		<MessageProvider>
 			<Box
 				ref={rootRef}
 				flexDirection="row"
 				height={rows}
-				backgroundColor={colorScheme.exterior}
+				backgroundColor="surface"
 			>
 				{left > 0 && (
 					<Box width={left} flexShrink={0} flexDirection="column">
-						{panel("chats", <ChatList fill />)}
+						<AppPanel name="chats">
+							<ChatList fill />
+						</AppPanel>
 					</Box>
 				)}
 				<WidthContext.Provider value={width}>
@@ -158,15 +144,16 @@ export default function App() {
 								<Box height={Math.floor(rows / 2)} flexShrink={0}>
 									{panels.chats && (
 										<Box width={bottomWidth} flexDirection="column">
-											{panel("chats", <ChatList fill />)}
+											<AppPanel name="chats">
+												<ChatList fill />
+											</AppPanel>
 										</Box>
 									)}
 									{panels.files && (
 										<Box width={bottomWidth} flexDirection="column">
-											{panel(
-												"files",
-												<ChatSources fill width={bottomWidth - 2} />,
-											)}
+											<AppPanel name="files">
+												<ChatSources fill width={bottomWidth - 2} />
+											</AppPanel>
 										</Box>
 									)}
 								</Box>
@@ -191,14 +178,44 @@ export default function App() {
 				</WidthContext.Provider>
 				{right > 0 && (
 					<Box width={right} flexShrink={0} flexDirection="column">
-						{panel("files", <ChatSources fill width={right - 2} />)}
+						<AppPanel name="files">
+							<ChatSources fill width={right - 2} />
+						</AppPanel>
 					</Box>
 				)}
 				<CitationCard />
+				{page === "fullscreen" && <ContentFullscreen />}
 				{page === "console" && <Console />}
 				{/* The keys go to whichever page is up, so only the chat is searched. */}
 				<Find targetRef={rootRef} disabled={page !== "chat"} />
 			</Box>
 		</MessageProvider>
+	);
+}
+
+function AppPanel({
+	name,
+	children,
+}: {
+	name: PanelName;
+	children: ReactNode;
+}) {
+	const closePanel = useAppStore((state) => state.closePanel);
+
+	return (
+		<Panel
+			id={name}
+			title={name}
+			closable
+			onClose={() => closePanel(name)}
+			flexGrow={1}
+			minHeight={0}
+			padding={1}
+			backgroundColor="interior"
+			borderStyle="round"
+			border={true}
+		>
+			{children}
+		</Panel>
 	);
 }

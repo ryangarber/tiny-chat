@@ -8,7 +8,7 @@ import { createElement, type ReactNode } from "react";
 import { inject } from "vitest";
 import { type Client, ClientContext, createClient } from "#client/client.ts";
 import type { ClientInput } from "#client/features/editor/services/ComposerService.ts";
-import type { zEnv } from "#core/core/types/env.ts";
+import type { zClientEnv } from "#core/core/types/env.ts";
 
 let client: Client;
 let token: string | null | undefined;
@@ -21,13 +21,12 @@ export async function onBeforeAll({
 	env,
 	input,
 }: {
-	env: zEnv;
+	env: zClientEnv;
 	input?: ClientInput;
 }) {
 	client = createClient({
-		env,
+		env: { ...env, DEV_HOST: new URL(inject("serverUrl")).hostname },
 		input,
-		host: new URL(inject("serverUrl")).hostname,
 		getToken: () => token,
 		setToken: (value) => (token = value),
 		getStorage: () => null,

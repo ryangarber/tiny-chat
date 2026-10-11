@@ -249,6 +249,7 @@ export interface Capabilities {
 	chatShell?: ShellCapability;
 	shell?: ShellCapability;
 	browser?: BrowserCapability;
+	persistence?: boolean;
 }
 
 export type CapabilityFactory<T, TCapability> = (

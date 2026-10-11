@@ -4,19 +4,37 @@
 		{
 			"name": "web",
 			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["dev:web"],
+			"runtimeArgs": [
+				"dev:web"
+			],
+			"port": 8010
+		},
+		{
+			"name": "mobile (gui + server)",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"exec",
+				"node",
+				"scripts/use-server.ts",
+				"[gui] pnpm --filter mobile exec vite"
+			],
 			"port": 8010
 		},
 		{
 			"name": "server",
 			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["dev:server"],
+			"runtimeArgs": [
+				"dev:server"
+			],
 			"port": 8009
 		},
 		{
 			"name": "cli (testing, no keyring)",
 			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["dev:cli", "--no-keyring"]
+			"runtimeArgs": [
+				"dev:cli",
+				"--no-keyring"
+			]
 		}
 	]
 }

@@ -282,7 +282,6 @@ function PreviewPane({
 		<Box
 			padding={1}
 			flexDirection="column"
-			backgroundColor="interior"
 			flexGrow={fill ? 1 : 0}
 			flexShrink={fill ? 1 : 0}
 			minHeight={fill ? 0 : undefined}

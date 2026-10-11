@@ -1,7 +1,7 @@
 import { parsePartialJson } from "ai";
 import type { z } from "zod";
 import type { Capabilities } from "#core/core/types/capability.ts";
-import type { zEnv } from "#core/core/types/env.ts";
+import type { zClientEnv } from "#core/core/types/env.ts";
 import type { StreamMutation } from "#core/core/types/stream.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { AgentInstructionsService } from "#core/features/agent/services/AgentInstructionsService.ts";
@@ -166,7 +166,7 @@ export const AgentService = {
 		skills: zSkill[];
 		data: zData;
 		metadata: zMetadata;
-		env: Partial<zEnv>;
+		env: Partial<zClientEnv>;
 		/**
 		 * Added to the normal chat instructions for specialized agent runs, which
 		 * still need the chat's context: its project, folders, tools and skills.

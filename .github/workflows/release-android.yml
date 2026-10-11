@@ -11,21 +11,42 @@ on:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to tauri.conf.json)"
+        description: "Version number to use for the release tag/name (defaults to package.json)"
         required: false
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     environment: production
+    env:
+      # Always, off main.
+      DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
     permissions:
       contents: write
 
@@ -33,60 +54,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.version || github.ref }}
+          ref: ${{ inputs.ref || inputs.version || github.ref }}
           submodules: recursive
-
-      - name: Install packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,x86_64-linux-android
-          toolchain: stable
-
-      - name: Create cache key
-        id: rust-toolchain
-        run: echo "fingerprint=$(rustc -Vv | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            apps/app/target
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-android-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-android-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-
-            ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-android-
 
       - name: Install Java
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
           cache: gradle
           cache-dependency-path: |
-            apps/app/gen/android/**/*.gradle*
-            apps/app/gen/android/gradle/wrapper/gradle-wrapper.properties
+            apps/mobile/android/**/*.gradle*
+            apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Install NDK
-        run: sdkmanager "ndk;30.0.14904198"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
+      - name: Install dependencies
+        uses: pnpm/setup@v3
         with:
-          node-version: lts/*
-          cache: pnpm
+          cache: true
 
       - name: Create .env
         run: |
@@ -108,59 +95,41 @@ jobs:
           AUTH_HUGGINGFACE_SECRET=${{ secrets.AUTH_HUGGINGFACE_SECRET }}
           EOF
 
-      - name: Install dependencies
-        run: pnpm ci
+      # A dry run builds a commit whose version rylease never wrote.
+      - name: Write version
+        if: env.DRY_RUN == 'true' && inputs.version
+        run: pnpm pkg set "version=${{ inputs.version }}"
 
-      - name: Build project
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/30.0.14904198
-        run: pnpm --filter app run tauri android build --apk --split-per-abi --target aarch64 x86_64
+      # Unsigned; Capacitor's app has no native code to build per ABI.
+      - name: Build APK
+        run: pnpm build:android
 
-      - name: Package APKs
+      # With the live update for both platforms (`scripts/build.ts`): their web
+      # builds are the same, and only this job uploads it, or one job's zip
+      # could replace the other's under its checksum.
+      - name: Package APK
         run: |
-          APK_DIR="apps/app/gen/android/app/build/outputs/apk"
-          mv "$APK_DIR/arm64/release/app-arm64-release-unsigned.apk" "$RUNNER_TEMP/Tiny.Chat_Android_arm64.apk"
-          mv "$APK_DIR/x86_64/release/app-x86_64-release-unsigned.apk" "$RUNNER_TEMP/Tiny.Chat_Android_x86_64.apk"
+          mv apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/Tiny.Chat_Android.apk"
+          mv apps/mobile/build/Tiny.Chat_Mobile.zip apps/mobile/build/mobile-update.json "$RUNNER_TEMP/"
 
       - name: Resolve version
         id: version
         run: |
           VERSION="${{ inputs.version }}"
           if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./apps/app/tauri.conf.json').version")
+            VERSION=$(node -pe "require('./package.json').version")
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release asset
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
-          NOTES: ${{ inputs.notes }}
-        run: |
-          # Ensure a published release exists. Create is best-effort: another
-          # job (desktop/create-release) may win the race; treat that as success.
-          if ! gh release view "$VERSION" >/dev/null 2>&1; then
-            NOTES_FILE=$(mktemp)
-            printf '%s' "$NOTES" > "$NOTES_FILE"
-            if ! gh release create "$VERSION" \
-                --title "$VERSION" \
-                --notes-file "$NOTES_FILE"; then
-              gh release view "$VERSION" >/dev/null 2>&1 \
-                || { echo "Failed to create or find release $VERSION"; exit 1; }
-              echo "Release $VERSION already exists (create race), continuing"
-            fi
-          fi
-
-          # Brief wait for API visibility after a concurrent create.
-          for attempt in 1 2 3 4 5; do
-            gh release view "$VERSION" >/dev/null 2>&1 && break
-            if [ "$attempt" -eq 5 ]; then
-              echo "Release $VERSION not visible after waiting"
-              exit 1
-            fi
-            sleep "$attempt"
-          done
-
-          gh release upload "$VERSION" "$RUNNER_TEMP/Tiny.Chat_Android_arm64.apk" --clobber
-          gh release upload "$VERSION" "$RUNNER_TEMP/Tiny.Chat_Android_x86_64.apk" --clobber
+      - name: Publish
+        uses: ./.github/actions/publish
+        with:
+          version: ${{ steps.version.outputs.version }}
+          notes: ${{ inputs.notes }}
+          files: |
+            ${{ runner.temp }}/Tiny.Chat_Android.apk
+            ${{ runner.temp }}/Tiny.Chat_Mobile.zip
+            ${{ runner.temp }}/mobile-update.json
+          artifact: android
+          dry-run: ${{ env.DRY_RUN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

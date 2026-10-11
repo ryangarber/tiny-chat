@@ -1,0 +1,26 @@
+{
+	"name": "desktop",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#desktop/*": "./src/*",
+		"#client/*": "client/*",
+		"#core/*": "core/*",
+		"#gui/*": "gui/*"
+	},
+	"scripts": {
+		"lint": "biome check --write",
+		"typecheck": "electrobun prepare && tsc --noEmit",
+		"dev": "node scripts/dev.ts",
+		"dev:dist": "node scripts/dev.ts --dist",
+		"build": "node scripts/build.ts",
+		"build:canary": "node scripts/build.ts --env=canary",
+		"electrobun": "electrobun"
+	},
+	"dependencies": {
+		"client": "workspace:*",
+		"core": "workspace:*",
+		"electrobun": "^2.0.2",
+		"gui": "workspace:*"
+	}
+}

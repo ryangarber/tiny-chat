@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"target": "ES2024",
+		"lib": ["ES2024", "DOM", "DOM.Iterable"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"types": ["temporal-polyfill/types/global"]
+	},
+	"include": ["src", "capacitor.config.ts"],
+	"extends": "../../tsconfig.base.json"
+}

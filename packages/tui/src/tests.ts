@@ -14,6 +14,8 @@ beforeAll(async () => {
 			VITE_WEB_URL: String(process.env.VITE_WEB_URL),
 			VITE_WEB_PORT: String(process.env.VITE_WEB_PORT),
 			DEV: String(process.env.DEV),
+			DEV_HOST: String(process.env.DEV_HOST ?? ""),
+			DEV_ENV: String(process.env.DEV_ENV ?? ""),
 		},
 		input: EditorInputService,
 	});

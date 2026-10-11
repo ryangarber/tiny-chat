@@ -38,40 +38,12 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-turbo-check-${{ github.sha }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-turbo-check-
 
-      - name: Install packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        uses: pnpm/setup@v3
         with:
-          toolchain: stable
-
-      - name: Create cache key
-        id: rust-toolchain
-        run: echo "fingerprint=$(rustc -Vv | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            apps/app/target
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-check-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-check-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-
-            ${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-check-
-
-      - name: Install Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: pnpm
+          cache: true
+        env:
+          CI_TESTING: true
 
       - name: Create .env
         run: |
@@ -93,9 +65,6 @@ jobs:
           AUTH_HUGGINGFACE_CLIENT=dummy
           AUTH_HUGGINGFACE_SECRET=dummy
           EOF
-
-      - name: Install dependencies
-        run: CI_TESTING=true pnpm ci
 
       - name: Setup database
         run: pnpm --filter server exec prisma db migrate --yes

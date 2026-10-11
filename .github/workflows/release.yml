@@ -6,12 +6,22 @@ on:
       - check
     types:
       - completed
+    # A push runs the whole release as a dry run: everything is built, and
+    # nothing is published or deployed. Only a dispatch from main releases.
     branches:
       - main
+      - dev
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build everything but publish nothing (always, off main)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
-  group: release-${{ github.ref }}
+  # Under workflow_run, github.ref is always the default branch.
+  group: release-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -24,132 +34,133 @@ jobs:
     permissions:
       contents: write
     outputs:
-      released: ${{ steps.diff.outputs.released }}
-      version: ${{ steps.diff.outputs.version }}
-      notes: ${{ steps.notes.outputs.notes }}
+      released: ${{ steps.status.outputs.released }}
+      version: ${{ steps.status.outputs.version }}
+      notes: ${{ steps.rylease.outputs.notes }}
+      dry_run: ${{ steps.mode.outputs.dry_run }}
+      # What the release builds: its tag, or in a dry run (which tags
+      # nothing) the commit.
+      ref: ${{ steps.status.outputs.ref }}
 
     steps:
+      # Pushes only ever dry-run; a real release is dispatched, from main.
+      - name: Resolve mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          if [ "$EVENT" != "workflow_dispatch" ] || [ "$BRANCH" != "main" ]; then DRY_RUN=true; fi
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "Release from $BRANCH (dry run: $DRY_RUN)"
+
+      # A dispatch checks out the branch itself, so the release commit can be
+      # pushed to it.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
+      - name: Release
+        id: rylease
+        uses: ryangarber/rylease@v1
         with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm ci
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Read existing version
-        id: before
-        run: echo "version=$(node -pe "require('./apps/app/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Determine new version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm exec semantic-release
+          dry-run: ${{ steps.mode.outputs.dry_run }}
+          steps: |
+            - conventional:
+                read-git-tag: { tag: "{version}" }
+                prepend-changelog: { heading: "# {version} ({date})" }
+                git-commit:
+                  message: "chore(release): {version} [skip ci]"
+                  tag: "{version}"
+                github-release: { tag: "{version}" }
 
       - name: Write release status
-        id: diff
+        id: status
+        env:
+          DRY_RUN: ${{ steps.mode.outputs.dry_run }}
+          RELEASED: ${{ steps.rylease.outputs.released }}
+          VERSION: ${{ steps.rylease.outputs.version || steps.rylease.outputs.previous-version }}
         run: |
-          VERSION=$(node -pe "require('./apps/app/tauri.conf.json').version")
-          if [ "$VERSION" != "${{ steps.before.outputs.version }}" ]; then
+          # A dry run goes through every time, so each push tests it; with
+          # nothing to release, it builds the current version.
+          if [ "$DRY_RUN" = "true" ] || [ "$RELEASED" = "true" ]; then
             echo "released=true" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Write release notes
-        id: notes
-        run: |
-          DELIMITER="EOF_$(uuidgen)"
-          {
-            echo "notes<<$DELIMITER"
-            cat CHANGES.md 2>/dev/null || true
-            echo "$DELIMITER"
-          } >> "$GITHUB_OUTPUT"
-
-  create-release:
-    needs: version
-    if: needs.version.outputs.released == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Create GitHub release
+      - name: Print release
+        if: steps.mode.outputs.dry_run == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # This job has no checkout, so gh cannot infer the repo from a git
-          # remote. GH_REPO tells it explicitly (avoids "not a git repository").
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ needs.version.outputs.version }}
-          NOTES: ${{ needs.version.outputs.notes }}
+          RELEASED: ${{ steps.rylease.outputs.released }}
+          VERSION: ${{ steps.status.outputs.version }}
+          KIND: ${{ steps.rylease.outputs.kind }}
+          NOTES: ${{ steps.rylease.outputs.notes }}
         run: |
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "Release $VERSION already exists"
-            exit 0
-          fi
-          NOTES_FILE=$(mktemp)
-          printf '%s' "$NOTES" > "$NOTES_FILE"
-          # No --verify-tag: it shells out to local git, which isn't present
-          # here. The tag was already pushed by semantic-release in the version
-          # job, so we don't need to re-verify it.
-          if ! gh release create "$VERSION" \
-              --title "$VERSION" \
-              --notes-file "$NOTES_FILE"; then
-            gh release view "$VERSION" >/dev/null 2>&1 \
-              || { echo "Failed to create or find release $VERSION"; exit 1; }
-            echo "Release $VERSION already exists, continuing"
-          fi
+          {
+            echo "### Dry run: $VERSION"
+            echo
+            if [ "$RELEASED" = "true" ]; then
+              echo "Would release \`$VERSION\` ($KIND) of \`$GITHUB_REPOSITORY\` with these notes:"
+              echo
+              printf '%s\n' "$NOTES"
+            else
+              echo "No release-worthy commits; builds the current version."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
   desktop:
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.released == 'true'
     uses: ./.github/workflows/release-desktop.yml
     with:
       version: ${{ needs.version.outputs.version }}
       notes: ${{ needs.version.outputs.notes }}
+      ref: ${{ needs.version.outputs.ref }}
+      dry_run: ${{ needs.version.outputs.dry_run == 'true' }}
     secrets: inherit
 
   android:
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.released == 'true'
     uses: ./.github/workflows/release-android.yml
     with:
       version: ${{ needs.version.outputs.version }}
       notes: ${{ needs.version.outputs.notes }}
+      ref: ${{ needs.version.outputs.ref }}
+      dry_run: ${{ needs.version.outputs.dry_run == 'true' }}
     secrets: inherit
 
   ios:
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.released == 'true'
     uses: ./.github/workflows/release-ios.yml
     with:
       version: ${{ needs.version.outputs.version }}
       notes: ${{ needs.version.outputs.notes }}
+      ref: ${{ needs.version.outputs.ref }}
+      dry_run: ${{ needs.version.outputs.dry_run == 'true' }}
     secrets: inherit
 
   cli:
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.released == 'true'
     uses: ./.github/workflows/release-cli.yml
     with:
       version: ${{ needs.version.outputs.version }}
       notes: ${{ needs.version.outputs.notes }}
+      ref: ${{ needs.version.outputs.ref }}
+      dry_run: ${{ needs.version.outputs.dry_run == 'true' }}
     secrets: inherit
 
   deploy:
@@ -158,4 +169,6 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       version: ${{ needs.version.outputs.version }}
+      ref: ${{ needs.version.outputs.ref }}
+      dry_run: ${{ needs.version.outputs.dry_run == 'true' }}
     secrets: inherit

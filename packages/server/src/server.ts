@@ -1,7 +1,5 @@
-import "./env.ts";
-
 import { createServer } from "node:http";
-import { internalIpV4 } from "internal-ip";
+import { zServerEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { createLogger } from "#core/logger.ts";
 import { ApiService } from "#server/core/services/ApiService.ts";
@@ -11,7 +9,10 @@ import { DreamRunnerService } from "#server/features/agent/services/DreamRunnerS
 import { EmbeddingRunnerService } from "#server/features/embedding/services/EmbeddingRunnerService.ts";
 import { AntigravityService } from "#server/features/proxy/services/AntigravityService.ts";
 import { McpService } from "#server/features/proxy/services/McpService.ts";
+import { useEnv } from "../../../scripts/use-env.ts";
 import { create, print } from "../../../scripts/use-stdout.ts";
+
+useEnv({ type: zServerEnv });
 
 if (import.meta.main) {
 	createLogger({ logToDisk: true });
@@ -53,11 +54,9 @@ if (import.meta.main) {
 		}
 	});
 
-	const host = process.argv.some((arg) => /^['"]?--host['"]?$/.test(arg));
-	const ipv4 = host ? await internalIpV4() : "localhost";
 	server.listen(process.env.VITE_SERVER_PORT, () => {
 		update(
-			`server live at ${ipv4}:${process.env.VITE_SERVER_PORT}${host ? " (host mode)" : ""}`,
+			`server live at ${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`,
 		);
 		if (process.argv.some((arg) => /^['"]?--smoke['"]?$/.test(arg))) {
 			print({

@@ -3,7 +3,7 @@ import { main } from "#cli/main.tsx";
 import { useConsoleStore } from "#client/core/stores/useConsoleStore.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { createLogger } from "#core/logger.ts";
-import tauri from "../../app/tauri.conf.json" with { type: "json" };
+import workspace from "../../../package.json" with { type: "json" };
 
 // Silent in dev too: anything printed under Ink, even through its console
 // patch, throws away the incremental render for a full redraw. Logs are kept
@@ -18,7 +18,7 @@ const cli = new Command()
 	.name("tiny-chat")
 	.description("Tiny Chat in the terminal.")
 	.version(
-		tauri.version + (CommonUtils.isTruthy(process.env.DEV) ? "-dev" : ""),
+		workspace.version + (CommonUtils.isTruthy(process.env.DEV) ? "-dev" : ""),
 	)
 	.option("--no-keyring", "use alternative session");
 

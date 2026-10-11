@@ -6,12 +6,35 @@ on:
         description: "Version number to use for the release tag/name"
         required: true
         type: string
+      ref:
+        description: "What to deploy, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Stage the deployment, but leave the live one running"
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to tauri.conf.json)"
+        description: "Version number to use for the release tag/name (defaults to package.json)"
         required: false
         type: string
+      ref:
+        description: "What to deploy, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Stage the deployment, but leave the live one running"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  # Always, off main.
+  DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
+  REF: ${{ inputs.ref || inputs.version || github.ref }}
 
 jobs:
   predeploy:
@@ -22,16 +45,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.version || github.ref }}
+          ref: ${{ env.REF }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
+      - name: Install dependencies
+        uses: pnpm/setup@v3
         with:
-          node-version: lts/*
-          cache: pnpm
+          cache: true
 
       - name: Create .env
         run: |
@@ -53,8 +72,10 @@ jobs:
           AUTH_HUGGINGFACE_SECRET=${{ secrets.AUTH_HUGGINGFACE_SECRET }}
           EOF
 
-      - name: Install dependencies
-        run: pnpm ci
+      # A dry run builds a commit whose version rylease never wrote.
+      - name: Write version
+        if: env.DRY_RUN == 'true' && inputs.version
+        run: pnpm pkg set "version=${{ inputs.version }}"
 
       - name: Prepare deployment
         run: |
@@ -67,6 +88,7 @@ jobs:
         with:
           name: deploy
           path: deploy.tar.gz
+          retention-days: 7
 
   deploy:
     runs-on: self-hosted
@@ -74,10 +96,22 @@ jobs:
     environment: production
 
     steps:
+      # A dry run stages everything apart from the live deployment, which it
+      # leaves running.
       - name: Checkout
         run: |
-          rm -rf ~/deploy || true
-          git clone https://github.com/ryangarber/tiny-chat.git ~/deploy --depth 1 --branch ${{ inputs.version || github.ref }}
+          if [ "$DRY_RUN" = "true" ]; then
+            TARGET="$RUNNER_TEMP/deploy"
+          else
+            TARGET="$HOME/deploy"
+          fi
+          echo "TARGET=$TARGET" >> "$GITHUB_ENV"
+          rm -rf "$TARGET" || true
+          # By fetch rather than `clone --branch`, which takes neither a commit
+          # (a dry run's) nor a full ref.
+          git init --quiet "$TARGET"
+          git -C "$TARGET" fetch --quiet --depth 1 https://github.com/ryangarber/tiny-chat.git "$REF"
+          git -C "$TARGET" checkout --quiet FETCH_HEAD
 
       - name: Download deployment
         uses: actions/download-artifact@v8
@@ -86,11 +120,11 @@ jobs:
 
       - name: Extract deployment
         run: |
-          tar -xzf deploy.tar.gz -C ~/deploy
+          tar -xzf deploy.tar.gz -C "$TARGET"
 
       - name: Create .env
         run: |
-          cd ~/deploy
+          cd "$TARGET"
           cat << EOF > .env
           PG_HOST=${{ secrets.PG_HOST }}
           PG_PORT=${{ secrets.PG_PORT }}
@@ -111,13 +145,41 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd ~/deploy
+          cd "$TARGET"
           pnpm ci
 
       - name: Activate deployment
+        if: env.DRY_RUN != 'true'
         run: |
           cd ~/deploy/packages/server
           pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs
           cd ~/deploy/apps/web
           pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs
           pm2 save
+
+      - name: Print deployment
+        if: env.DRY_RUN == 'true'
+        run: |
+          {
+            echo "### Dry run: ${{ inputs.version }}"
+            echo
+            echo "Staged \`$REF\` in \`$TARGET\` with its dependencies installed. Would replace \`~/deploy\` with it and run:"
+            echo
+            echo '```sh'
+            echo 'cd ~/deploy/packages/server'
+            echo 'pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs'
+            echo 'cd ~/deploy/apps/web'
+            echo 'pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs'
+            echo 'pm2 save'
+            echo '```'
+            echo
+            echo "pm2 $(pm2 --version)"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          test -f "$TARGET/packages/server/pm2.config.mjs"
+          test -f "$TARGET/apps/web/pm2.config.mjs"
+          test -d "$TARGET/apps/web/dist"
+
+      # It holds the production .env.
+      - name: Clean up
+        if: always() && env.DRY_RUN == 'true'
+        run: rm -rf "$TARGET"

@@ -46,7 +46,7 @@ export const GreetingUtils = {
 		} else {
 			add("@ the night owl", "Hi night owl");
 			add("No sleep for @", "No sleep for you");
-			add("@ gets it done", "You get it done");
+			add("Up late, @?", "Up late?");
 		}
 
 		return greetings[Date.now() % greetings.length].replace("@", name ?? "");

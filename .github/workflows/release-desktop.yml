@@ -11,16 +11,34 @@ on:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to tauri.conf.json)"
+        description: "Version number to use for the release tag/name (defaults to package.json)"
         required: false
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -30,76 +48,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # FoundationModels (afmize-host) needs the macOS 27 SDK.
           - platform: "xcode-27"
-            cache_target: aarch64-apple-darwin
-            args: "--target aarch64-apple-darwin"
           - platform: "ubuntu-latest"
-            cache_target: x86_64-unknown-linux-gnu
-            args: ""
           - platform: "windows-latest"
-            cache_target: x86_64-pc-windows-msvc
-            args: ""
 
     runs-on: ${{ matrix.platform }}
     environment: production
+    env:
+      # Always, off main.
+      DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.version || github.ref }}
+          ref: ${{ inputs.ref || inputs.version || github.ref }}
           submodules: recursive
 
+      # What Electrobun's Linux webview and tray need to run.
       - name: Install packages
-        if: matrix.platform == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        uses: pnpm/setup@v3
         with:
-          targets: ${{ matrix.platform == 'xcode-27' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-          toolchain: stable
-          components: llvm-tools
-
-      - name: Create cache key
-        id: rust-toolchain
-        shell: bash
-        run: |
-          checksum=(shasum -a 256)
-          if command -v sha256sum >/dev/null 2>&1; then
-            checksum=(sha256sum)
-          fi
-          fingerprint=$({
-            rustc -Vv
-            if command -v xcodebuild >/dev/null 2>&1; then
-              xcodebuild -version
-              xcrun --sdk macosx --show-sdk-version
-            fi
-          } | "${checksum[@]}" | cut -d ' ' -f 1)
-          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            apps/app/target
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.cache_target }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-desktop-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-${{ matrix.cache_target }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-desktop-${{ hashFiles('apps/app/**/Cargo.lock', 'apps/app/build.rs', 'apps/app/build_support/**', 'lib/afmize/Package.resolved') }}-
-            ${{ runner.os }}-${{ runner.arch }}-${{ matrix.cache_target }}-${{ steps.rust-toolchain.outputs.fingerprint }}-cargo-desktop-
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: pnpm
+          cache: true
 
       - name: Create .env
         shell: bash
@@ -122,8 +99,28 @@ jobs:
           AUTH_HUGGINGFACE_SECRET=${{ secrets.AUTH_HUGGINGFACE_SECRET }}
           EOF
 
-      - name: Install dependencies
-        run: pnpm ci
+      # A dry run builds a commit whose version rylease never wrote.
+      - name: Write version
+        if: env.DRY_RUN == 'true' && inputs.version
+        run: pnpm pkg set "version=${{ inputs.version }}"
+
+      - name: Cache Electrobun
+        uses: actions/cache@v6
+        with:
+          path: ~/.hutch
+          key: ${{ runner.os }}-${{ runner.arch }}-hutch-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-hutch-
+
+      - name: Cache SwiftPM
+        if: runner.os == 'macOS'
+        uses: actions/cache@v6
+        with:
+          path: apps/desktop/afmize-host/.build
+          key: ${{ runner.os }}-${{ runner.arch }}-afmize-host-${{ hashFiles('apps/desktop/afmize-host/**/*.swift', 'vendor/afmize/Package.swift', 'vendor/afmize/Package.resolved', 'vendor/afmize/Sources/**') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-afmize-host-
+
+      - name: Build app
+        run: pnpm build:desktop
 
       - name: Resolve version
         shell: bash
@@ -131,20 +128,18 @@ jobs:
         run: |
           VERSION="${{ inputs.version }}"
           if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./apps/app/tauri.conf.json').version")
+            VERSION=$(node -pe "require('./package.json').version")
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
-        uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      - name: Publish
+        uses: ./.github/actions/publish
         with:
-          tagName: ${{ steps.version.outputs.version }}
-          releaseName: ${{ steps.version.outputs.version }}
-          releaseBody: ${{ inputs.notes }}
-          projectPath: ./apps/app
-          args: ${{ matrix.args }}
-          updaterJsonPreferNsis: true
+          version: ${{ steps.version.outputs.version }}
+          notes: ${{ inputs.notes }}
+          # Under the names Electrobun gave them: the updater looks for
+          # `stable-<os>-<arch>-update.json` at the latest release.
+          files: apps/desktop/artifacts/*
+          artifact: desktop-${{ runner.os }}-${{ runner.arch }}
+          dry-run: ${{ env.DRY_RUN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

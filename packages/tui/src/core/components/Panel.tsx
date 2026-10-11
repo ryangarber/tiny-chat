@@ -7,6 +7,7 @@ import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import {
 	type Focusable,
 	selectFocus,
+	selectPage,
 	useAppStore,
 } from "#tui/core/stores/useAppStore.ts";
 
@@ -61,7 +62,10 @@ export default function Panel({
 	const focused = useFocused(id) && !disabled;
 
 	const { mouseRef } = useMouseInput({
-		onClick: () => setFocus(id),
+		// Not over a page opened by the same press, from something drawn inside.
+		onClick: () => {
+			if (selectPage(useAppStore.getState()) === "chat") setFocus(id);
+		},
 		isActive: !disabled,
 	});
 
@@ -96,7 +100,7 @@ export default function Panel({
 							)}
 						</Box>
 						{closable && (
-							<Button label="x" disabled={disabled} onClick={onClose} />
+							<Button label="×" disabled={disabled} onClick={onClose} />
 						)}
 					</Box>
 				)}

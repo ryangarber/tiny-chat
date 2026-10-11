@@ -152,6 +152,50 @@ body:not(.unselectable) .selectable * {
 	max-height: 100% !important;
 }
 
+/*
+ * Drawers and full-screen modals paint to the screen's edges, behind the notch
+ * and home indicator; keep what's in them in the safe area. The header is
+ * sticky, so it takes the top inset itself rather than the scrolling content.
+ */
+.mantine-Drawer-content,
+.mantine-Modal-content[data-full-screen] {
+	padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+		env(safe-area-inset-left, 0px);
+}
+
+.mantine-Drawer-header,
+.mantine-Drawer-body:only-child,
+.mantine-Modal-content[data-full-screen] .mantine-Modal-header,
+.mantine-Modal-content[data-full-screen] .mantine-Modal-body:only-child {
+	padding-top: calc(
+		var(--mb-padding, var(--mantine-spacing-md)) +
+		env(safe-area-inset-top, 0px)
+	);
+}
+
+/* Other modals float, so they only need to stay clear of the insets. */
+.mantine-Modal-root:not([data-full-screen]) .mantine-Modal-inner {
+	padding-top: max(
+		var(--modal-inner-y-offset, var(--modal-y-offset)),
+		env(safe-area-inset-top, 0px)
+	);
+	padding-bottom: max(
+		var(--modal-inner-y-offset, var(--modal-y-offset)),
+		env(safe-area-inset-bottom, 0px)
+	);
+}
+
+.mantine-Modal-root:not([data-full-screen]) .mantine-Modal-content {
+	max-height: var(
+		--modal-content-max-height,
+		calc(
+			100dvh -
+			max(var(--modal-y-offset), env(safe-area-inset-top, 0px)) -
+			max(var(--modal-y-offset), env(safe-area-inset-bottom, 0px))
+		)
+	);
+}
+
 .mantine-NavLink-label {
 	white-space: nowrap;
 	overflow: hidden;

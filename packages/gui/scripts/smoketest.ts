@@ -1,19 +1,14 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn } from "../../../scripts/spawn.ts";
 import { create, printout } from "../../../scripts/use-stdout.ts";
 
 const update = create("trying build");
 
-const child = spawn("pnpm", ["-w", "build:gui"]);
-
-let stdout = "";
-let stderr = "";
-child.stdout?.on("data", (data) => {
-	stdout += data.toString();
-});
-child.stderr?.on("data", (data) => {
-	stderr += data.toString();
+const { code, stdout, stderr } = await spawn({
+	command: ["pnpm", "-w", "build:gui"],
+	errors: "resolve",
+	output: false,
 });
 
 function trim(log: string) {
@@ -32,19 +27,16 @@ function trim(log: string) {
 	return lines.join("\n");
 }
 
-child.on("exit", (code) => {
-	const out = { stdout: trim(stdout), stderr: trim(stderr) };
-	if (code !== 0) {
-		update("build failed", "error");
-		printout(out);
-		process.exit(1);
-	} else if (stderr.includes("has been externalized")) {
-		update("build externalized a dependency", "error");
-		printout(out);
-		process.exit(1);
-	} else {
-		update("build succeeded");
-		printout(out);
-		process.exit(0);
-	}
-});
+const out = { stdout: trim(stdout), stderr: trim(stderr) };
+if (code !== 0) {
+	update("build failed", "error");
+	printout(out);
+	process.exit(1);
+} else if (stderr.includes("has been externalized")) {
+	update("build externalized a dependency", "error");
+	printout(out);
+	process.exit(1);
+} else {
+	update("build succeeded");
+	printout(out);
+}

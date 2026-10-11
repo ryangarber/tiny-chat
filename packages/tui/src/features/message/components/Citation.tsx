@@ -17,6 +17,7 @@ import Box from "#tui/core/components/Box.tsx";
 import Span from "#tui/core/components/Span.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { useMouse } from "#tui/core/hooks/useMouse.ts";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { MouseUtils } from "#tui/core/utils/MouseUtils.ts";
 import { useCitationStore } from "#tui/features/message/stores/useCitationStore.ts";
 
@@ -114,7 +115,11 @@ export function CitationCard() {
 
 			for (const citation of citations) {
 				const bounds = MouseUtils.textBounds(citation.node, rows);
-				if (bounds && MouseUtils.contains(bounds, event)) {
+				if (
+					bounds &&
+					MouseUtils.contains(bounds, event) &&
+					!MouseUtils.isCovered(citation.node, event, rows)
+				) {
 					setOpen(open?.citation === citation ? null : { citation, bounds });
 					return;
 				}
@@ -131,6 +136,7 @@ export function CitationCard() {
 	}, [rows, columns]);
 
 	const source = useMemo(() => open?.citation.getSource(), [open]);
+	useMouseLayer(cardRef, !!source);
 	if (!open || !source) return null;
 
 	const { bounds } = open;
@@ -149,6 +155,8 @@ export function CitationCard() {
 			width={width}
 			flexDirection="column"
 			backgroundColor="interior"
+			borderStyle="round"
+			border={true}
 			paddingX={1}
 		>
 			{source.type === "web" && (

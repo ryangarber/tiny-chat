@@ -1,0 +1,39 @@
+{
+	"name": "mobile",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#mobile/*": "./src/*",
+		"#client/*": "client/*",
+		"#core/*": "core/*",
+		"#gui/*": "gui/*"
+	},
+	"exports": {
+		"./*": "./src/*"
+	},
+	"scripts": {
+		"lint": "biome check --write",
+		"typecheck": "tsc --noEmit",
+		"dev:ios": "node scripts/dev.ts ios",
+		"dev:ios:dist": "node scripts/dev.ts ios --dist",
+		"dev:android": "node scripts/dev.ts android",
+		"dev:android:dist": "node scripts/dev.ts android --dist",
+		"build:ios": "node scripts/build.ts ios",
+		"build:android": "node scripts/build.ts android",
+		"cap": "cap"
+	},
+	"dependencies": {
+		"@capacitor/android": "^8.5.3",
+		"@capacitor/cli": "^8.5.3",
+		"@capacitor/clipboard": "^8.0.1",
+		"@capacitor/core": "^8.5.3",
+		"@capacitor/ios": "^8.5.3",
+		"@capawesome/capacitor-live-update": "^8.7.0",
+		"client": "workspace:*",
+		"core": "workspace:*",
+		"gui": "workspace:*"
+	},
+	"devDependencies": {
+		"@capawesome/capacitor-assets": "^4.1.0"
+	}
+}

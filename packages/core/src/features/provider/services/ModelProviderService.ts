@@ -6,7 +6,7 @@ import {
 	type Tool,
 } from "ai";
 import { z } from "zod";
-import type { zEnv } from "#core/core/types/env.ts";
+import type { zClientEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
 import type { zConfig } from "#core/features/data/types/message.ts";
@@ -67,7 +67,7 @@ export const ModelProviderService = {
 		messages: zModelMessage[];
 		config: zConfig;
 		tools: ToolDefinition[];
-		env: Partial<zEnv>;
+		env: Partial<zClientEnv>;
 		options?: Partial<RunLanguageModelOptions>;
 	}): AsyncGenerator<zAgentEvent> {
 		const model = (await provider.getStatus({ user })).models.find(
@@ -119,7 +119,10 @@ export const ModelProviderService = {
 
 		if (VERBOSE) console.log("[ModelProviderService] final sdk input:", input);
 
-		const { stream, output } = streamText(input);
+		const { stream, output } = streamText({
+			...input,
+			experimental_lowMemory: false, // fix for broken return type in ai@7.0.143
+		});
 		// Only read with a schema; otherwise its rejection when a generation is
 		// aborted would go unhandled.
 		if (!config.schema) Promise.resolve(output).catch(() => {});
@@ -173,7 +176,7 @@ export const ModelProviderService = {
 		user: zUser;
 		provider: ModelProvider<any>;
 		config: zConfig;
-		env: Partial<zEnv>;
+		env: Partial<zClientEnv>;
 		values: string[];
 	}) => {
 		const sdkModel = provider.getEmbeddingModel({

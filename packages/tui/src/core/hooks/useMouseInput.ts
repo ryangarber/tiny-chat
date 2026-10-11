@@ -88,7 +88,10 @@ export const useMouseInput = ({
 					}
 				}
 
-				if (MouseUtils.contains(bounds, event)) {
+				if (
+					MouseUtils.contains(bounds, event) &&
+					!MouseUtils.isCovered(element, event, rows)
+				) {
 					if (!hovers.current.has(i)) {
 						hovers.current.add(i);
 						onHoverStart?.({

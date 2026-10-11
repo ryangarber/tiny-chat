@@ -18,14 +18,10 @@ allowBuilds:
   tree-sitter-bash: true
   unrs-resolver: true
   workerd: true
-allowedDeprecatedVersions:
-  glob: "*"
-  "node-domexception": "*"
-  "whatwg-encoding": "*"
 minimumReleaseAgeExclude:
   - "@ryangarber/*"
   - "@prisma/*"
-  - prisma@8.0.0-rc.22
+  - prisma
 peerDependencyRules:
   allowedVersions:
     "@browser-ai/web-llm>ai": "7"
@@ -35,7 +31,6 @@ peerDependencyRules:
     "vitest": "5"
     "better-auth>prisma": "*"
     "@better-auth/prisma-adapter>prisma": "*"
-    "@prisma/composer-cli>@prisma/cli-engine": "*"
 overrides:
   "conventional-changelog-writer": "^9.1.1"
   "effect": "4.0.0-rc.115"
@@ -43,8 +38,11 @@ catalogs:
   typescript:
     "typescript": "^7.0.2"
   prisma:
-    "prisma": "8.0.0-rc.22"
-    "@prisma/orm-postgres": "8.0.0-rc.17"
-    "@prisma/orm-extension-paradedb": "8.0.0-rc.17"
-    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.17"
-    "@ryangarber/prisma-orm-extension-zod": "0.2.8"
+    "prisma": "8.0.0-rc.23"
+    "@prisma/orm-postgres": "8.0.0-rc.18"
+    "@prisma/orm-extension-paradedb": "8.0.0-rc.18"
+    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.18"
+    "@ryangarber/prisma-orm-extension-zod": "0.2.9"
+    "@ryangarber/better-auth-adapter-prisma": "0.1.9"
+patchedDependencies:
+  native-run: patches/native-run.patch

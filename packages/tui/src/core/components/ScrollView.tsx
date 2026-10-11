@@ -306,7 +306,7 @@ export default function ScrollView({
 		(event: MouseEvent) => {
 			if (!wheel) return false;
 			const node = viewportRef.current;
-			if (!node) return false;
+			if (!node || MouseUtils.isCovered(node, event, rows)) return false;
 			if (!MouseUtils.contains(MouseUtils.bounds(node, rows), event))
 				return false;
 			for (const nested of nestedRef.current) if (nested(event)) return true;

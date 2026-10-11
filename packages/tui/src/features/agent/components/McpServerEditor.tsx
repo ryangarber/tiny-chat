@@ -1,4 +1,5 @@
 import { hashKey } from "@tanstack/react-query";
+import chalk from "chalk";
 import { useWindowSize } from "ink";
 import { useState } from "react";
 import type { McpToolset } from "#client/features/agent/hooks/useTools.ts";
@@ -306,11 +307,7 @@ export default function McpServerEditor({
 			selected={selected}
 			setSelected={setSelected}
 			onOpen={push}
-			save={
-				dirty
-					? { label: "unsaved, reconnects the server", run: commit }
-					: undefined
-			}
+			save={dirty ? { run: commit } : undefined}
 			remove={{
 				name: "remove",
 				label: `remove "${name}"?`,
@@ -320,19 +317,16 @@ export default function McpServerEditor({
 				},
 			}}
 			refresh={{ run: onRefresh }}
-			before={
+			after={
 				leaving ? (
-					<Text color="yellowBright">
-						unsaved changes · back again to discard them
-					</Text>
+					<Text color="textSubtle">{chalk.bold("esc again")} back</Text>
 				) : (
 					<Text color={!isConnecting && error ? "redBright" : "textSubtle"}>
 						{isConnecting || !toolset
 							? "connecting..."
 							: error
 								? CommonUtils.formatError(toolset.status)
-								: toolset.tools.map((tool) => tool.name).join(", ") ||
-									"no tools"}
+								: `${toolset.tools.length} tool${toolset.tools.length === 1 ? "" : "s"}`}
 					</Text>
 				)
 			}

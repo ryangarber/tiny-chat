@@ -123,7 +123,7 @@ export default function Editor({
 			),
 		]
 			.join(" · ")
-			.slice(0, columns - 10);
+			.slice(0, columns - 12);
 	}, [config, status, modelArgs, columns, project]);
 
 	// The atoms are painted before the markdown, so a command or an attachment
@@ -362,10 +362,12 @@ export default function Editor({
 				</>
 			)}
 			<Box
-				alignItems="flex-end"
 				paddingX={2}
 				paddingY={1}
-				backgroundColor="surface"
+				backgroundColor="interior"
+				borderStyle="round"
+				border={true}
+				alignItems="flex-end"
 			>
 				<Textarea
 					focus={!disabled}

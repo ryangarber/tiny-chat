@@ -1,5 +1,5 @@
 import { existsSync, lstatSync } from "node:fs";
-import { CliUtils } from "#tui/core/utils/CliUtils.ts";
+import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 
 /** A run of the pasted text that is not a raw, unescaped space. */
 const TOKEN = /(?:\\.|[^\s\\])+/g;
@@ -35,7 +35,7 @@ export const FilePasteUtils = {
 				return null;
 			}
 
-			const resolved = CliUtils.resolve(unescaped);
+			const resolved = TuiUtils.resolve(unescaped);
 			if (!existsSync(resolved)) return null;
 
 			files.push({

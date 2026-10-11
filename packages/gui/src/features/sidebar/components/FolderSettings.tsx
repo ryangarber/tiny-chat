@@ -15,6 +15,7 @@ import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useShellSettings } from "#client/features/settings/hooks/useShellSettings.ts";
 import type { ProjectLike } from "#core/features/data/types/chat.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 
 export default function FolderSettings({
 	project,
@@ -22,6 +23,7 @@ export default function FolderSettings({
 	project: ProjectLike | null;
 }) {
 	const client = useContext(ClientContext);
+	const runtime = useRuntime();
 
 	const {
 		folders,
@@ -34,13 +36,7 @@ export default function FolderSettings({
 	} = useShellSettings({ project });
 
 	const pickFolder = async () => {
-		// Loaded on demand so the dialog plugin stays out of the web bundle.
-		const { open } = await import("@tauri-apps/plugin-dialog");
-		const path = await open({
-			directory: true,
-			multiple: false,
-			defaultPath: folders[0]?.path,
-		});
+		const path = await runtime.pickFolder?.({ defaultPath: folders[0]?.path });
 		if (path) addFolder.mutate({ project, folder: { path, whitelist: false } });
 	};
 
@@ -118,7 +114,7 @@ export default function FolderSettings({
 					</Paper>
 				);
 			})}
-			{client.desktop && (
+			{client.desktop && runtime.pickFolder && (
 				<Tooltip label="Choose a folder on this computer" position="right">
 					<Button
 						variant="default"

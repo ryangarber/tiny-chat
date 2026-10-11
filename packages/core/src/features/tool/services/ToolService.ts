@@ -61,7 +61,7 @@ export const ToolService = {
 			await createActionsToolset(
 				forToolset({
 					capabilities,
-					needs: ["actions"],
+					needs: ["actions", "persistence"],
 					instructions:
 						"Actions are recurring prompts, good for reminders and regular updates on topics. When a topic would benefit from such updates, ask the user if they'd like an action.",
 				}),
@@ -71,7 +71,7 @@ export const ToolService = {
 				forToolset({
 					capabilities,
 					// Embeddings only sharpen the search, so they are not required.
-					needs: ["memories"],
+					needs: ["memories", "persistence"],
 					instructions:
 						"Use these tools to manage memories about the user or to search prior memories/chats when it would improve a response.",
 				}),

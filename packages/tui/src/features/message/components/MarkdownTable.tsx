@@ -204,14 +204,8 @@ export function TableComponent({ children }: { children?: ReactNode }) {
 	);
 
 	return (
-		<Content formatter={() => toMarkdown(children)} backgroundColor="surface">
-			<Box
-				flexDirection="column"
-				width={width}
-				paddingX={2}
-				paddingY={1}
-				backgroundColor="surface"
-			>
+		<Content formatter={() => toMarkdown(children)}>
+			<Box flexDirection="column" width={width} paddingX={2} paddingY={1}>
 				<ColumnsContext.Provider value={columns}>
 					{children}
 				</ColumnsContext.Provider>

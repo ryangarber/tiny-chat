@@ -1,12 +1,21 @@
-import { execSync } from "node:child_process";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import { spawn } from "../../../scripts/spawn.ts";
 
 if (
 	!CommonUtils.isTruthy(process.env.CI) ||
 	CommonUtils.isTruthy(process.env.CI_TESTING)
 ) {
-	execSync("playwright install --with-deps --no-shell chromium", {
+	await spawn({
+		command: [
+			"pnpm",
+			"exec",
+			"playwright",
+			"install",
+			"--with-deps",
+			"chromium",
+		],
 		stdio: "inherit",
+		errors: "exit",
 	});
 } else {
 	console.log(":: skipping playwright");

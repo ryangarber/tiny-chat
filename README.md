@@ -40,13 +40,13 @@ Notes:
 
 ### Windows, macOS, and Linux
 
-Test the app by running `pnpm run dev:app`.\
-Build the app by running `pnpm run build:app`.
+Test the app by running `pnpm run dev:desktop` (or `dev:desktop:dist` to load a build of the UI instead of using HMR).\
+Build the app by running `pnpm run build:desktop`.
 
 ### iOS, Android
 
-Test the app by running `pnpm run dev:app:[ios/android]`.\
-Build the app by running `pnpm run build:app:[ios/android]`.
+Test the app by running `pnpm run dev:[ios/android]` (or `dev:[ios/android]:dist`).\
+Build the app by running `pnpm run build:[ios/android]`.
 
 ### Terminal
 

@@ -7,9 +7,6 @@
 		"source.organizeImports.biome": "explicit"
 	},
 	"biome.lsp.bin": "./node_modules/.bin/biome",
-	"rust-analyzer.cargo.buildScripts.enable": true,
-	"rust-analyzer.procMacro.enable": true,
-	"rust-analyzer.linkedProjects": ["apps/app/Cargo.toml"],
 	"js/ts.validate.enabled": true,
 	"js/ts.preferences.preferTypeOnlyAutoImports": true,
 	"js/ts.tsdk.path": "./node_modules/typescript",

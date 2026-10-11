@@ -8,6 +8,7 @@ import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { CodeLanguage } from "#core/core/utils/CodeUtils.ts";
 import { SourceUtils } from "#core/features/data/utils/SourceUtils.ts";
 import Popup from "#gui/core/components/Popup.tsx";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import Code from "#gui/features/code/components/Code.tsx";
 import Mermaid from "#gui/features/code/components/Mermaid.tsx";
 import { Table } from "#gui/features/message/components/MarkdownTable.tsx";
@@ -15,7 +16,6 @@ import Attachment from "#gui/features/part/components/Attachment.tsx";
 import Command from "#gui/features/part/components/Command.tsx";
 import Paste from "#gui/features/part/components/Paste.tsx";
 import Quote from "#gui/features/part/components/Quote.tsx";
-import { TauriUtils } from "#gui/features/tauri/utils/TauriUtils.ts";
 import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
 
 const CodeBlockContext = createContext(false);
@@ -206,13 +206,14 @@ const BlockquoteComponent: Components["blockquote"] = ({ node, children }) => {
 };
 
 const AComponent: Components["a"] = ({ href, children }) => {
+	const runtime = useRuntime();
 	return (
 		<a
 			href={href}
 			onClick={(e) => {
 				if (!href) return;
 				e.preventDefault();
-				void TauriUtils.open(href);
+				void runtime.open(href);
 			}}
 		>
 			{children}

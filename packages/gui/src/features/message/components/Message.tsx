@@ -8,7 +8,7 @@ import {
 	Text,
 	Tooltip,
 } from "@mantine/core";
-import { useClipboard, useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useTimeout } from "@mantine/hooks";
 import {
 	ArrowBendDownLeftIcon,
 	CopyIcon,
@@ -16,7 +16,12 @@ import {
 	TrashIcon,
 	XIcon,
 } from "@phosphor-icons/react";
-import { type CSSProperties, type ReactNode, useContext } from "react";
+import {
+	type CSSProperties,
+	type ReactNode,
+	useContext,
+	useState,
+} from "react";
 import { ClientContext } from "#client/client.ts";
 import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
@@ -25,6 +30,8 @@ import { useMessageBranches } from "#client/features/message/hooks/useMessageBra
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
+import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 import MessageBody from "#gui/features/message/components/MessageBody.tsx";
 
 export default function Message({
@@ -54,7 +61,9 @@ export default function Message({
 		useDisclosure(false);
 	const [isConfirmingDelete, { open: onConfirmDelete, close: onCancelDelete }] =
 		useDisclosure(false);
-	const clipboard = useClipboard();
+	const runtime = useRuntime();
+	const [copied, setCopied] = useState(false);
+	const resetCopied = useTimeout(() => setCopied(false), 2000);
 
 	const actions: ReactNode[] = [];
 	if (!isLast) {
@@ -127,17 +136,21 @@ export default function Message({
 										</Text>
 									</Group>
 								)}
-								<Tooltip label={clipboard.copied ? "Copied" : "Copy"}>
+								<Tooltip label={copied ? "Copied" : "Copy"}>
 									<ActionIcon
 										variant="subtle"
 										size={30}
-										onClick={() => {
-											clipboard.copy(
-												DataUtils.getText({
+										onClick={async () => {
+											await ControlUtils.copy({
+												runtime,
+												data: DataUtils.getText({
 													data: message.data,
 													join: "\n",
 												}),
-											);
+												mime: "text/plain",
+											});
+											setCopied(true);
+											resetCopied.start();
 										}}
 									>
 										<CopyIcon size={20} />

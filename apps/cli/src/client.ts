@@ -1,19 +1,11 @@
-import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
-import { readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import type { Readable } from "node:stream";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { AFMService } from "#cli/core/services/AFMService.ts";
 import { StorageService } from "#cli/core/services/StorageService.ts";
 import { TokenService } from "#cli/core/services/TokenService.ts";
-import { FileSystemUtils } from "#cli/core/utils/FileSystemUtils.ts";
 import { createClient } from "#client/client.ts";
+import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
+import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { CodeWorker } from "#core/core/utils/CodeUtils.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
-import { ToolOutputUtils } from "#core/features/tool/utils/ToolOutputUtils.ts";
-import { CliUtils } from "#tui/core/utils/CliUtils.ts";
 import { EditorInputService } from "#tui/features/editor/services/EditorInputService.ts";
 
 export const client = createClient({
@@ -23,6 +15,8 @@ export const client = createClient({
 		VITE_WEB_URL: String(process.env.VITE_WEB_URL),
 		VITE_WEB_PORT: String(process.env.VITE_WEB_PORT),
 		DEV: String(process.env.DEV),
+		DEV_HOST: String(process.env.DEV_HOST),
+		DEV_ENV: String(process.env.DEV_ENV),
 	},
 	getToken: () => TokenService.get(),
 	setToken: (token) => TokenService.set(token),
@@ -40,30 +34,7 @@ export const client = createClient({
 		worker.unref();
 		return worker;
 	},
-	transports: {
-		createStdio: ({ name, command, env, onStderr }) => {
-			const transport = new StdioClientTransport({
-				command: command[0],
-				args: command.slice(1),
-				env,
-				// Inherited, a server's stderr would write over the terminal UI.
-				stderr: "pipe",
-			});
-			// A `PassThrough`, there from the start when piped.
-			const stderr = transport.stderr as Readable | null;
-			stderr?.setEncoding("utf8");
-			stderr?.on("data", (chunk: string) => {
-				if (onStderr) onStderr(chunk);
-				else console.warn(`[mcp] ${name}:`, chunk);
-			});
-			return transport;
-		},
-		createStreamableHttp: ({ url, headers }) => {
-			return new StreamableHTTPClientTransport(new URL(url), {
-				requestInit: { headers },
-			});
-		},
-	},
+	transports: NodeTransportService.create(),
 	providers: {
 		getModelProviders: async () => {
 			const afm = await AFMService.getProvider();
@@ -78,139 +49,6 @@ export const client = createClient({
 		},
 	},
 	input: EditorInputService,
-	shell: {
-		os:
-			process.platform === "win32"
-				? "windows"
-				: process.platform === "darwin"
-					? "macos"
-					: "linux",
-		cwd: async () => {
-			return process.cwd();
-		},
-		resolveDir: async ({ path }) => {
-			path = await realpath(CliUtils.resolve(path));
-			if (!(await stat(path)).isDirectory()) {
-				throw new Error(`Not a directory: ${path}`);
-			}
-			return path;
-		},
-		locate: async ({ paths }) => {
-			for (const candidate of paths) {
-				const path = CliUtils.resolve(candidate);
-				if (
-					await stat(path).then(
-						(stats) => stats.isFile(),
-						() => false,
-					)
-				)
-					return path;
-			}
-			return null;
-		},
-		readFile: async ({ path }) => {
-			path = CliUtils.resolve(path);
-			return {
-				path,
-				data: await readFile(path),
-			};
-		},
-		writeFile: async ({ path, content }) => {
-			path = CliUtils.resolve(path);
-			mkdirSync(dirname(path), { recursive: true });
-			await writeFile(path, content);
-			return {
-				path,
-				success: true,
-			};
-		},
-		readFiles: async ({ paths, maxBytes }) =>
-			await FileSystemUtils.readFiles({
-				paths: paths.map((path) => CliUtils.resolve(path)),
-				maxBytes,
-			}),
-		readDir: async ({ path }) => {
-			path = CliUtils.resolve(path);
-			const entries = await readdir(path, { withFileTypes: true });
-			return entries.map((entry) => ({
-				path: CliUtils.resolve(path, entry.name),
-				is_dir: entry.isDirectory(),
-			}));
-		},
-		walk: async ({ path, ...options }) =>
-			await FileSystemUtils.walk({ path: CliUtils.resolve(path), ...options }),
-		// Spawned rather than buffered so output can be reported as it arrives;
-		// the accumulated text is still what the tool result is built from. Its
-		// own process group, so an interrupt reaches everything the shell
-		// started rather than only the shell.
-		spawn: async ({ program, args, cwd, env, stream, abort }) => {
-			return new Promise((resolve) => {
-				const child = spawn(program, args, {
-					cwd,
-					env: env ? { ...process.env, ...env } : process.env,
-					detached: process.platform !== "win32",
-					windowsHide: true,
-				});
-
-				const stdout = ToolOutputUtils.collect();
-				const stderr = ToolOutputUtils.collect();
-
-				let settled = false;
-				const settle = (code: number) => {
-					if (settled) return;
-					settled = true;
-					abort?.removeEventListener("abort", kill);
-					resolve({ code, stdout: stdout.text(), stderr: stderr.text() });
-				};
-
-				const signal = (name: NodeJS.Signals) => {
-					if (child.pid === undefined) return;
-					try {
-						// Windows has no groups to signal; the tree goes by its root.
-						if (process.platform === "win32") {
-							spawn("taskkill", ["/T", "/F", "/PID", String(child.pid)], {
-								windowsHide: true,
-							}).on("error", () => {});
-						} else process.kill(-child.pid, name);
-					} catch {
-						// Already gone.
-					}
-				};
-				function kill() {
-					signal("SIGTERM");
-					// Whatever ignores the polite request does not get a second one.
-					setTimeout(() => signal("SIGKILL"), 2000).unref();
-					settle(130);
-				}
-				if (abort?.aborted) kill();
-				else abort?.addEventListener("abort", kill, { once: true });
-
-				child.stdout?.setEncoding("utf8");
-				child.stdout?.on("data", (chunk: string) => {
-					if (settled) return;
-					stdout.push(chunk);
-					stream?.({ type: "stdout", value: chunk });
-				});
-
-				child.stderr?.setEncoding("utf8");
-				child.stderr?.on("data", (chunk: string) => {
-					if (settled) return;
-					stderr.push(chunk);
-					stream?.({ type: "stderr", value: chunk });
-				});
-
-				child.on("error", (error) => {
-					const value = `${error.message}\n`;
-					stderr.push(value);
-					stream?.({ type: "stderr", value });
-					settle(1);
-				});
-
-				child.on("close", (code) => {
-					settle(code ?? 0);
-				});
-			});
-		},
-	},
+	shell: NodeShellService.create(),
 	desktop: true,
 });

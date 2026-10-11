@@ -14,7 +14,6 @@ import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import type { Page } from "#tui/core/stores/useAppStore.ts";
@@ -397,13 +396,6 @@ export default function ConfigEditor({
 			selected={selected}
 			setSelected={setSelected}
 			selectFirstOnChange={false}
-			before={
-				!subagents && (
-					<Text color="textSubtle">
-						The model, tools and skills subagents run with
-					</Text>
-				)
-			}
 			renderItem={({ item }) => <ConfigItemText item={item} />}
 			renderEmpty={() => "nothing here yet"}
 			bindings={{

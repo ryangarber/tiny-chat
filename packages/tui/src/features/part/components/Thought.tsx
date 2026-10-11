@@ -4,8 +4,6 @@ import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
 
-const DETAILS_PROPS = { paddingY: 1, backgroundColor: "surface" } as const;
-
 /**
  * A run of thinking: open while it streams in, folded back to one line once
  * something follows it.
@@ -28,7 +26,7 @@ export default function Thought({
 	);
 
 	return (
-		<Task.Group detailsProps={DETAILS_PROPS}>
+		<Task.Group>
 			<Task expanded={expanded} onToggle={toggle}>
 				<Task.Status
 					status={pending ? "pending" : "success"}

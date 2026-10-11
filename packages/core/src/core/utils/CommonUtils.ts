@@ -278,4 +278,31 @@ export const CommonUtils = {
 		const score = distance(a, b);
 		return length > 0 ? score / length : 0;
 	},
+
+	getWatchMode: (
+		target: "gui" | "desktop" | "cli",
+		env = process.env,
+		argv = process.argv,
+	) => {
+		let watch = true;
+		for (let i = 0; i < argv.length; i++) {
+			if (argv[i].startsWith("--no-watch")) {
+				const value = argv[i].split("=")[1] ?? argv[i + 1];
+				if (value === target) {
+					watch = false;
+					break;
+				}
+			}
+		}
+		if (CommonUtils.isTruthy(env.NO_WATCH)) {
+			watch = false;
+		} else if ((env.NO_WATCH ?? "").split(/[, ]/).includes(target)) {
+			watch = false;
+		}
+		if (!watch) console.log(`:: watch mode disabled for ${target}`);
+		return {
+			watch,
+			argv: argv.filter((arg) => !arg.startsWith("--no-watch")),
+		};
+	},
 } as const;

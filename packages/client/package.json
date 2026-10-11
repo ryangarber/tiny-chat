@@ -16,14 +16,13 @@
 		"./*": "./src/*"
 	},
 	"dependencies": {
-		"@tanstack/react-query": "^5.104.1",
-		"core": "workspace:*",
-		"server": "workspace:*",
+		"@tanstack/react-query": "^5.104.3",
 		"@trpc/client": "^11.19.0",
 		"@trpc/server": "^11.19.0",
 		"@trpc/tanstack-react-query": "^11.19.0",
+		"core": "workspace:*",
 		"mdast-util-to-hast": "^13.2.1",
-		"react": "^19.3.0",
+		"react": "^19.3.1",
 		"rehype-katex": "^7.0.1",
 		"rehype-raw": "^7.0.0",
 		"rehype-sanitize": "^6.0.0",
@@ -34,6 +33,7 @@
 		"remark-parse": "^11.0.0",
 		"remark-rehype": "^11.1.2",
 		"remend": "^1.4.0",
+		"server": "workspace:*",
 		"unified": "^11.0.5",
 		"unist-util-visit": "^5.1.0",
 		"zustand": "^5.0.15"

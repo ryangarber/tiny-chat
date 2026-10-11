@@ -62,9 +62,9 @@ interface Bench {
 }
 
 const BENCH_RE =
-	/!bench(?:\s+(text|code|table|tools|tasks|thought|mixed))?(?:\s+(\d+))?(?:\s*~(\d+))?/i;
+	/%bench(?:\s+(text|code|table|tools|tasks|thought|mixed))?(?:\s+(\d+))?(?:\s*~(\d+))?/i;
 
-const SUB_RE = /!sub/;
+const SUB_RE = /%sub/;
 
 async function emitText(
 	controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>,

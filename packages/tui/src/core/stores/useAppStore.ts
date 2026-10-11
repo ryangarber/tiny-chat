@@ -9,7 +9,9 @@ export type Page =
 	| "github"
 	| "memories"
 	| "actions"
-	| "console";
+	| "console"
+	/** A block of content opened over the whole screen. */
+	| "fullscreen";
 
 export type Panel = "chats" | "files";
 

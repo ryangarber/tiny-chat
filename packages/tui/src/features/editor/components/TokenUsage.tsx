@@ -36,8 +36,9 @@ export default function TokenUsage({
 			bottom={0}
 			right={0}
 			backgroundColor={expanded ? "interior" : undefined}
-			paddingX={expanded ? 2 : 0}
-			paddingY={expanded ? 1 : 0}
+			borderStyle="round"
+			border={expanded}
+			paddingX={expanded ? 1 : 0}
 			minWidth={5}
 		>
 			<Box>

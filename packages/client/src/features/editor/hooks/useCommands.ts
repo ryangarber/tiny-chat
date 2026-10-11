@@ -50,7 +50,6 @@ export const useCommands = ({
 	onOpenChats?: () => void;
 	onOpenFiles?: () => void;
 	onOpenProjects?: () => void;
-	/** The model, tools and skills in one menu, offered in place of tools and skills. */
 	onOpenConfig?: () => void;
 	onOpenTools?: () => void;
 	onOpenSkills?: () => void;
@@ -58,7 +57,6 @@ export const useCommands = ({
 	onOpenGitHub?: () => void;
 	onOpenMemories?: () => void;
 	onOpenActions?: () => void;
-	/** What the app has logged, which is never printed where it could get in the way. */
 	onOpenConsole?: () => void;
 } = {}) => {
 	const client = useContext(ClientContext);

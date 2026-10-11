@@ -4,8 +4,8 @@ import type { zWebContext } from "#core/features/provider/types/web.ts";
 import Content, {
 	type ContentFormatterFunction,
 } from "#gui/core/components/Content.tsx";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
-import { TauriUtils } from "#gui/features/tauri/utils/TauriUtils.ts";
 
 export default function Web({
 	source,
@@ -14,6 +14,7 @@ export default function Web({
 }: Parameters<typeof Content>[0] & {
 	source: zWebContext;
 }) {
+	const runtime = useRuntime();
 	const formats = useMemo(() => ["Markdown"], []);
 	const formatter = useCallback<ContentFormatterFunction>(
 		() => ({
@@ -46,7 +47,7 @@ export default function Web({
 						truncate="end"
 						onClick={(event) => {
 							event.preventDefault();
-							void TauriUtils.open(source.url);
+							void runtime.open(source.url);
 						}}
 					>
 						{source.url}

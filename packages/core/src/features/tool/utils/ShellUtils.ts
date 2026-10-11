@@ -1,5 +1,12 @@
 import chalk from "chalk";
-import { type ParsedScript, parse, type Redirect, type Word } from "unbash";
+import {
+	forEachChild,
+	type ParsedScript,
+	parse,
+	type Redirect,
+	type SyntaxNode,
+	type Word,
+} from "unbash";
 import type {
 	Capabilities,
 	ShellCapability,
@@ -189,6 +196,8 @@ const isStaticWord = (word: Word): boolean =>
 			case "SingleQuoted":
 			case "AnsiCQuoted":
 				return true;
+			case "Glob":
+				return part.kind !== "bracket";
 			case "DoubleQuoted":
 			case "LocaleString":
 				return part.parts.every((child) => child.type === "Literal");
@@ -679,23 +688,14 @@ const walk = (
 	script: ParsedScript,
 	check: (item: Record<string, unknown>) => boolean,
 ): boolean => {
-	const seen = new Set<object>();
-	const visit = (value: unknown): boolean => {
-		if (!value || typeof value !== "object") return true;
-		if (seen.has(value)) return true;
-		seen.add(value);
-
-		const item = value as Record<string, unknown>;
-		if (!check(item)) return false;
-
-		// unbash exposes Word.parts via a lazy, non-enumerable getter.
-		if ("text" in item && "value" in item && "pos" in item && "end" in item) {
-			const word = value as unknown as Word;
-			if (!(word.parts ?? []).every(visit)) return false;
-		}
-		return Object.keys(item).every((key) =>
-			key === "parts" ? true : visit(item[key]),
-		);
+	// forEachChild resolves the lazy word parts and substitution scripts.
+	const visit = (node: SyntaxNode): boolean => {
+		if (!check(node as unknown as Record<string, unknown>)) return false;
+		let safe = true;
+		forEachChild(node, (child) => {
+			if (safe) safe = visit(child);
+		});
+		return safe;
 	};
 	return visit(script);
 };

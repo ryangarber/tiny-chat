@@ -1,90 +1,106 @@
 import { Box as _Box, type BoxProps as _BoxProps, type DOMElement } from "ink";
-import { type ReactNode, type RefAttributes, useContext, useMemo } from "react";
+import {
+	createContext,
+	type ReactNode,
+	type RefAttributes,
+	useContext,
+	useMemo,
+} from "react";
 import { TextContext } from "#tui/core/components/Text.tsx";
-import { type Border, useBorder } from "#tui/core/hooks/useBorder.ts";
 import { type Color, useColor } from "#tui/core/hooks/useColor.ts";
 
 export interface BoxProps
 	extends Omit<
-		_BoxProps,
-		| "backgroundColor"
-		| "border"
-		| "borderTop"
-		| "borderBottom"
-		| "borderLeft"
-		| "borderRight"
+		_BoxProps & TextContext,
+		"backgroundColor" | "borderColor" | "borderBackgroundColor"
 	> {
 	backgroundColor?: Color;
-	border?: Border;
-	borderTop?: Border;
-	borderBottom?: Border;
-	borderLeft?: Border;
-	borderRight?: Border;
+	borderColor?: Color;
+	borderBackgroundColor?: Color;
+	border?: boolean;
 }
+
+export interface BoxContext
+	extends Pick<
+		BoxProps,
+		"backgroundColor" | "borderColor" | "borderBackgroundColor"
+	> {}
+export const BoxContext = createContext<BoxContext | undefined>(undefined);
 
 export default function Box({
 	color,
 	dimColor,
+	wrap,
 	backgroundColor: _backgroundColor,
+	borderColor: _borderColor,
+	borderBackgroundColor: _borderBackgroundColor,
 	border: _border,
-	borderTop: _borderTop,
-	borderBottom: _borderBottom,
-	borderLeft: _borderLeft,
-	borderRight: _borderRight,
 	...props
-}: BoxProps &
-	TextContext & { children?: ReactNode } & RefAttributes<DOMElement>) {
-	const context = useContext(TextContext);
+}: BoxProps & { children?: ReactNode } & RefAttributes<DOMElement>) {
+	const context = useContext(BoxContext);
+	const textContext = useContext(TextContext);
 
-	const backgroundColor = useColor(_backgroundColor);
-	const border = useBorder(_border);
-	const borderTop = useBorder(_borderTop);
-	const borderBottom = useBorder(_borderBottom);
-	const borderLeft = useBorder(_borderLeft);
-	const borderRight = useBorder(_borderRight);
-
-	const borderProps = useMemo<_BoxProps>(() => {
-		const borders = [border, borderTop, borderBottom, borderLeft, borderRight];
-
-		const borderStyle =
-			borders.find((border) => border?.style)?.style ?? "round";
-
-		const conflictingStyle = borders.some(
-			(border) => border?.style && border?.style !== borderStyle,
-		);
-		if (conflictingStyle) {
-			throw new Error("conflicting border styles");
-		}
-
-		return {
-			borderStyle,
-			borderColor: border?.color,
-			borderLeft: borderLeft === null ? false : Boolean(borderLeft || border),
-			borderLeftColor: borderLeft?.color,
-			borderRight:
-				borderRight === null ? false : Boolean(borderRight || border),
-			borderRightColor: borderRight?.color,
-			borderTop: borderTop === null ? false : Boolean(borderTop || border),
-			borderTopColor: borderTop?.color,
-			borderBottom:
-				borderBottom === null ? false : Boolean(borderBottom || border),
-			borderBottomColor: borderBottom?.color,
-		};
-	}, [border, borderTop, borderBottom, borderLeft, borderRight]);
+	const mergedContext = useMemo<BoxContext>(
+		() => ({
+			backgroundColor: _backgroundColor ?? context?.backgroundColor,
+			borderColor: _borderColor ?? context?.borderColor,
+			borderBackgroundColor:
+				_borderBackgroundColor ?? context?.borderBackgroundColor,
+		}),
+		[
+			_backgroundColor,
+			context?.backgroundColor,
+			_borderColor,
+			context?.borderColor,
+			_borderBackgroundColor,
+			context?.borderBackgroundColor,
+		],
+	);
 
 	// On the inherited values, not the inherited object, so the same object is
 	// handed down for as long as the styling holds — see Text.
-	const mergedContext = useMemo<TextContext>(
+	const mergedTextContext = useMemo<TextContext>(
 		() => ({
-			color: color ?? context?.color,
-			dimColor: dimColor ?? context?.dimColor,
+			color: color ?? textContext?.color,
+			dimColor: dimColor ?? textContext?.dimColor,
+			wrap: wrap ?? textContext?.wrap,
 		}),
-		[color, context?.color, dimColor, context?.dimColor],
+		[
+			color,
+			textContext?.color,
+			dimColor,
+			textContext?.dimColor,
+			wrap,
+			textContext?.wrap,
+		],
 	);
 
+	const backgroundColor = useColor(mergedContext.backgroundColor);
+	const borderColor = useColor(mergedContext.borderColor ?? "border");
+	const borderBackgroundColor = useColor(
+		mergedContext.borderBackgroundColor ?? mergedContext.backgroundColor,
+	);
+
+	const borderProps = useMemo<_BoxProps>(() => {
+		return {
+			borderLeft: !!_border,
+			borderRight: !!_border,
+			borderTop: !!_border,
+			borderBottom: !!_border,
+		};
+	}, [_border]);
+
 	return (
-		<TextContext value={mergedContext}>
-			<_Box backgroundColor={backgroundColor} {...borderProps} {...props} />
-		</TextContext>
+		<BoxContext value={mergedContext}>
+			<TextContext value={mergedTextContext}>
+				<_Box
+					backgroundColor={backgroundColor}
+					borderColor={borderColor}
+					borderBackgroundColor={borderBackgroundColor}
+					{...borderProps}
+					{...props}
+				/>
+			</TextContext>
+		</BoxContext>
 	);
 }

@@ -16,6 +16,10 @@ node_modules
 # Testing
 coverage
 
+# Hutch
+.hutch/
+.cottontail-tmp/
+
 # Turbo
 .turbo
 
@@ -42,4 +46,3 @@ yarn-error.log*
 .reference/
 
 # Releases
-/CHANGES.md

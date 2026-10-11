@@ -1,11 +1,14 @@
 import type { RefCallback } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 
 const SCROLL_BOTTOM_THRESHOLD = 80;
 const SCROLL_REENGAGE_THRESHOLD = 2;
 const PROGRAMMATIC_SCROLL_GUARD_MS = 800;
 /** Room left above a node scrolled to, clear of the faded top edge. */
 const SCROLL_TO_NODE_MARGIN = 48;
+/** Slack past a runtime keyboard's own duration for the page to follow it. */
+const KEYBOARD_SETTLE_MS = 200;
 
 /** A node inside the viewport plus where it sat relative to the viewport's top edge. */
 interface ScrollAnchor {
@@ -22,8 +25,10 @@ interface ScrollAnchor {
  * - Disengages autoscroll on intentional upward scroll (wheel/touch)
  * - Holds the position the user picked when content above it changes
  * - Compensates for visual viewport resizes (mobile keyboard)
+ * - Leaves the content in place under a runtime's keyboard, even at the bottom
  */
 export function useAutoScroll() {
+	const runtime = useRuntime();
 	const viewportNodeRef = useRef<HTMLDivElement | null>(null);
 	const isAtBottomRef = useRef(true);
 	const isNearBottomRef = useRef(true);
@@ -32,6 +37,13 @@ export function useAutoScroll() {
 	const suppressScrollDisengageUntilRef = useRef(0);
 	const anchorRef = useRef<ScrollAnchor | null>(null);
 	const desiredScrollTopRef = useRef(0);
+	/**
+	 * How far short of the bottom following it aims: the room a runtime's
+	 * keyboard took from the viewport, which the content stays put for rather
+	 * than scrolling away from, until it grows or the user scrolls into it.
+	 */
+	const keyboardHoldRef = useRef(0);
+	const keyboardUntilRef = useRef(0);
 
 	const [isAtBottom, setIsAtBottom] = useState(true);
 	const [viewportEl, setViewportEl] = useState<HTMLDivElement | null>(null);
@@ -170,6 +182,7 @@ export function useAutoScroll() {
 		// Cancel any existing loop so we always have the freshest state
 		cancelScrollLoop();
 		const session = scrollSessionRef.current;
+		let prevClientHeight = el.clientHeight;
 
 		const step = () => {
 			if (!isAtBottomRef.current || session !== scrollSessionRef.current) {
@@ -177,8 +190,21 @@ export function useAutoScroll() {
 				return;
 			}
 
-			const targetTop = el.scrollHeight - el.clientHeight;
+			const resize = el.clientHeight - prevClientHeight;
+			prevClientHeight = el.clientHeight;
+			if (resize < 0 && performance.now() < keyboardUntilRef.current) {
+				keyboardHoldRef.current -= resize;
+			} else if (resize > 0) {
+				keyboardHoldRef.current = Math.max(0, keyboardHoldRef.current - resize);
+			}
+
 			const currentTop = el.scrollTop;
+			const bottom = el.scrollHeight - el.clientHeight;
+			keyboardHoldRef.current = Math.min(
+				keyboardHoldRef.current,
+				Math.max(0, bottom - currentTop),
+			);
+			const targetTop = bottom - keyboardHoldRef.current;
 			const diff = targetTop - currentTop;
 
 			if (diff > 1) {
@@ -202,6 +228,7 @@ export function useAutoScroll() {
 			// The bottom is the position to hold from here on, so anything we were
 			// restoring towards is obsolete.
 			anchorRef.current = null;
+			keyboardHoldRef.current = 0;
 			desiredScrollTopRef.current = getMaxScrollTop();
 			suppressScrollDisengageUntilRef.current =
 				performance.now() + PROGRAMMATIC_SCROLL_GUARD_MS;
@@ -311,6 +338,15 @@ export function useAutoScroll() {
 		syncNearBottomState,
 	]);
 
+	useEffect(
+		() =>
+			runtime.onKeyboard?.(({ duration }) => {
+				keyboardUntilRef.current =
+					performance.now() + duration * 1000 + KEYBOARD_SETTLE_MS;
+			}),
+		[runtime],
+	);
+
 	// Compensate for visual viewport resizing
 	useEffect(() => {
 		const vv = window.visualViewport;
@@ -398,6 +434,8 @@ export function useAutoScroll() {
 
 			if (isAtBottomRef.current) {
 				if (delta > 0) {
+					// New content is worth uncovering.
+					keyboardHoldRef.current = 0;
 					syncNearBottomState(true);
 					animateScrollToBottom();
 				}

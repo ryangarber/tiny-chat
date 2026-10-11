@@ -300,7 +300,7 @@ const interjecting = (text: string) => {
 describe("AgentService prompt prefix", () => {
 	it("keeps the prefix across the steps of parallel tool calls", async () => {
 		const { provider, requests } = recording();
-		await chat(provider).send("!bench tools 2 ~0", { toolset: files() });
+		await chat(provider).send("%bench tools 2 ~0", { toolset: files() });
 
 		// Calls, their results, then the answer.
 		expect(requests).toHaveLength(2);
@@ -312,7 +312,7 @@ describe("AgentService prompt prefix", () => {
 
 	it("keeps the prefix while a background call runs and reports in", async () => {
 		const { provider, requests } = recording();
-		await chat(provider).send("!bench tasks ~0", {
+		await chat(provider).send("%bench tasks ~0", {
 			toolset: files({ background: ["write_file"] }),
 		});
 
@@ -325,7 +325,7 @@ describe("AgentService prompt prefix", () => {
 	it("keeps the prefix when the user interjects between steps", async () => {
 		const { provider, requests } = recording();
 		const { send } = chat(provider);
-		await send("!bench tools 1 ~0", {
+		await send("%bench tools 1 ~0", {
 			toolset: files(),
 			interjections: interjecting("Also check the other folder"),
 		});
@@ -344,7 +344,7 @@ describe("AgentService prompt prefix", () => {
 		const toolset = files({ approval: ["write_file"] });
 
 		// Nobody answers, so the reply stops with the write unsettled.
-		await send("!bench tools 1 ~0", { toolset });
+		await send("%bench tools 1 ~0", { toolset });
 		expect(requests).toHaveLength(1);
 
 		await resume({ toolset, toolFeedback: async () => ({ approved: true }) });
@@ -356,7 +356,7 @@ describe("AgentService prompt prefix", () => {
 		const { provider, requests } = recording();
 		const { send } = chat(provider);
 
-		await send("!bench tools 1 ~0", { toolset: files() });
+		await send("%bench tools 1 ~0", { toolset: files() });
 		await send("Thanks!", { toolset: files() });
 
 		expectStablePrefix(requests);
@@ -367,7 +367,7 @@ describe("AgentService prompt prefix", () => {
 		const { send } = chat(provider);
 
 		// The interjection gets the model to call tools a second time.
-		await send("!bench tools 1 ~0", {
+		await send("%bench tools 1 ~0", {
 			toolset: files(),
 			interjections: interjecting("Do it again"),
 		});
@@ -385,17 +385,17 @@ describe("AgentService prompt prefix", () => {
 		const { provider, requests } = recording();
 		const { send, resume, messages } = chat(provider);
 
-		await send("!bench tasks ~0", {
+		await send("%bench tasks ~0", {
 			toolset: files({ background: ["write_file"] }),
 		});
-		await send("!bench tools 2 ~0", {
+		await send("%bench tools 2 ~0", {
 			toolset: files(),
 			interjections: interjecting("Make it quick"),
 		});
 		const toolset = files({ approval: ["write_file"] });
-		await send("!bench tools 1 ~0", { toolset });
+		await send("%bench tools 1 ~0", { toolset });
 		await resume({ toolset, toolFeedback: async () => ({ approved: true }) });
-		await send("!bench mixed 8 ~0", { toolset: files() });
+		await send("%bench mixed 8 ~0", { toolset: files() });
 		await send("Thanks!", { toolset: files() });
 
 		expect(messages).toHaveLength(10);

@@ -14,8 +14,7 @@ export type Border = BorderString | BorderObject;
 /**
  * Parses a border string, approximating transparency based on the theme.
  */
-/** @lintignore */
-export const getBorder = (
+const getBorder = (
 	border: Border | undefined,
 	colorScheme: ColorScheme,
 ): BorderObject | null | undefined => {
@@ -33,8 +32,9 @@ export const getBorder = (
 		.split(" ")
 		.map((part) => part.trim())
 		.filter(Boolean);
-	if (parts.length < 1 || parts.length > 2)
+	if (parts.length < 1 || parts.length > 2) {
 		throw new Error("invalid border string");
+	}
 
 	// find a style or try parsing as color
 	for (const part of parts) {

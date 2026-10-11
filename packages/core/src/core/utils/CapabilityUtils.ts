@@ -54,17 +54,13 @@ export const CapabilityUtils = {
 	}: CapabilityConditions): CapabilitySet => {
 		const settings = SettingsUtils.of(user, project);
 
-		// Incognito and temporary chats leave nothing behind, so nothing that
-		// writes back to the user is offered to them.
-		const personal = !incognito && !temporary;
-
 		return {
 			chatShell: true,
 			github: true,
 			shell: desktop,
 			browser: desktop,
-			actions: personal && message,
-			memories: personal,
+			actions: !incognito && message,
+			memories: !incognito,
 			web: (["search", "view"] satisfies zWebFeature[]).some(
 				(feature) =>
 					!!WebProviderService.getBestProvider({ user, providers, feature }),
@@ -74,6 +70,7 @@ export const CapabilityUtils = {
 				chat &&
 				message &&
 				!!ProviderUtils.isValid(providers, settings.subagentConfig),
+			persistence: !incognito && !temporary,
 		};
 	},
 

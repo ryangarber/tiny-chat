@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from "react";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
+import type { ClientRuntime } from "#gui/core/types/runtime.ts";
 
 export const ControlUtils = {
 	/**
@@ -27,10 +28,12 @@ export const ControlUtils = {
 	},
 
 	copy: async ({
+		runtime,
 		filename,
 		data,
 		mime,
 	}: {
+		runtime: ClientRuntime;
 		filename?: string;
 		data: string | Blob;
 		mime?: string;
@@ -38,6 +41,7 @@ export const ControlUtils = {
 		mime ??= await FileTypeUtils.getMime({ path: filename, data });
 
 		data = ControlUtils.preprocess({ data, mime });
+		if (runtime.copy) return runtime.copy({ mime, data });
 
 		await navigator.clipboard.write([
 			new ClipboardItem({

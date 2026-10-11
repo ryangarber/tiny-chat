@@ -4,47 +4,15 @@
 		"lint": {
 			"dependsOn": ["^lint"]
 		},
-		"app#lint": {
-			"inputs": [
-				"src/**/*.rs",
-				"build.rs",
-				"Cargo.toml",
-				"Cargo.lock",
-				"tauri.conf.json"
-			],
-			"outputs": ["target/**/*.rs", "target/**/*.d"],
-			"cache": true
-		},
 		"typecheck": {
 			"dependsOn": ["^typecheck"]
-		},
-		"app#typecheck": {
-			"inputs": [
-				"src/**/*.rs",
-				"build.rs",
-				"Cargo.toml",
-				"Cargo.lock",
-				"tauri.conf.json"
-			],
-			"outputs": ["target/**/*.rs", "target/**/*.d"],
-			"cache": true
 		},
 		"test": {
 			"dependsOn": ["^test"]
 		},
-		"app#test": {
-			"inputs": [
-				"src/**/*.rs",
-				"build.rs",
-				"Cargo.toml",
-				"Cargo.lock",
-				"tauri.conf.json"
-			],
-			"outputs": ["target/**/*.rs", "target/**/*.d"],
-			"cache": true
-		},
 		"smoketest": {
 			"dependsOn": ["^smoketest"]
 		}
-	}
+	},
+	"globalPassThroughEnv": ["DEV", "DEV_HOST", "DEV_REMOTE", "DEV_ENV"]
 }

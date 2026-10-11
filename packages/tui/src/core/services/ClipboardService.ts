@@ -6,7 +6,7 @@ import {
 	setImageBinary,
 	setText,
 } from "@crosscopy/clipboard";
-import { CliUtils } from "#tui/core/utils/CliUtils.ts";
+import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 
 /** What the clipboard was holding when it was read. */
 export type ClipboardContent =
@@ -30,7 +30,7 @@ export const ClipboardService = {
 	 */
 	copy: (text: string) => {
 		if (!text) return;
-		setText(CliUtils.plain(text)).catch((error) => {
+		setText(TuiUtils.plain(text)).catch((error) => {
 			console.warn("[ClipboardService] failed to copy", error);
 		});
 	},

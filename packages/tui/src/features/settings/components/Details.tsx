@@ -35,6 +35,7 @@ export default function Details({
 	remove,
 	refresh,
 	before,
+	after,
 }: {
 	groups: CompletionGroup<DetailsItem>[];
 	selected: number;
@@ -54,6 +55,7 @@ export default function Details({
 	};
 	refresh?: { run: () => void };
 	before?: ReactNode;
+	after?: ReactNode;
 }) {
 	return (
 		<Completions<CompletionGroup<DetailsItem>, DetailsItem>
@@ -76,6 +78,7 @@ export default function Details({
 			setSelected={setSelected}
 			selectFirstOnChange={false}
 			before={before}
+			after={after}
 			itemProps={{
 				flexGrow: 1,
 				flexShrink: 1,
@@ -106,7 +109,7 @@ export default function Details({
 				) : item.value === SAVE ? (
 					<>
 						<Box flexShrink={0} marginRight={2}>
-							<Text color="greenBright">{item.name}</Text>
+							<Text color="primary">{item.name}</Text>
 						</Box>
 						{item.state && <Text color="textSubtle">{item.state}</Text>}
 					</>

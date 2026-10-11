@@ -11,16 +11,34 @@ on:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to tauri.conf.json)"
+        description: "Version number to use for the release tag/name (defaults to package.json)"
         required: false
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
         required: false
         type: string
+      ref:
+        description: "What to build, if not the version's tag"
+        required: false
+        type: string
+      dry_run:
+        description: "Build but publish nothing"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -40,22 +58,21 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     environment: production
+    env:
+      # Always, off main.
+      DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.version || github.ref }}
+          ref: ${{ inputs.ref || inputs.version || github.ref }}
           submodules: recursive
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
+      - name: Install dependencies
+        uses: pnpm/setup@v3
         with:
-          node-version: lts/*
-          cache: pnpm
+          cache: true
 
       - name: Create .env
         shell: bash
@@ -78,8 +95,10 @@ jobs:
           AUTH_HUGGINGFACE_SECRET=${{ secrets.AUTH_HUGGINGFACE_SECRET }}
           EOF
 
-      - name: Install dependencies
-        run: pnpm ci
+      # A dry run builds a commit whose version rylease never wrote.
+      - name: Write version
+        if: env.DRY_RUN == 'true' && inputs.version
+        run: pnpm pkg set "version=${{ inputs.version }}"
 
       - name: Create Swift cache key
         if: matrix.platform == 'xcode-27'
@@ -96,15 +115,15 @@ jobs:
         if: matrix.platform == 'xcode-27'
         uses: actions/cache@v6
         with:
-          path: lib/afmize/.build
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.swift-toolchain.outputs.fingerprint }}-afmize-${{ hashFiles('lib/afmize/Package.swift', 'lib/afmize/Package.resolved', 'lib/afmize/Sources/**') }}
+          path: vendor/afmize/.build
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.swift-toolchain.outputs.fingerprint }}-afmize-${{ hashFiles('vendor/afmize/Package.swift', 'vendor/afmize/Package.resolved', 'vendor/afmize/Sources/**') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-${{ steps.swift-toolchain.outputs.fingerprint }}-afmize-
 
       # The CLI embeds afmize's dynamic library on macOS. `build:cli` builds it
       # too (and fails in CI without it); this step only keeps its log apart.
       - name: Build afmize
         if: matrix.platform == 'xcode-27'
-        run: swift build --package-path lib/afmize --configuration release --product dynafmize
+        run: swift build --package-path vendor/afmize --configuration release --product dynafmize
 
       - name: Build CLI
         run: pnpm run build:cli
@@ -122,40 +141,16 @@ jobs:
         run: |
           VERSION="${{ inputs.version }}"
           if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./apps/app/tauri.conf.json').version")
+            VERSION=$(node -pe "require('./package.json').version")
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release asset
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
-          NOTES: ${{ inputs.notes }}
-        run: |
-          # Ensure a published release exists. Create is best-effort: another
-          # job (desktop/create-release) may win the race; treat that as success.
-          if ! gh release view "$VERSION" >/dev/null 2>&1; then
-            NOTES_FILE=$(mktemp)
-            printf '%s' "$NOTES" > "$NOTES_FILE"
-            if ! gh release create "$VERSION" \
-                --title "$VERSION" \
-                --notes-file "$NOTES_FILE"; then
-              gh release view "$VERSION" >/dev/null 2>&1 \
-                || { echo "Failed to create or find release $VERSION"; exit 1; }
-              echo "Release $VERSION already exists (create race), continuing"
-            fi
-          fi
-
-          # Brief wait for API visibility after a concurrent create.
-          for attempt in 1 2 3 4 5; do
-            gh release view "$VERSION" >/dev/null 2>&1 && break
-            if [ "$attempt" -eq 5 ]; then
-              echo "Release $VERSION not visible after waiting"
-              exit 1
-            fi
-            sleep "$attempt"
-          done
-
-          gh release upload "$VERSION" "$RUNNER_TEMP/${{ matrix.asset }}" --clobber
+      - name: Publish
+        uses: ./.github/actions/publish
+        with:
+          version: ${{ steps.version.outputs.version }}
+          notes: ${{ inputs.notes }}
+          files: ${{ runner.temp }}/${{ matrix.asset }}
+          artifact: cli-${{ matrix.asset }}
+          dry-run: ${{ env.DRY_RUN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

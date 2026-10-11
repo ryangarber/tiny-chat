@@ -34,7 +34,7 @@ export type AFMEvent =
 	  };
 
 /**
- * How a host reaches afmize's C ABI — through Tauri commands in the app, or
+ * How a host reaches afmize — through a native plugin or helper in the apps, or
  * through FFI in the CLI. Each call mirrors one `afmize_*` function.
  */
 export interface AFMBridge {

@@ -105,6 +105,35 @@ const locate = (text: string, wrapped: string, index: number) => {
 	return { line, column: stringWidth(wrapped.slice(lineStart, j)) };
 };
 
+/** Overlays drawn over the rest, each taking the mouse wherever it is drawn. */
+const layers: DOMElement[] = [];
+
+/** Child indices from the root down to `node`. */
+const path = (node: DOMElement) => {
+	const indices: number[] = [];
+	for (let child = node; child.parentNode; child = child.parentNode)
+		indices.unshift(child.parentNode.childNodes.indexOf(child));
+	return indices;
+};
+
+/** Orders nodes as Ink draws them: a later sibling over an earlier one, and a child over its parent. */
+const byDrawOrder = (a: DOMElement, b: DOMElement) => {
+	const [pathA, pathB] = [path(a), path(b)];
+	for (let i = 0; i < Math.min(pathA.length, pathB.length); i++)
+		if (pathA[i] !== pathB[i]) return pathA[i] - pathB[i];
+	return pathA.length - pathB.length;
+};
+
+const isInside = (node: DOMElement, ancestor: DOMElement) => {
+	for (
+		let parent: DOMElement | undefined = node;
+		parent;
+		parent = parent.parentNode
+	)
+		if (parent === ancestor) return true;
+	return false;
+};
+
 export const MouseUtils = {
 	/**
 	 * Pulls every mouse report out of a chunk of terminal input, ignoring
@@ -239,4 +268,26 @@ export const MouseUtils = {
 		point.x < bounds.x + bounds.width &&
 		point.y >= bounds.y &&
 		point.y < bounds.y + bounds.height,
+
+	/**
+	 * Draws `node` as an overlay: where it lies, only what is drawn inside it
+	 * takes the mouse, until removed.
+	 */
+	addLayer: (node: DOMElement) => {
+		layers.push(node);
+		return () => {
+			layers.splice(layers.indexOf(node), 1);
+		};
+	},
+
+	/** Whether an overlay is drawn over `node` at `point`, hiding it from the mouse there. */
+	isCovered: (node: DOMElement, point: MousePoint, rows: number) => {
+		const top = layers
+			.filter((layer) =>
+				MouseUtils.contains(MouseUtils.bounds(layer, rows), point),
+			)
+			.sort(byDrawOrder)
+			.at(-1);
+		return !!top && !isInside(node, top);
+	},
 } as const;

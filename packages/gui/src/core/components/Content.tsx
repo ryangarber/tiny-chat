@@ -29,6 +29,7 @@ import {
 	useState,
 } from "react";
 import type { PromiseOr } from "#core/core/types/common.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 
 export type ContentFormats<T extends string = string> = T[];
@@ -54,6 +55,7 @@ function useCopy<T extends string>(
 	formatter?: ContentFormatter<T>,
 	timeout = 2000,
 ) {
+	const runtime = useRuntime();
 	const [isCopied, setCopied] = useState(false);
 	const timeoutRef = useRef(0);
 
@@ -61,18 +63,13 @@ function useCopy<T extends string>(
 		async (format: T) => {
 			if (!formatter) return;
 
-			if (!navigator?.clipboard?.writeText) {
-				console.error("[CopyButton] missing clipboard api");
-				return;
-			}
-
 			try {
 				if (!isCopied) {
 					const formatted =
 						typeof formatter === "function"
 							? await formatter(format)
 							: formatter;
-					await ControlUtils.copy(formatted);
+					await ControlUtils.copy({ runtime, ...formatted });
 					setCopied(true);
 					timeoutRef.current = window.setTimeout(
 						() => setCopied(false),
@@ -83,7 +80,7 @@ function useCopy<T extends string>(
 				console.error("[CopyButton] failed to copy:", error);
 			}
 		},
-		[isCopied, timeout, formatter],
+		[runtime, isCopied, timeout, formatter],
 	);
 
 	useEffect(() => {
@@ -288,7 +285,7 @@ export default function Content<T extends string>({
 				opened={opened}
 				onClose={close}
 				withCloseButton={false}
-				size="auto"
+				size="100%"
 				centered
 				overlayProps={{ blur: 3 }}
 			>

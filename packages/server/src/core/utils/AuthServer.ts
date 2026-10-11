@@ -1,15 +1,16 @@
 import { prisma8Adapter } from "@ryangarber/better-auth-adapter-prisma";
 import { betterAuth } from "better-auth";
 import { anonymous, bearer } from "better-auth/plugins";
-import { internalIpV4 } from "internal-ip";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { userFields } from "#core/prisma/better-auth-adapter.ts";
 import { db } from "#server/db.ts";
 
+const dev = CommonUtils.isTruthy(process.env.DEV);
+
 export const AuthServer = userFields.inferClient(
 	betterAuth({
-		baseURL: process.argv.includes("--dev")
-			? `http://${process.argv.includes("--host") ? await internalIpV4() : "localhost"}:${process.env.VITE_SERVER_PORT}`
+		baseURL: dev
+			? `http://${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`
 			: process.env.VITE_SERVER_URL,
 		basePath: CommonUtils.endpoints.auth,
 		database: prisma8Adapter(db),
@@ -19,8 +20,16 @@ export const AuthServer = userFields.inferClient(
 			},
 			additionalFields: userFields.additionalFields,
 		},
+		// In dev, the GUI's Vite server: from a host app's webview at DEV_HOST,
+		// which is the LAN's address for a phone, and from a browser on this
+		// machine at localhost.
 		trustedOrigins: [
-			`http://${process.argv.includes("--host") ? await internalIpV4() : "localhost"}:${process.env.VITE_WEB_PORT}`,
+			...(dev
+				? [
+						`http://${process.env.DEV_HOST}:${process.env.VITE_WEB_PORT}`,
+						`http://localhost:${process.env.VITE_WEB_PORT}`,
+					]
+				: []),
 			process.env.VITE_WEB_URL as string,
 		],
 		socialProviders: {

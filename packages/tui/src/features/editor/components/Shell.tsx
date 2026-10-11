@@ -113,6 +113,8 @@ export default function Shell() {
 			flexDirection="column"
 			flexShrink={0}
 			backgroundColor="interior"
+			borderStyle="round"
+			border={true}
 		>
 			{run ? (
 				<ShellRunView run={run} toolsets={toolsets} onDismiss={dismiss} />

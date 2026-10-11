@@ -10,11 +10,11 @@ import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
-import Background from "#gui/core/components/Background.tsx";
 import Console from "#gui/core/components/Console.tsx";
-import Tauri from "#gui/core/components/Tauri.tsx";
+import Tasks from "#gui/core/components/Tasks.tsx";
 import { useExperiments } from "#gui/core/hooks/useExperiments.tsx";
 import { setHashbangQuery, useHashbang } from "#gui/core/hooks/useHashbang.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useViewport } from "#gui/core/hooks/useViewport.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
@@ -22,7 +22,6 @@ import Chat from "#gui/features/chat/components/Chat.tsx";
 import ChatSources from "#gui/features/chat/components/ChatSources.tsx";
 import Find from "#gui/features/find/components/Find.tsx";
 import Sidebar from "#gui/features/sidebar/components/Sidebar.tsx";
-import { TauriUtils } from "#gui/features/tauri/utils/TauriUtils.ts";
 import mantineTheme, { cssResolver } from "#gui/theme.tsx";
 
 /**
@@ -57,6 +56,7 @@ function ProjectShortcut() {
 }
 
 export default function App() {
+	const runtime = useRuntime();
 	const { query } = useHashbang();
 	const { session } = useSession({
 		token: {
@@ -70,6 +70,10 @@ export default function App() {
 	});
 	useExperiments();
 	const { height: viewportHeight, containerRef } = useViewport();
+	// What the keyboard leaves of the viewport; see `useViewport`.
+	const appHeight = `calc(${viewportHeight}px - var(--keyboard-inset, 0px))`;
+	const keyboardTransition = (property: string) =>
+		`${property} var(--keyboard-transition, 0s)`;
 	const { theme } = useThemes();
 	usePrepareCode();
 	useDefaultProject();
@@ -255,9 +259,16 @@ export default function App() {
 			cssVariablesResolver={cssResolver}
 		>
 			<ModalsProvider>
-				<Tauri />
+				<Tasks />
 				<ProjectShortcut />
-				<Box pos="relative" h={viewportHeight} ref={containerRef}>
+				<Box
+					pos="relative"
+					ref={containerRef}
+					style={{
+						height: appHeight,
+						transition: keyboardTransition("height"),
+					}}
+				>
 					<LoadingOverlay
 						visible={session.isPending}
 						zIndex={1000}
@@ -267,7 +278,7 @@ export default function App() {
 					<Find
 						targetRef={containerRef}
 						global
-						disabled={!TauriUtils.isTauri()}
+						disabled={runtime.platform === "web"}
 					/>
 					<AppShell
 						ref={appShellRef}
@@ -283,8 +294,12 @@ export default function App() {
 							collapsed: { desktop: !isAsideOpen, mobile: !isAsideOpen },
 						}}
 						style={{
-							height: `${viewportHeight}px`,
-							maxHeight: `${viewportHeight}px`,
+							height: appHeight,
+							maxHeight: appHeight,
+							transition: [
+								keyboardTransition("height"),
+								keyboardTransition("max-height"),
+							].join(", "),
 							overflow: "hidden",
 							//*REVERT?* transform: `translateY(${viewport.offsetTop}px)`,
 						}}
@@ -302,10 +317,13 @@ export default function App() {
 									: "width 250ms ease, min-width 250ms ease, transform 300ms ease",
 							},
 							main: {
-								transition:
+								transition: [
 									isResizingSidebar || isResizingAside
 										? "padding-inline-start 0ms, padding-inline-end 0ms"
 										: "padding-inline-start 250ms ease, padding-inline-end 250ms ease",
+									keyboardTransition("height"),
+									keyboardTransition("max-height"),
+								].join(", "),
 							},
 						}}
 					>
@@ -370,13 +388,14 @@ export default function App() {
 						</AppShell.Navbar>
 						<AppShell.Main
 							style={{
-								height: `${viewportHeight}px`,
-								maxHeight: `${viewportHeight}px`,
+								height: appHeight,
+								maxHeight: appHeight,
 								minHeight: 0,
 								overflow: "hidden",
-								// The header paints behind the notch; keep chat content in the safe area.
+								// The header paints behind the notch and the chat runs under the home
+								// indicator; keep chat content in the safe area. The composer takes the
+								// bottom inset itself.
 								paddingTop: "env(safe-area-inset-top, 0px)",
-								paddingBottom: "env(safe-area-inset-bottom, 0px)",
 								paddingLeft: isMobile
 									? "env(safe-area-inset-left, 0px)"
 									: "calc(var(--app-shell-navbar-offset, 0px) + env(safe-area-inset-left, 0px))",
@@ -407,7 +426,6 @@ export default function App() {
 					</AppShell>
 				</Box>
 				<Console />
-				<Background />
 			</ModalsProvider>
 		</MantineProvider>
 	);

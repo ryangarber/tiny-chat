@@ -1,3 +1,3 @@
-[submodule "lib/afmize"]
-	path = lib/afmize
+[submodule "vendor/afmize"]
+	path = vendor/afmize
 	url = https://github.com/ryangarber/afmize.git

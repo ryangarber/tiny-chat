@@ -1,5 +1,4 @@
-import type { Transport } from "@modelcontextprotocol/client";
-import { inferPrismaClient } from "@ryangarber/better-auth-adapter-prisma/client";
+import { inferAuthClient } from "@ryangarber/better-auth-adapter-prisma/client";
 import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
@@ -9,7 +8,7 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { createContext } from "react";
-import { z } from "zod";
+import type { ClientTransports } from "#client/features/agent/types/transport.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { WorkingDirectoryService } from "#client/features/chat/services/WorkingDirectoryService.ts";
 import type { ClientInput } from "#client/features/editor/services/ComposerService.ts";
@@ -18,7 +17,7 @@ import {
 	HostShellService,
 } from "#client/features/shell/services/HostShellService.ts";
 import { JsonService } from "#core/core/services/JsonService.ts";
-import { zEnv, type zProviderEnv } from "#core/core/types/env.ts";
+import type { zClientEnv, zProviderEnv } from "#core/core/types/env.ts";
 import { CodeUtils, type CodeWorker } from "#core/core/utils/CodeUtils.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
@@ -44,30 +43,12 @@ export interface ClientProviders {
 	}) => Promise<ProviderState<ProviderStatus>[]>;
 }
 
-export interface ClientTransports {
-	createStdio?: (_: {
-		name: string;
-		command: string[];
-		env?: Record<string, string>;
-		/**
-		 * Receives what the server writes to stderr, which is never passed
-		 * through to the host's own: in a terminal it would tear the UI.
-		 */
-		onStderr?: (text: string) => void;
-	}) => Transport;
-
-	createStreamableHttp?: (_: {
-		name: string;
-		url: URL;
-		headers?: Record<string, string>;
-	}) => Transport;
-}
+export type { ClientTransports };
 
 export type ClientShell = HostShellPrimitives;
 
 export const createClient = ({
-	env: _env,
-	host = "localhost",
+	env,
 	getToken,
 	setToken,
 	getStorage,
@@ -80,8 +61,7 @@ export const createClient = ({
 	highlighter,
 	queryClient = new QueryClient(),
 }: {
-	env: zEnv;
-	host?: string;
+	env: zClientEnv & { DEV_HOST?: string };
 	getToken: () => string | null | undefined;
 	setToken: (token: string | null | undefined) => void;
 	getStorage: <T>(key: string) => T | null;
@@ -95,23 +75,17 @@ export const createClient = ({
 	highlighter?: () => CodeWorker;
 	queryClient?: QueryClient;
 }) => {
-	const env = zEnv.safeParse(_env);
-	if (!env.success) {
-		console.error(z.treeifyError(env.error));
-		throw new Error("invalid environment");
-	}
-
 	CodeUtils.setWorker(highlighter);
 
-	const webUrl = CommonUtils.isTruthy(env.data.DEV)
-		? `http://${host}:${env.data.VITE_WEB_PORT}`
-		: env.data.VITE_WEB_URL;
+	const webUrl = env.DEV_HOST
+		? `http://${env.DEV_HOST}:${env.VITE_WEB_PORT}`
+		: env.VITE_WEB_URL;
 
-	const serverUrl = CommonUtils.isTruthy(env.data.DEV)
-		? `http://${host}:${env.data.VITE_SERVER_PORT}`
-		: env.data.VITE_SERVER_URL;
+	const serverUrl = env.DEV_HOST
+		? `http://${env.DEV_HOST}:${env.VITE_SERVER_PORT}`
+		: env.VITE_SERVER_URL;
 
-	const auth = inferPrismaClient<typeof userFields>()(
+	const auth = inferAuthClient<typeof userFields>()(
 		createAuthClient({
 			baseURL: serverUrl,
 			basePath: CommonUtils.endpoints.auth,
@@ -145,7 +119,7 @@ export const createClient = ({
 	});
 
 	const providerEnv: zProviderEnv = {
-		...env.data,
+		...env,
 		PROVIDER_RELAY_URL: serverUrl,
 	};
 

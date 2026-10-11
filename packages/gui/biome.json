@@ -3,7 +3,7 @@
 	"root": false,
 	"extends": "//",
 	"files": {
-		"includes": ["**", "!src/theme.css", "!generated"]
+		"includes": ["**", "!public", "!src/theme.css", "!generated"]
 	},
 	"css": {
 		"parser": {

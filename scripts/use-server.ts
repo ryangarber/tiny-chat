@@ -1,15 +1,5 @@
 #!/usr/bin/env node
 
-import { zEnv } from "../packages/core/src/core/types/env.ts";
-import { create, print } from "./use-stdout.ts";
-
-config({ path: resolve(import.meta.dirname, "../.env"), quiet: true });
-try {
-	zEnv.parse({ ...process.env });
-} catch {
-	throw new Error("invalid environment");
-}
-
 import { type ChildProcess, spawn } from "node:child_process";
 import {
 	mkdirSync,
@@ -23,10 +13,14 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import { concurrently } from "concurrently";
-import { config } from "dotenv";
 import waitOn from "wait-on";
+import { zClientEnv } from "../packages/core/src/core/types/env.ts";
+import { useEnv } from "./use-env.ts";
+import { create, print } from "./use-stdout.ts";
 
-export const serverUrl = `http://localhost:${process.env.VITE_SERVER_PORT}`;
+useEnv({ type: zClientEnv });
+
+export const serverUrl = `http://${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`;
 
 export async function isServerLive() {
 	const update = create(`trying server at ${serverUrl}`);
@@ -53,49 +47,6 @@ export async function isServerNeeded(start: boolean | null | undefined) {
 		print({ message: "waiting for a server..." });
 	}
 	return false;
-}
-
-export async function useServer(
-	then: string[],
-	{ start, host }: { start?: boolean | null; host?: true } = {},
-) {
-	print({ message: "starting..." });
-
-	const doStart = await isServerNeeded(start);
-
-	if (then.length !== 0) {
-		print({
-			message: `running ${then.length} command${then.length !== 1 ? "s" : ""}...`,
-		});
-		try {
-			await concurrently(
-				[
-					...(doStart
-						? [
-								{
-									name: "server",
-									command: `pnpm -w dev:server ${host ? "--host" : ""}`,
-								},
-							]
-						: []),
-					...then.map((then) => {
-						const [, name, command] =
-							/^(?:\[([^\]]+)])?\s*(.*)$/.exec(then) ?? [];
-						return { name, command: `wait-on ${serverUrl} && ${command}` };
-					}),
-				],
-				{
-					killOthersOn: ["success", "failure"],
-					killTimeout: 5_000,
-					prefixColors: "auto",
-				},
-			).result;
-		} catch (object) {
-			if (object instanceof Error) throw object;
-			// concurrently rejects with exit events when a command fails.
-			process.exitCode = 1;
-		}
-	}
 }
 
 // Processes that share one server port (parallel Vitest projects under turbo,
@@ -195,15 +146,13 @@ async function stopServer(pid: number) {
 	}
 }
 
-export async function useServerProcess({
+export async function useServer({
 	execPath = process.execPath,
 	start,
-	host,
 	quiet,
 }: {
 	execPath?: string;
 	start?: boolean | null;
-	host?: true;
 	/**
 	 * Keeps the server's output off the terminal, for a host drawing its own UI
 	 * there; the server still logs to disk. Only the end of its stderr is kept,
@@ -257,10 +206,7 @@ export async function useServerProcess({
 			// Own the actual server process, without pnpm wrappers or a file watcher.
 			child = spawn(
 				execPath,
-				[
-					resolve(import.meta.dirname, "../packages/server/src/server.ts"),
-					...(host ? ["--host"] : []),
-				],
+				[resolve(import.meta.dirname, "../packages/server/src/server.ts")],
 				{
 					stdio: quiet ? ["ignore", "ignore", "pipe"] : "inherit",
 					env: process.env,
@@ -311,8 +257,45 @@ if (import.meta.main) {
 	await new Command()
 		.option("--start", "start a server if one is not already running")
 		.option("--no-start", "wait for an already existing server")
-		.option("--host", "arguments to pass to the server")
 		.argument("<then...>", "commands with an optional 'name:' prefix")
-		.action(useServer)
+		.action(async (then, { start }) => {
+			print({ message: "starting..." });
+
+			const doStart = await isServerNeeded(start);
+
+			if (then.length !== 0) {
+				print({
+					message: `running ${then.length} command${then.length !== 1 ? "s" : ""}...`,
+				});
+				try {
+					await concurrently(
+						[
+							...(doStart
+								? [
+										{
+											name: "server",
+											command: "pnpm -w dev:server",
+										},
+									]
+								: []),
+							...then.map((then) => {
+								const [, name, command] =
+									/^(?:\[([^\]]+)])?\s*(.*)$/.exec(then) ?? [];
+								return { name, command: `wait-on ${serverUrl} && ${command}` };
+							}),
+						],
+						{
+							killOthersOn: ["success", "failure"],
+							killTimeout: 5_000,
+							prefixColors: "auto",
+						},
+					).result;
+				} catch (object) {
+					if (object instanceof Error) throw object;
+					// concurrently rejects with exit events when a command fails.
+					process.exitCode = 1;
+				}
+			}
+		})
 		.parseAsync();
 }

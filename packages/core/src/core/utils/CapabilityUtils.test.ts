@@ -31,13 +31,17 @@ describe("CapabilityUtils", () => {
 	});
 
 	it("withholds what writes back to the user from incognito and temporary chats", () => {
-		for (const conditions of [{ incognito: true }, { temporary: true }]) {
-			const enabled = getEnabled(conditions);
-			expect(enabled.actions).toBe(false);
-			expect(enabled.memories).toBe(false);
-			// The chat still has its own scratch pad either way.
-			expect(enabled.chatShell).toBe(true);
-		}
+		const incognito = getEnabled({ incognito: true });
+		expect(incognito.persistence).toBe(false);
+		expect(incognito.actions).toBe(false);
+		expect(incognito.memories).toBe(false);
+		expect(incognito.chatShell).toBe(true);
+
+		const temporary = getEnabled({ temporary: true });
+		expect(temporary.persistence).toBe(false);
+		expect(temporary.actions).toBe(true);
+		expect(temporary.memories).toBe(true);
+		expect(temporary.chatShell).toBe(true);
 	});
 
 	it("needs a message to hang an action off", () => {

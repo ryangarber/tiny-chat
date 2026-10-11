@@ -4,9 +4,7 @@ import { basename } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream } from "node:stream/web";
-import tauri from "../../../../../../apps/app/tauri.conf.json" with {
-	type: "json",
-};
+import workspace from "../../../../../../package.json" with { type: "json" };
 
 /** where every platform's build of a release is published */
 const RELEASE =
@@ -20,7 +18,7 @@ const ASSETS: Partial<Record<NodeJS.Platform, string>> = {
 };
 
 export const UpdateService = {
-	version: tauri.version,
+	version: workspace.version,
 
 	/**
 	 * The compiled binary this process is running from, which is the only build

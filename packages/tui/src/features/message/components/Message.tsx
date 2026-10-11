@@ -49,7 +49,9 @@ export default function Message({
 		<Box flexDirection="column" paddingX={1} paddingY={1}>
 			<Box
 				flexDirection="column"
-				backgroundColor={message.author === "USER" ? "surface" : undefined}
+				backgroundColor={message.author === "USER" ? "interior" : undefined}
+				borderStyle="round"
+				border={message.author === "USER"}
 				paddingY={message.author === "USER" ? 1 : 0}
 				paddingX={2}
 				gap={1}

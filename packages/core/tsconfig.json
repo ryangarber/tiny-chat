@@ -2,7 +2,11 @@
 	"compilerOptions": {
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
-		"lib": ["ES2024"]
+		"types": [
+			"vitest/globals",
+			"vitest/importMeta",
+			"temporal-polyfill/types/global"
+		]
 	},
 	"include": ["src", "generated/prisma/**/*.d.ts", "vitest.config.ts"],
 	"exclude": ["prisma/migrations"],

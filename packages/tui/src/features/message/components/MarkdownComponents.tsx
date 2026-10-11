@@ -16,7 +16,7 @@ import Anchor from "#tui/core/components/Anchor.tsx";
 import Box from "#tui/core/components/Box.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
 import Text, { type TextProps } from "#tui/core/components/Text.tsx";
-import { CliUtils } from "#tui/core/utils/CliUtils.ts";
+import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import {
 	TableComponent,
@@ -55,7 +55,7 @@ function BaseComponent({
 	text?: TextProps;
 }) {
 	const childArray = Children.toArray(children).map((child) =>
-		typeof child === "string" ? CliUtils.display(child) : child,
+		typeof child === "string" ? TuiUtils.display(child) : child,
 	);
 	if (childArray.length === 0) return null;
 
@@ -178,7 +178,7 @@ const CodeComponent: Components["code"] = ({ children, className }) => {
 
 	return (
 		<Text color="textSubtle" backgroundColor="interior">
-			{CliUtils.display(code)}
+			{TuiUtils.display(code)}
 		</Text>
 	);
 };
