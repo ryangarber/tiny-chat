@@ -1,3 +1,14 @@
+# 0.10.1 (2026-10-18)
+
+## Features
+
+- improved gestures, navigation on mobile ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
+
+## Bug Fixes
+
+- fullscreen content escapes ios safe area ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
+- update manifests not created for cli ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
+
 # 0.10.0 (2026-10-18)
 
 ## Breaking Changes
