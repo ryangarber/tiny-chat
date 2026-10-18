@@ -154,3 +154,42 @@ jobs:
           artifact: cli-${{ matrix.asset }}
           dry-run: ${{ env.DRY_RUN }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # What every installed CLI checks for a release (`UpdateService.check`),
+  # under the name Tauri's updater gave it, so builds already out there still
+  # find it. Only once every binary is up, so no CLI is told of a release it
+  # cannot yet download.
+  manifest:
+    needs: release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || inputs.version || github.ref }}
+
+      - name: Write manifest
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            VERSION=$(node -pe "require('./package.json').version")
+          fi
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+          printf '{"version":"%s"}\n' "$VERSION" > "$RUNNER_TEMP/latest.json"
+
+      - name: Publish
+        uses: ./.github/actions/publish
+        with:
+          version: ${{ env.version }}
+          notes: ${{ inputs.notes }}
+          files: ${{ runner.temp }}/latest.json
+          artifact: cli-latest.json
+          dry-run: ${{ env.DRY_RUN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

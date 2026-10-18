@@ -14,6 +14,7 @@ import Capabilities from "#gui/features/editor/components/Capabilities.tsx";
 import LeftSection from "#gui/features/editor/components/LeftSection.tsx";
 import RightSection from "#gui/features/editor/components/RightSection.tsx";
 import Shell from "#gui/features/editor/components/Shell.tsx";
+import { useComposerSwipe } from "#gui/features/editor/hooks/useComposerSwipe.ts";
 import { useEditor } from "#gui/features/editor/hooks/useEditor.tsx";
 import Uploads from "#gui/features/upload/components/Uploads.tsx";
 import Actions from "#gui/features/user/components/Actions.tsx";
@@ -35,11 +36,13 @@ export default function Editor({
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const leftSectionRef = useRef<HTMLDivElement>(null);
 	const rightSectionRef = useRef<HTMLDivElement>(null);
+	const composerRef = useRef<HTMLDivElement>(null);
 
 	const { editor, isMultiline } = useEditor({
 		ref: scrollRef,
 		disabled: disabled,
 	});
+	useComposerSwipe({ ref: composerRef, editor });
 
 	const [sectionWidths, setSectionWidths] = useState({ left: 42, right: 42 });
 	useLayoutEffect(() => {
@@ -61,7 +64,7 @@ export default function Editor({
 	return (
 		<>
 			<Shell>
-				<InputWrapper bdrs={bdrs}>
+				<InputWrapper ref={composerRef} bdrs={bdrs}>
 					<InputBase
 						className="chat-input"
 						component="div"

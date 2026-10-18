@@ -20,6 +20,7 @@ interface PopupContext {
 	isOpen: boolean;
 	setIsOpen: (value: boolean) => void;
 	toggle: () => void;
+	close: () => void;
 	setHoveredState: (context: Partial<HoveredState>) => void;
 }
 
@@ -53,7 +54,19 @@ const usePopup = ({
 				cursor: type === "target" ? "pointer" : undefined,
 				...element.props.style,
 			},
-			onClick: type === "target" ? context?.toggle : undefined,
+			onClick:
+				type === "target"
+					? context?.toggle
+					: (event) => {
+							element.props.onClick?.(event);
+							// Whatever a button in the dropdown opens goes on top of it, and a
+							// touch never leaves to close it by hover.
+							if (
+								event.target instanceof Element &&
+								event.target.closest("button, a, [role=button]")
+							)
+								context?.close();
+						},
 			onMouseEnter: () => openDropdown(),
 			onMouseLeave: () => closeDropdown(),
 		}),
@@ -82,6 +95,10 @@ function Popup({
 			setIsOpen,
 			toggle: () => {
 				setIsOpen(!isOpen);
+			},
+			close: () => {
+				setIsOpen(false);
+				setHovered({ target: false, dropdown: false });
 			},
 			setHoveredState,
 		}),

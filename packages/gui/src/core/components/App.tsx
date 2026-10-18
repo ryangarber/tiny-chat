@@ -14,6 +14,7 @@ import Console from "#gui/core/components/Console.tsx";
 import Tasks from "#gui/core/components/Tasks.tsx";
 import { useExperiments } from "#gui/core/hooks/useExperiments.tsx";
 import { setHashbangQuery, useHashbang } from "#gui/core/hooks/useHashbang.ts";
+import { usePanelSwipe } from "#gui/core/hooks/usePanelSwipe.ts";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useViewport } from "#gui/core/hooks/useViewport.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
@@ -92,10 +93,11 @@ export default function App() {
 	const appShellRef = useRef<HTMLDivElement>(null);
 	const sidebarResizeHandleRef = useRef<HTMLDivElement>(null);
 	const asideResizeHandleRef = useRef<HTMLDivElement>(null);
-	const sidebarContentRef = useRef<HTMLDivElement>(null);
-	const asideContentRef = useRef<HTMLDivElement>(null);
+	const navbarRef = useRef<HTMLDivElement>(null);
+	const asideRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => AppService.initialize(), []);
+	usePanelSwipe({ navbarRef, asideRef });
 
 	const dragSidebarResize = useDrag(
 		({ first, last, xy: [pointerX] }) => {
@@ -103,7 +105,7 @@ export default function App() {
 				setIsResizingSidebar(true);
 				setSidebarOpen(true);
 			}
-			const closedWidth = isMobile ? 0 : 60;
+			const closedWidth = 60;
 			const width = Math.min(
 				window.innerWidth,
 				Math.max(closedWidth, pointerX),
@@ -112,12 +114,6 @@ export default function App() {
 				1,
 				Math.max(0, (width - closedWidth) / (300 - closedWidth)),
 			);
-			if (sidebarContentRef.current && isMobile) {
-				sidebarContentRef.current.style.opacity = `${Math.max(
-					0,
-					expandedOpacity,
-				)}`;
-			}
 			if (sidebarResizeHandleRef.current)
 				sidebarResizeHandleRef.current.style.left = `${width - 7}px`;
 			if (appShellRef.current) {
@@ -127,30 +123,28 @@ export default function App() {
 				);
 				appShellRef.current.style.setProperty(
 					"--app-shell-navbar-offset",
-					isMobile ? "0px" : `${width}px`,
+					`${width}px`,
 				);
-				if (!isMobile) {
-					appShellRef.current.style.setProperty(
-						"--sidebar-expanded-opacity",
-						`${expandedOpacity}`,
-					);
-					appShellRef.current.style.setProperty(
-						"--sidebar-collapsed-opacity",
-						`${1 - expandedOpacity}`,
-					);
-					appShellRef.current.style.setProperty(
-						"--sidebar-expanded-visibility",
-						"visible",
-					);
-					appShellRef.current.style.setProperty(
-						"--sidebar-collapsed-visibility",
-						"visible",
-					);
-					appShellRef.current.style.setProperty(
-						"--sidebar-opacity-transition",
-						"none",
-					);
-				}
+				appShellRef.current.style.setProperty(
+					"--sidebar-expanded-opacity",
+					`${expandedOpacity}`,
+				);
+				appShellRef.current.style.setProperty(
+					"--sidebar-collapsed-opacity",
+					`${1 - expandedOpacity}`,
+				);
+				appShellRef.current.style.setProperty(
+					"--sidebar-expanded-visibility",
+					"visible",
+				);
+				appShellRef.current.style.setProperty(
+					"--sidebar-collapsed-visibility",
+					"visible",
+				);
+				appShellRef.current.style.setProperty(
+					"--sidebar-opacity-transition",
+					"none",
+				);
 			}
 
 			if (last) {
@@ -172,8 +166,6 @@ export default function App() {
 				window.innerWidth,
 				Math.max(0, window.innerWidth - pointerX),
 			);
-			if (asideContentRef.current)
-				asideContentRef.current.style.opacity = `${Math.min(1, width / 300)}`;
 			if (asideResizeHandleRef.current)
 				asideResizeHandleRef.current.style.right = `${width - 7}px`;
 			if (appShellRef.current) {
@@ -183,7 +175,7 @@ export default function App() {
 				);
 				appShellRef.current.style.setProperty(
 					"--app-shell-aside-offset",
-					isMobile ? "0px" : `${width}px`,
+					`${width}px`,
 				);
 			}
 
@@ -196,21 +188,6 @@ export default function App() {
 		},
 		{ axis: "x", filterTaps: true },
 	);
-	const dragSidebarClose = useDrag(
-		({ movement: [movementX], direction: [directionX], cancel }) =>
-			isMobile &&
-			movementX < -50 &&
-			directionX < 0 &&
-			AppService.closeSidebar() &&
-			cancel(),
-		{ axis: "x", filterTaps: true },
-	);
-	const dragAsideClose = useDrag(
-		({ movement: [movementX], direction: [directionX], cancel }) =>
-			movementX > 50 && directionX > 0 && AppService.closeAside() && cancel(),
-		{ axis: "x", filterTaps: true },
-	);
-
 	useEffect(() => {
 		document.body.classList.toggle(
 			"unselectable",
@@ -226,31 +203,22 @@ export default function App() {
 		appShellRef.current?.style.removeProperty("--sidebar-expanded-visibility");
 		appShellRef.current?.style.removeProperty("--sidebar-collapsed-visibility");
 		appShellRef.current?.style.removeProperty("--sidebar-opacity-transition");
-		if (sidebarContentRef.current)
-			sidebarContentRef.current.style.opacity = "1";
 		if (sidebarResizeHandleRef.current) {
 			sidebarResizeHandleRef.current.style.left = isSidebarOpen
-				? isMobile
-					? "calc(100% - 7px)"
-					: `${sidebarWidth - 7}px`
-				: isMobile
-					? "0px"
-					: "53px";
+				? `${sidebarWidth - 7}px`
+				: "53px";
 		}
-	}, [isMobile, isResizingSidebar, isSidebarOpen, sidebarWidth]);
+	}, [isResizingSidebar, isSidebarOpen, sidebarWidth]);
 	useLayoutEffect(() => {
 		if (isResizingAside) return;
 		appShellRef.current?.style.removeProperty("--app-shell-aside-width");
 		appShellRef.current?.style.removeProperty("--app-shell-aside-offset");
-		if (asideContentRef.current) asideContentRef.current.style.opacity = "1";
 		if (asideResizeHandleRef.current) {
 			asideResizeHandleRef.current.style.right = isAsideOpen
-				? isMobile
-					? "calc(100% - 7px)"
-					: `${asideWidth - 7}px`
+				? `${asideWidth - 7}px`
 				: "0px";
 		}
-	}, [asideWidth, isAsideOpen, isMobile, isResizingAside]);
+	}, [asideWidth, isAsideOpen, isResizingAside]);
 
 	return (
 		<MantineProvider
@@ -327,20 +295,15 @@ export default function App() {
 							},
 						}}
 					>
-						{(!isAsideOpen || !isMobile) && (
+						{/* On mobile, panels are swiped instead; see `usePanelSwipe`. */}
+						{!isMobile && (
 							<div
 								ref={sidebarResizeHandleRef}
 								{...dragSidebarResize()}
 								style={{
 									position: "absolute",
 									top: 0,
-									left: isSidebarOpen
-										? isMobile
-											? "calc(100% - 7px)"
-											: sidebarWidth - 7
-										: isMobile
-											? 0
-											: 53,
+									left: isSidebarOpen ? sidebarWidth - 7 : 53,
 									bottom: 0,
 									width: 15,
 									zIndex: "var(--mantine-z-index-max)",
@@ -349,18 +312,14 @@ export default function App() {
 								}}
 							/>
 						)}
-						{(!isSidebarOpen || !isMobile) && (
+						{!isMobile && (
 							<div
 								ref={asideResizeHandleRef}
 								{...dragAsideResize()}
 								style={{
 									position: "absolute",
 									top: 0,
-									right: isAsideOpen
-										? isMobile
-											? "calc(100% - 7px)"
-											: asideWidth - 7
-										: 0,
+									right: isAsideOpen ? asideWidth - 7 : 0,
 									bottom: 0,
 									width: 15,
 									zIndex: "var(--mantine-z-index-max)",
@@ -370,7 +329,7 @@ export default function App() {
 							/>
 						)}
 						<AppShell.Navbar
-							{...dragSidebarClose()}
+							ref={navbarRef}
 							style={{
 								padding: 10,
 								paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
@@ -382,7 +341,7 @@ export default function App() {
 							}}
 							withBorder
 						>
-							<div ref={sidebarContentRef} style={{ height: "100%" }}>
+							<div style={{ height: "100%" }}>
 								<Sidebar />
 							</div>
 						</AppShell.Navbar>
@@ -407,7 +366,7 @@ export default function App() {
 							<Chat />
 						</AppShell.Main>
 						<AppShell.Aside
-							{...dragAsideClose()}
+							ref={asideRef}
 							style={{
 								padding: 10,
 								paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
@@ -419,7 +378,7 @@ export default function App() {
 							}}
 							withBorder
 						>
-							<div ref={asideContentRef} style={{ height: "100%" }}>
+							<div style={{ height: "100%" }}>
 								<ChatSources />
 							</div>
 						</AppShell.Aside>

@@ -199,13 +199,12 @@ function GoToMessage({ id }: { id: string }) {
 			size="xs"
 			leftSection={<ChatTextIcon size={16} />}
 			loading={openMessage.isPending}
-			onClick={() =>
-				openMessage.mutate(id, {
-					onSuccess: () => {
-						if (isMobile) setAsideOpen(false);
-					},
-				})
-			}
+			onClick={() => {
+				// Close up front: the message may be in another chat, which unmounts
+				// this button before the mutation settles.
+				if (isMobile) setAsideOpen(false);
+				openMessage.mutate(id);
+			}}
 			style={{ alignSelf: "flex-start" }}
 		>
 			Go to message

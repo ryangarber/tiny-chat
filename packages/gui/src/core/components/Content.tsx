@@ -289,7 +289,12 @@ export default function Content<T extends string>({
 				centered
 				overlayProps={{ blur: 3 }}
 			>
-				<Affix top={20} right={25}>
+				<Affix
+					position={{
+						top: "calc(20px + env(safe-area-inset-top, 0px))",
+						right: "calc(25px + env(safe-area-inset-right, 0px))",
+					}}
+				>
 					<ContentActions
 						formats={formats}
 						formatter={formatter}
