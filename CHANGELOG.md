@@ -1,3 +1,24 @@
+# 0.10.0 (2026-10-18)
+
+## Breaking Changes
+
+- new desktop and mobile apps ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+
+## Features
+
+- refreshed gui, tui designs ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+- fullscreen content preview in tui ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+
+## Bug Fixes
+
+- ios clipboard, viewport improvements ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+- memories not available in temporary chat ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+
+## Other
+
+- improved release pipeline ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
+- bump dependencies [skip ci] ([dd30a38](https://github.com/ryangarber/tiny-chat/commit/dd30a385a64310b8dbd7b77325ea14225b1f2408))
+
 ## [0.9.8](https://github.com/RyanGarber/tiny-chat/compare/0.9.7...0.9.8) (2026-10-10)
 
 ### Features
