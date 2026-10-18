@@ -25,11 +25,6 @@ on:
         description: "What to deploy, if not the version's tag"
         required: false
         type: string
-      dry_run:
-        description: "Stage the deployment, but leave the live one running"
-        required: false
-        type: boolean
-        default: false
 
 env:
   # Always, off main.

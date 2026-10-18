@@ -23,8 +23,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to package.json)"
-        required: false
+        description: "Version number to use for the release tag/name"
+        required: true
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
@@ -34,11 +34,6 @@ on:
         description: "What to build, if not the version's tag"
         required: false
         type: string
-      dry_run:
-        description: "Build but publish nothing"
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   release:
@@ -122,24 +117,19 @@ jobs:
       - name: Build app
         run: pnpm build:desktop
 
-      - name: Resolve version
-        shell: bash
-        id: version
-        run: |
-          VERSION="${{ inputs.version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./package.json').version")
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Publish
-        uses: ./.github/actions/publish
+        uses: ryangarber/rylease@v2
         with:
-          version: ${{ steps.version.outputs.version }}
+          version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
-          # Under the names Electrobun gave them: the updater looks for
-          # `stable-<os>-<arch>-update.json` at the latest release.
-          files: apps/desktop/artifacts/*
-          artifact: desktop-${{ runner.os }}-${{ runner.arch }}
           dry-run: ${{ env.DRY_RUN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          steps: |
+            # Under the names Electrobun gave them: the updater looks for
+            # `stable-<os>-<arch>-update.json` at the latest release.
+            - uses: github-release-assets
+              with:
+                tag: "{version}"
+                files:
+                  - 'apps/desktop/artifacts/*'
+                dryRunArtifact: true
+                artifactName: desktop-${{ runner.os }}-${{ runner.arch }}

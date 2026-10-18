@@ -32,5 +32,19 @@
 	"devDependencies": {
 		"@types/react": "^19.3.0",
 		"babel-plugin-react-compiler": "^1.0.0"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.0.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.4.0",
+				"onFail": "download"
+			}
+		]
 	}
 }

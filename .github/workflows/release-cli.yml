@@ -23,8 +23,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to package.json)"
-        required: false
+        description: "Version number to use for the release tag/name"
+        required: true
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
@@ -34,11 +34,6 @@ on:
         description: "What to build, if not the version's tag"
         required: false
         type: string
-      dry_run:
-        description: "Build but publish nothing"
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   release:
@@ -135,25 +130,20 @@ jobs:
           echo "Found: $BIN"
           cp "$BIN" "$RUNNER_TEMP/${{ matrix.asset }}"
 
-      - name: Resolve version
-        shell: bash
-        id: version
-        run: |
-          VERSION="${{ inputs.version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./package.json').version")
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Publish
-        uses: ./.github/actions/publish
+        uses: ryangarber/rylease@v2
         with:
-          version: ${{ steps.version.outputs.version }}
+          version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
-          files: ${{ runner.temp }}/${{ matrix.asset }}
-          artifact: cli-${{ matrix.asset }}
           dry-run: ${{ env.DRY_RUN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          steps: |
+            - uses: github-release-assets
+              with:
+                tag: "{version}"
+                files:
+                  - '${{ runner.temp }}/${{ matrix.asset }}'
+                dryRunArtifact: true
+                artifactName: cli-${{ matrix.asset }}
 
   # What every installed CLI checks for a release (`UpdateService.check`),
   # under the name Tauri's updater gave it, so builds already out there still
@@ -177,19 +167,19 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ inputs.version }}
-        run: |
-          if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./package.json').version")
-          fi
-          echo "version=$VERSION" >> "$GITHUB_ENV"
-          printf '{"version":"%s"}\n' "$VERSION" > "$RUNNER_TEMP/latest.json"
+        run: printf '{"version":"%s"}\n' "$VERSION" > "$RUNNER_TEMP/latest.json"
 
       - name: Publish
-        uses: ./.github/actions/publish
+        uses: ryangarber/rylease@v2
         with:
-          version: ${{ env.version }}
+          version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
-          files: ${{ runner.temp }}/latest.json
-          artifact: cli-latest.json
           dry-run: ${{ env.DRY_RUN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          steps: |
+            - uses: github-release-assets
+              with:
+                tag: "{version}"
+                files:
+                  - '${{ runner.temp }}/latest.json'
+                dryRunArtifact: true
+                artifactName: cli-latest.json
