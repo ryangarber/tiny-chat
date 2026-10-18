@@ -23,8 +23,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number to use for the release tag/name (defaults to package.json)"
-        required: false
+        description: "Version number to use for the release tag/name"
+        required: true
         type: string
       notes:
         description: "Release notes/changelog to include in the release body"
@@ -34,11 +34,6 @@ on:
         description: "What to build, if not the version's tag"
         required: false
         type: string
-      dry_run:
-        description: "Build but publish nothing"
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   release:
@@ -112,24 +107,19 @@ jobs:
           mv apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/Tiny.Chat_Android.apk"
           mv apps/mobile/build/Tiny.Chat_Mobile.zip apps/mobile/build/mobile-update.json "$RUNNER_TEMP/"
 
-      - name: Resolve version
-        id: version
-        run: |
-          VERSION="${{ inputs.version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(node -pe "require('./package.json').version")
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Publish
-        uses: ./.github/actions/publish
+        uses: ryangarber/rylease@v2
         with:
-          version: ${{ steps.version.outputs.version }}
+          version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
-          files: |
-            ${{ runner.temp }}/Tiny.Chat_Android.apk
-            ${{ runner.temp }}/Tiny.Chat_Mobile.zip
-            ${{ runner.temp }}/mobile-update.json
-          artifact: android
           dry-run: ${{ env.DRY_RUN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          steps: |
+            - uses: github-release-assets
+              with:
+                tag: "{version}"
+                files:
+                  - '${{ runner.temp }}/Tiny.Chat_Android.apk'
+                  - '${{ runner.temp }}/Tiny.Chat_Mobile.zip'
+                  - '${{ runner.temp }}/mobile-update.json'
+                dryRunArtifact: true
+                artifactName: android

@@ -5,7 +5,6 @@ allowBuilds:
   "@google/genai": true
   "@mongodb-js/zstd": true
   "@prisma/engines": true
-  bun: true
   esbuild: true
   msgpackr-extract: true
   node-liblzma: true
