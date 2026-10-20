@@ -99,8 +99,8 @@ All root scripts load the repo-root `.env`.
 | Builds               | `pnpm build:desktop`, `build:ios`, `build:android`, `build:cli` (unsigned) |
 | Lint / types / tests | `pnpm lint`, `pnpm typecheck`, `pnpm test`                              |
 
-TypeScript is strict with `.ts` import extensions; Biome uses tabs and double quotes. `@ai-sdk/google` and `sixel` are
-pnpm-patched — don't edit them in `node_modules`.
+TypeScript is strict with `.ts` import extensions; Biome uses tabs and double quotes. `ink`, `@alcalzone/ansi-tokenize` and
+`native-run` are pnpm-patched (`patches/`) — don't edit them in `node_modules`.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
