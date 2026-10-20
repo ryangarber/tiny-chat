@@ -6,7 +6,7 @@ import type {
 	Parent,
 	RootContent,
 } from "mdast";
-import { type JSX, useMemo } from "react";
+import { type JSX, useMemo, useRef } from "react";
 import RehypeKatex from "rehype-katex";
 import RehypeRaw from "rehype-raw";
 import RehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -392,6 +392,11 @@ export const processor = unified()
  * to treat the whole document as one block, which is exactly the incremental
  * rendering the split is meant to enable.
  */
+const NO_PARTS: zEditorPart[] = [];
+
+const isSameParts = (a: readonly zEditorPart[], b: readonly zEditorPart[]) =>
+	a.length === b.length && a.every((part, index) => part === b[index]);
+
 const MESSAGE_OPEN = /^\s*<message[^>]*>\n?/;
 const MESSAGE_CLOSE = /\n?<\/message>\s*$/;
 
@@ -402,14 +407,25 @@ export const useMarkdown = ({
 	source: MarkdownSource;
 	withKatex?: boolean;
 }) => {
-	const { text, parts } = useMemo(() => {
-		if (typeof source === "string") return { text: source, parts: [] };
+	const joined = useMemo(() => {
+		if (typeof source === "string") return { text: source, parts: NO_PARTS };
 
-		const { source: joined, parts } = EditorPartUtils.join(
+		const { source: text, parts } = EditorPartUtils.join(
 			source.flat().filter(EditorPartUtils.isRun),
 		);
-		return { text: joined, parts };
+		return { text, parts };
 	}, [source]);
+	const { text } = joined;
+
+	// Every block is drawn with the parts, so they are held for as long as they
+	// are the same parts: a source is rebuilt by whatever renders it, and parts
+	// joined anew from it would miss every block's memo and parse the whole
+	// message again with each render — each token, while it streams.
+	const previousParts = useRef(NO_PARTS);
+	const parts = isSameParts(previousParts.current, joined.parts)
+		? previousParts.current
+		: joined.parts;
+	previousParts.current = parts;
 
 	const content = useMemo(() => {
 		const normalized = MarkdownUtils.normalize(

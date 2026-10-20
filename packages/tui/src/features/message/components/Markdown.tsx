@@ -1,5 +1,5 @@
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
 import {
@@ -18,9 +18,12 @@ import { MarkdownComponents } from "#tui/features/message/components/MarkdownCom
  *
  * The memo is the point of the split: while a message streams, only the last
  * block's source changes, so every block above it keeps its element tree, and
- * with it the Ink nodes and the layout Yoga already measured for them.
+ * with it the Ink nodes and the layout Yoga already measured for them. It is
+ * spelled out rather than left to the compiler, which takes a function that
+ * returns no JSX of its own for something other than a component, and would
+ * otherwise leave every block to be parsed again on every render.
  */
-function MarkdownBlock({
+const MarkdownBlock = memo(function MarkdownBlock({
 	source,
 	parts,
 }: {
@@ -39,7 +42,7 @@ function MarkdownBlock({
 			passNode: true,
 		},
 	);
-}
+});
 
 export default function Markdown({
 	source,
