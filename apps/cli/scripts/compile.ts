@@ -47,6 +47,13 @@ export async function compile({
 			return [[key, value]];
 		}),
 	);
+	// Bun leaves `NODE_ENV` to the environment the bundle is built in, which
+	// bundles React's development builds unless it is set. A release takes the
+	// production builds, as the app's does: the development ones time and
+	// record every component on every render, costing a frame many times over.
+	define["process.env.NODE_ENV"] = JSON.stringify(
+		dev ? "development" : "production",
+	);
 	print({
 		message: `environment${dev ? " · dev" : ""}`,
 		details: Object.keys(define).join(", "),
