@@ -1,3 +1,19 @@
+## 0.10.2 (2026-10-21)
+
+### Features
+
+- legiscan provider ([5720bc2](https://github.com/ryangarber/tiny-chat/commit/5720bc2711288a55b08da5226512307d5a4d9964))
+- new chat dashboard ([5720bc2](https://github.com/ryangarber/tiny-chat/commit/5720bc2711288a55b08da5226512307d5a4d9964))
+
+### Performance Improvements
+
+- various tui performance fixes ([1695a0a](https://github.com/ryangarber/tiny-chat/commit/1695a0a44b73b5b8c4478fa4599c7d490dfd1d15))
+
+### Other
+
+- migrate to rylease@v3 ([5720bc2](https://github.com/ryangarber/tiny-chat/commit/5720bc2711288a55b08da5226512307d5a4d9964))
+- clean up workflows ([1b055e6](https://github.com/ryangarber/tiny-chat/commit/1b055e6544020dd5b232416eedc2ab65ef092047))
+
 ## 0.10.1 (2026-10-18)
 
 ### Features
