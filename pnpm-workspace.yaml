@@ -44,4 +44,6 @@ catalogs:
     "@ryangarber/prisma-orm-extension-zod": "0.2.9"
     "@ryangarber/better-auth-adapter-prisma": "0.1.9"
 patchedDependencies:
+  '@alcalzone/ansi-tokenize@0.3.1': patches/@alcalzone__ansi-tokenize@0.3.1.patch
+  ink@8.0.0: patches/ink@8.0.0.patch
   native-run: patches/native-run.patch

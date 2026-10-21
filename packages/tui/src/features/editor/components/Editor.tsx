@@ -344,8 +344,15 @@ export default function Editor({
 
 	return (
 		<Panel id="editor" disabled={_disabled}>
+			{/* Drawn over what is above the editor, which stays where it is. */}
 			{!disabled && (
-				<>
+				<Box
+					position="absolute"
+					bottom="100%"
+					left={0}
+					right={0}
+					flexDirection="column"
+				>
 					<Shell />
 					<Commands
 						content={content}
@@ -359,7 +366,7 @@ export default function Editor({
 						cursor={cursor}
 						setCursor={setCursor}
 					/>
-				</>
+				</Box>
 			)}
 			<Box
 				paddingX={2}

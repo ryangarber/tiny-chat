@@ -115,7 +115,12 @@ namespace Task {
 			isActive: true,
 		});
 
-		const shimmer = useAnimation({ interval: 200 });
+		// Only a pending task shimmers, so only one ticks: every tick is a frame
+		// for the whole screen, and a settled one would draw it the same each time.
+		const shimmer = useAnimation({
+			interval: 200,
+			isActive: status === "pending",
+		});
 		const offset = useMemo(() => Math.random() * 1000, []);
 
 		const current = status === "pending" ? shimmer : null;

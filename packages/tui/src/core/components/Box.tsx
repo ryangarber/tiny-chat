@@ -75,7 +75,16 @@ export default function Box({
 		],
 	);
 
-	const backgroundColor = useColor(mergedContext.backgroundColor);
+	// Painted only where it is set, or over whatever an overlay covers. The box
+	// an inherited color comes from has already painted it under this one, and
+	// Ink paints every cell of every box it is given a background for — on
+	// every frame, scrolled out of view or not — so repainting it here costs a
+	// pass over each cell for every box it is nested in. Text still inherits
+	// it from Ink's own context.
+	const backgroundColor = useColor(
+		_backgroundColor ??
+			(props.position === "absolute" ? context?.backgroundColor : undefined),
+	);
 	const borderColor = useColor(mergedContext.borderColor ?? "border");
 	const borderBackgroundColor = useColor(
 		mergedContext.borderBackgroundColor ?? mergedContext.backgroundColor,

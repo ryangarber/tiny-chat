@@ -37,8 +37,20 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 
 	if (!chat.data) {
 		return (
-			<Box flexGrow={1} justifyContent="center" alignItems="center">
-				<GetStarted />
+			<Box
+				flexDirection="column"
+				flexGrow={1}
+				flexShrink={1}
+				flexBasis={0}
+				minHeight={0}
+				justifyContent="center"
+			>
+				{/* Centered while it fits, and scrolled once it does not. */}
+				<ScrollView flexShrink={1} minHeight={0}>
+					<Box flexDirection="column" alignItems="center">
+						<GetStarted />
+					</Box>
+				</ScrollView>
 			</Box>
 		);
 	}

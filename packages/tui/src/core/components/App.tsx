@@ -132,13 +132,8 @@ export default function App() {
 						minHeight={0}
 					>
 						<Chat compaction={chatTokens.data?.compaction} />
-						<Box
-							flexDirection="column"
-							position="static"
-							bottom={0}
-							left={0}
-							right={0}
-						>
+						{/* Held to the bottom whatever opens above it. */}
+						<Box flexDirection="column" flexShrink={0}>
 							<StatusText />
 							{!sidebars && panelCount > 0 && (
 								<Box height={Math.floor(rows / 2)} flexShrink={0}>
@@ -158,21 +153,36 @@ export default function App() {
 									)}
 								</Box>
 							)}
-							{page === "projects" && <ProjectList />}
-							{page === "uploads" && <Uploads />}
-							{page === "github" && <GitHub />}
-							{page === "memories" && <Memories />}
-							{page === "actions" && <Actions />}
-							{page === "settings" && <Settings />}
-							{page === "config" && <ChatConfig />}
 							{page === "chat" && <ChatEffects />}
-							<Editor
-								disabled={
-									page !== "chat" || statuses.some((status) => !status.passive)
-								}
-								usage={usage}
-								categories={categories}
-							/>
+							<Box flexDirection="column">
+								{/* A page opens over the chat from the top of the editor, as its
+								    completions do, rather than pushing the chat up. */}
+								{page !== "chat" && (
+									<Box
+										position="absolute"
+										bottom="100%"
+										left={0}
+										right={0}
+										flexDirection="column"
+									>
+										{page === "projects" && <ProjectList />}
+										{page === "uploads" && <Uploads />}
+										{page === "github" && <GitHub />}
+										{page === "memories" && <Memories />}
+										{page === "actions" && <Actions />}
+										{page === "settings" && <Settings />}
+										{page === "config" && <ChatConfig />}
+									</Box>
+								)}
+								<Editor
+									disabled={
+										page !== "chat" ||
+										statuses.some((status) => !status.passive)
+									}
+									usage={usage}
+									categories={categories}
+								/>
+							</Box>
 						</Box>
 					</Box>
 				</WidthContext.Provider>
