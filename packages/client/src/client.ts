@@ -17,6 +17,7 @@ import {
 	HostShellService,
 } from "#client/features/shell/services/HostShellService.ts";
 import { JsonService } from "#core/core/services/JsonService.ts";
+import type { ComputerCapability } from "#core/core/types/capability.ts";
 import type { zClientEnv, zProviderEnv } from "#core/core/types/env.ts";
 import { CodeUtils, type CodeWorker } from "#core/core/utils/CodeUtils.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
@@ -47,6 +48,13 @@ export type { ClientTransports };
 
 export type ClientShell = HostShellPrimitives;
 
+/**
+ * The host's way into xa11y: the CLI calls `ComputerHostService` itself, the
+ * desktop app over its main process. Requests and responses are its JSON; all
+ * meaning is in core's `ComputerService`.
+ */
+export type ClientComputer = ComputerCapability;
+
 export const createClient = ({
 	env,
 	getToken,
@@ -57,6 +65,7 @@ export const createClient = ({
 	transports,
 	input,
 	shell: primitives,
+	computer,
 	desktop,
 	highlighter,
 	queryClient = new QueryClient(),
@@ -70,6 +79,7 @@ export const createClient = ({
 	transports?: ClientTransports;
 	input?: ClientInput;
 	shell?: ClientShell;
+	computer?: ClientComputer;
 	desktop?: boolean;
 	/** Starts the runtime's bundle of `HighlightWorker.ts`, where Shiki runs. */
 	highlighter?: () => CodeWorker;
@@ -147,6 +157,7 @@ export const createClient = ({
 		transports,
 		input,
 		shell,
+		computer,
 		desktop,
 	};
 

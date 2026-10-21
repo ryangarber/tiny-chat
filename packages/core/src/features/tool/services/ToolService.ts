@@ -2,6 +2,7 @@ import type { Capabilities } from "#core/core/types/capability.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import { createActionsToolset } from "#core/features/tool/tools/actions.ts";
 import { createBrowserToolset } from "#core/features/tool/tools/browser.ts";
+import { createComputerToolset } from "#core/features/tool/tools/computer.ts";
 import { createGitHubToolset } from "#core/features/tool/tools/github.ts";
 import { createLegiscanToolset } from "#core/features/tool/tools/legiscan.ts";
 import { createMemoriesToolset } from "#core/features/tool/tools/memories.ts";
@@ -101,6 +102,15 @@ export const ToolService = {
 					needs: ["browser"],
 					instructions:
 						"You can drive a real browser on the user's machine. Use it to interact with pages — sign-in flows, forms, web apps, the user's local dev servers — or when a page needs JavaScript to render; for simply reading or searching the web, prefer the web tools. Batch predictable steps into one call, read the tree before acting on a page you have not seen, and take a screenshot when layout or visual state matters. Ask before submitting anything on the user's behalf that cannot be undone.",
+				}),
+			),
+
+			await createComputerToolset(
+				forToolset({
+					capabilities,
+					needs: ["computer"],
+					instructions:
+						"You can use the apps on the user's computer — to test and debug what they are building, or to do something in an app for them. It is their real machine and their open windows, so prefer the shell, browser and web tools whenever they can do the job, and stay in the apps the user asked about. Batch predictable steps into one call, read a window before acting in it, and take a screenshot when layout or visual state matters. Never type passwords or other secrets, and ask before anything that cannot be undone — sending, deleting, buying, or changing settings.",
 				}),
 			),
 

@@ -37,6 +37,7 @@ import { hashKey, useIsFetching } from "@tanstack/react-query";
 import { type ReactNode, useContext, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useBrowser } from "#client/features/agent/hooks/useBrowser.ts";
+import { useComputer } from "#client/features/agent/hooks/useComputer.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { mcpServerQueryKey } from "#client/features/agent/hooks/useMcp.ts";
 import {
@@ -62,6 +63,7 @@ import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 import { LogList } from "#gui/core/components/Console.tsx";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import {
 	type CapabilitiesType,
 	useAppStore,
@@ -73,6 +75,7 @@ import Dropzone from "#gui/features/upload/components/Dropzone.tsx";
 
 const SHELL_TOOLSET = "shell";
 const BROWSER_TOOLSET = "browser";
+const COMPUTER_TOOLSET = "computer";
 const SUBAGENTS_TOOLSET = "subagents";
 const MODAL_Z_INDEX = 1000;
 type McpServers = NonNullable<zMCPServers>;
@@ -547,6 +550,8 @@ function ToolsetView({
 				panel={
 					toolsetName === BROWSER_TOOLSET && client.desktop ? (
 						<BrowserView />
+					) : toolsetName === COMPUTER_TOOLSET && client.computer ? (
+						<ComputerView />
 					) : toolsetName === SUBAGENTS_TOOLSET ? (
 						<SubagentView />
 					) : undefined
@@ -662,6 +667,88 @@ function BrowserView() {
 								Not found · npx playwright install chromium
 							</Text>
 						)}
+					</BrowserRequirement>
+					{status.error && (
+						<Group gap="xs" c="red" wrap="nowrap">
+							<WarningCircleIcon size={14} />
+							<Text size="xs">{status.error}</Text>
+						</Group>
+					)}
+				</>
+			)}
+		</Stack>
+	);
+}
+
+/** macOS's own panes for the permissions computer use needs. */
+const PRIVACY_PANES = {
+	accessibility:
+		"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+	screen:
+		"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+};
+
+function ComputerView() {
+	const runtime = useRuntime();
+	const { computerStatus, recheckComputer } = useComputer();
+	const isChecking =
+		computerStatus.isFetching ||
+		recheckComputer.isPending ||
+		!computerStatus.data;
+	const status = recheckComputer.data ?? computerStatus.data;
+	const macos = status?.os === "macos";
+	const missing = status?.missing ?? [];
+
+	const permission = (key: keyof typeof PRIVACY_PANES, label: string) => {
+		const found = !!status?.os && !missing.includes(key);
+		return (
+			<BrowserRequirement label={label} found={found}>
+				{!found && macos ? (
+					<Button
+						size="compact-xs"
+						variant="light"
+						w="fit-content"
+						onClick={() => void runtime.open(PRIVACY_PANES[key])}
+					>
+						Open settings
+					</Button>
+				) : (
+					<Text size="xs" c="dimmed">
+						{found ? "Granted" : "Not available"}
+					</Text>
+				)}
+			</BrowserRequirement>
+		);
+	};
+
+	return (
+		<Stack gap="xs">
+			<Group justify="space-between" wrap="nowrap">
+				<Text size="xs" c="dimmed">
+					Reads and uses apps through their accessibility trees.
+				</Text>
+				<ActionIcon
+					variant="transparent"
+					loading={isChecking}
+					aria-label="Recheck computer use"
+					onClick={() => recheckComputer.mutate()}
+				>
+					<ArrowClockwiseIcon size={18} />
+				</ActionIcon>
+			</Group>
+			{status && !isChecking && (
+				<>
+					{permission("accessibility", "Accessibility")}
+					{permission("screen", "Screen recording")}
+					<BrowserRequirement
+						label="Pointer and keyboard"
+						found={!!status.input}
+					>
+						<Text size="xs" c="dimmed">
+							{status.input
+								? "Available"
+								: "Unavailable here; elements can still be used directly"}
+						</Text>
 					</BrowserRequirement>
 					{status.error && (
 						<Group gap="xs" c="red" wrap="nowrap">

@@ -392,6 +392,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@crowecawcaw/xa11y':
+        specifier: ^0.15.3
+        version: 0.15.3
       '@tanstack/react-query':
         specifier: ^5.104.3
         version: 5.104.3(react@19.3.1)
@@ -1321,6 +1324,49 @@ packages:
   '@crosscopy/clipboard@0.3.6':
     resolution: {integrity: sha512-h/LlfI5t/xsxLr63g3Os0mjoeITj7/8x8Goy5PZ+f4bk3DDgc1r5VXO462U3e8/+LjHixtvS9sTk/MoKEwSutw==}
     engines: {node: '>= 10.20.0 < 11 || >= 12.17.0 < 13 || >= 14.0.0'}
+
+  '@crowecawcaw/xa11y-darwin-arm64@0.15.3':
+    resolution: {integrity: sha512-NI/nmHbJ4aMDzXoXocN/p+BeJ9oshAa9+dWOwCYMHurMAok2HJJDxSgzZSYzbHwyG5hPvJc7loj2Neqyn1Z7pw==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@crowecawcaw/xa11y-darwin-x64@0.15.3':
+    resolution: {integrity: sha512-ADyMOIoy6bJIeFAlbKLQqaTBRZc6bagP+8UY34t2KarD+tovA+6foWNsSSghA23XkqoqNLBwL1NsGK3hRUe/pw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@crowecawcaw/xa11y-linux-arm64-gnu@0.15.3':
+    resolution: {integrity: sha512-dPzUs+O6DD3jAs5y9CKUg2ellOOZD+m4dXQX3BHH6qeNd/wlXXW0O/fofLrqq5uAJstLhSXg34F4gCy0UQmkQg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@crowecawcaw/xa11y-linux-x64-gnu@0.15.3':
+    resolution: {integrity: sha512-2/Ec68Q7pPXHETFu/ipHusoTSzwvi9T/+28pCJ20mfkN3+p2o2qKJG4kMCB7sQNxwDZ0WZKxXFiw5i/qRaVO0A==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@crowecawcaw/xa11y-win32-arm64-msvc@0.15.3':
+    resolution: {integrity: sha512-yjYfZL8HRoID+Cc/zJ6t9WSKTjNrgDjGEZPGkSJ2NCXoF4wIPIBuYp4jnRZMU+2VQxaYkH3483x8oaEL8wtcXQ==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@crowecawcaw/xa11y-win32-x64-msvc@0.15.3':
+    resolution: {integrity: sha512-tvHF9YF/8MnqFsh9EA46ChtxVrymMCdLPKi+TNLeJjiWq++twhVqcVTDD8MThakWiUiskMEXwVNdvuVL/ATLiA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [win32]
+
+  '@crowecawcaw/xa11y@0.15.3':
+    resolution: {integrity: sha512-tGoLZlETtyII2te9af6q52ItOw8ecxHN0A+juvqXp3HnmJbuh6wylMuU6IbLLRezc+wNFVYI+c6Wt4vfsZTPEQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@devframes/hub@1.2.5':
     resolution: {integrity: sha512-cN/cb3uRqdSfOTkHFg3cfzsi8oWXDakvqKuENphPz7zQZPEedxtAa7E1e5Ap77wRkEsBn5gP0K7i5yL8box+vQ==}
@@ -8718,6 +8764,33 @@ snapshots:
       '@crosscopy/clipboard-darwin-x64': 0.3.6
       '@crosscopy/clipboard-linux-x64-gnu': 0.3.6
       '@crosscopy/clipboard-win32-x64-msvc': 0.3.6
+
+  '@crowecawcaw/xa11y-darwin-arm64@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y-darwin-x64@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y-linux-arm64-gnu@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y-linux-x64-gnu@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y-win32-arm64-msvc@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y-win32-x64-msvc@0.15.3':
+    optional: true
+
+  '@crowecawcaw/xa11y@0.15.3':
+    optionalDependencies:
+      '@crowecawcaw/xa11y-darwin-arm64': 0.15.3
+      '@crowecawcaw/xa11y-darwin-x64': 0.15.3
+      '@crowecawcaw/xa11y-linux-arm64-gnu': 0.15.3
+      '@crowecawcaw/xa11y-linux-x64-gnu': 0.15.3
+      '@crowecawcaw/xa11y-win32-arm64-msvc': 0.15.3
+      '@crowecawcaw/xa11y-win32-x64-msvc': 0.15.3
 
   '@devframes/hub@1.2.5(crossws@0.4.15(srvx@1.0.5))(devframe@1.2.5(srvx@1.0.5))':
     dependencies:
