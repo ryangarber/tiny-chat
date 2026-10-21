@@ -1,15 +1,8 @@
 diff --git a/build/output.js b/build/output.js
-index 10a94568e2e9fc005dd383babf36456cb31ef572..17cf3761e3f919289190898307a24392b688208c 100644
+index 10a94568e2e9fc005dd383babf36456cb31ef572..c5c32c79527a1263bc98507e093a97dcf280dde8 100644
 --- a/build/output.js
 +++ b/build/output.js
-@@ -1,5 +1,6 @@
- import stringWidth from 'string-width';
- import { styledCharsFromTokens, styledCharsToString, tokenize, } from '@alcalzone/ansi-tokenize';
-+import QuickLRU from 'quick-lru';
- // Replaces a partially visible wide character with a space that keeps its styles.
- const blankCell = (cell) => ({
-     ...cell,
-@@ -27,10 +28,37 @@ const intersectClips = (outer, inner) => {
+@@ -27,16 +27,96 @@ const intersectClips = (outer, inner) => {
          y2: intersectBound(outer.y2, inner.y2, Math.min),
      };
  };
@@ -21,20 +14,71 @@ index 10a94568e2e9fc005dd383babf36456cb31ef572..17cf3761e3f919289190898307a24392
 +    }
 +    return count;
 +};
++// A cache bounded by the size of what it holds rather than by how many entries it has: entries are kept across frames, and a count alone lets a few thousand long ones (each prefix of a streaming paragraph, say) hold on to a great deal. Sizes are in UTF-16 code units of the text an entry was made from.
++// Kept in two generations, as quick-lru keeps its own, so that a hit, which most lookups in a frame are, is a single lookup: an entry used since the older generation was started is carried into the newer one, and the older one is dropped whole once the newer one has filled half of the room.
++class SizedCache {
++    current = new Map();
++    previous = new Map();
++    currentSize = 0;
++    constructor(maxSize) {
++        this.maxSize = maxSize;
++    }
++    get(key) {
++        const entry = this.current.get(key);
++        if (entry !== undefined) {
++            return entry.value;
++        }
++        const old = this.previous.get(key);
++        if (old !== undefined) {
++            this.previous.delete(key);
++            this.add(key, old);
++            return old.value;
++        }
++        return undefined;
++    }
++    set(key, value, size) {
++        // Anything this large is left uncached rather than allowed to push out everything else.
++        if (size > this.maxSize / 8) {
++            return;
++        }
++        this.previous.delete(key);
++        const existing = this.current.get(key);
++        if (existing !== undefined) {
++            this.currentSize -= existing.size;
++        }
++        this.add(key, { value, size });
++    }
++    add(key, entry) {
++        this.current.set(key, entry);
++        this.currentSize += entry.size;
++        if (this.currentSize >= this.maxSize / 2) {
++            this.previous = this.current;
++            this.current = new Map();
++            this.currentSize = 0;
++        }
++    }
++}
++// Standalone invisible Unicode characters must not occupy terminal cells.
++const toStyledChars = (text) => styledCharsFromTokens(tokenize(text)).filter(character => !/^\p{Default_Ignorable_Code_Point}+$/u.test(character.value));
  class OutputCaches {
 -    widths = new Map();
 -    blockWidths = new Map();
 -    styledChars = new Map();
-+    widths = new QuickLRU({ maxSize: 8192 });
-+    blockWidths = new QuickLRU({ maxSize: 4096 });
-+    styledChars = new QuickLRU({ maxSize: 4096 });
-+    lines = new QuickLRU({ maxSize: 4096 });
++    widths = new SizedCache(1 << 18);
++    blockWidths = new SizedCache(1 << 20);
++    // Parsed characters are far larger than the text they come from, so they are only kept for single lines, which a frame mostly repeats. A block of several lines is a new key whenever any line of it changes, and keeping its characters would keep a copy of every line of it for every change.
++    styledChars = new SizedCache(1 << 16);
++    lines = new SizedCache(1 << 20);
 +    // A text's rows, each with its styles reopened, which is all a write needs of it before it is clipped.
 +    getLines(text) {
 +        let cached = this.lines.get(text);
 +        if (cached === undefined) {
++            // Tokenized whole, so a style that spans a line break is reopened on the next line.
++            const characters = text.includes('\n')
++                ? toStyledChars(text)
++                : this.getStyledChars(text);
 +            const characterLines = [[]];
-+            for (const character of this.getStyledChars(text)) {
++            for (const character of characters) {
 +                if (character.value === '\n') {
 +                    characterLines.push([]);
 +                }
@@ -43,14 +87,46 @@ index 10a94568e2e9fc005dd383babf36456cb31ef572..17cf3761e3f919289190898307a24392
 +                }
 +            }
 +            cached = characterLines.map(line => styledCharsToString(line));
-+            this.lines.set(text, cached);
++            // The key, and the lines that are about as long again.
++            this.lines.set(text, cached, text.length * 2);
 +        }
 +        return cached;
 +    }
      getStyledChars(line) {
          let cached = this.styledChars.get(line);
          if (cached === undefined) {
-@@ -61,9 +89,11 @@ class OutputCaches {
+-            // Standalone invisible Unicode characters must not occupy terminal cells.
+-            cached = styledCharsFromTokens(tokenize(line)).filter(character => !/^\p{Default_Ignorable_Code_Point}+$/u.test(character.value));
+-            this.styledChars.set(line, cached);
++            cached = toStyledChars(line);
++            if (!line.includes('\n')) {
++                this.styledChars.set(line, cached, line.length);
++            }
+         }
+         return cached;
+     }
+@@ -44,26 +124,29 @@ class OutputCaches {
+         let cached = this.widths.get(text);
+         if (cached === undefined) {
+             cached = stringWidth(text);
+-            this.widths.set(text, cached);
++            this.widths.set(text, cached, text.length);
+         }
+         return cached;
+     }
+     getWidestLine(text) {
+         let cached = this.blockWidths.get(text);
+         if (cached === undefined) {
++            // Measured here rather than through the cache of widths: a line split from a block is a slice of it, and kept as a key it would keep the whole block alive with it.
+             let lineWidth = 0;
+             for (const line of text.split('\n')) {
+-                lineWidth = Math.max(lineWidth, this.getStringWidth(line));
++                lineWidth = Math.max(lineWidth, stringWidth(line));
+             }
+             cached = lineWidth;
+-            this.blockWidths.set(text, cached);
++            this.blockWidths.set(text, cached, text.length);
+         }
          return cached;
      }
  }
@@ -63,7 +139,7 @@ index 10a94568e2e9fc005dd383babf36456cb31ef572..17cf3761e3f919289190898307a24392
      width;
      height;
      constructor(options) {
-@@ -74,17 +104,23 @@ export default class Output {
+@@ -74,17 +157,23 @@ export default class Output {
      applyWriteOperation(output, operation, clip) {
          const { text, transformers } = operation;
          let { x, y } = operation;
