@@ -118,17 +118,20 @@ jobs:
         run: pnpm build:desktop
 
       - name: Publish
-        uses: ryangarber/rylease@v2
+        uses: ryangarber/rylease@v3
         with:
           version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
           dry-run: ${{ env.DRY_RUN }}
+          # No preset here to give them.
+          scheme: semver
+          history: git/tags
+          tag: "{version}"
           steps: |
             # Under the names Electrobun gave them: the updater looks for
             # `stable-<os>-<arch>-update.json` at the latest release.
-            - uses: github-release-assets
+            - uses: github/upload-release-assets
               with:
-                tag: "{version}"
                 files:
                   - 'apps/desktop/artifacts/*'
                 dryRunArtifact: true

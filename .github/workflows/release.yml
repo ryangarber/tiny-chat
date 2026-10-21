@@ -51,16 +51,17 @@ jobs:
 
       - name: Release
         id: rylease
-        uses: ryangarber/rylease@v2
+        uses: ryangarber/rylease@v3
         with:
           dry-run: ${{ env.DRY_RUN }}
+          tag: "{version}"
+          history: "[git/tags, { uses: fs/version-file, with: { format: npm } }]"
           steps: |
             - uses: conventional
-              with:
-                read-git-tag: { tag: "{version}" }
-                prepend-changelog: { heading: "# {version} ({date})" }
-                git-commit: { tag: "{version}" }
-                github-release: { tag: "{version}" }
+            - uses: fs/write-version
+              with: { format: npm }
+            - uses: fs/write-changes
+            - uses: git/commit
 
   desktop:
     needs: version

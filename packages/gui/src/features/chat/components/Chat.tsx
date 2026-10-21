@@ -5,7 +5,6 @@ import {
 	Group,
 	ScrollArea,
 	Stack,
-	Text,
 	Transition,
 } from "@mantine/core";
 import { useElementSize, useMergedRef } from "@mantine/hooks";
@@ -20,7 +19,6 @@ import {
 	useState,
 } from "react";
 import { ClientContext } from "#client/client.ts";
-import { useGreeting } from "#client/core/hooks/useGreeting.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -36,6 +34,7 @@ import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import Actions from "#gui/features/chat/components/Actions.tsx";
 import ChatEffects from "#gui/features/chat/components/ChatEffects.tsx";
 import ChatHeader from "#gui/features/chat/components/ChatHeader.tsx";
+import GetStarted from "#gui/features/chat/components/GetStarted.tsx";
 import Editor from "#gui/features/editor/components/Editor.tsx";
 import { useEditorStore } from "#gui/features/editor/stores/useEditorStore.ts";
 import Message from "#gui/features/message/components/Message.tsx";
@@ -56,12 +55,6 @@ export default function Chat() {
 		console.log(chatTokens.data);
 	}, [chatTokens.data]);
 
-	const createTemporary = useChatStore(
-		(s) => s.active.status === "new" && s.active.temporary,
-	);
-	const createIncognito = useChatStore(
-		(s) => s.active.status === "new" && s.active.incognito,
-	);
 	const scrollInstant = useChatStore((s) => (chat.isFetching ? 0 : s.visits));
 
 	const isMobile = useAppStore((s) => s.isMobile);
@@ -177,7 +170,6 @@ export default function Chat() {
 	const { ref: inputEffectsRef, height: inputEffectsHeight } = useElementSize();
 	const { ref: chatContainerRef } = useElementSize();
 
-	const greeting = useGreeting();
 	const isNewChat = !chat.data;
 
 	const isUploading = useIsMutating({ mutationKey: uploadMutationKey }) > 0;
@@ -196,7 +188,7 @@ export default function Chat() {
 				style={{ overflow: "hidden", isolation: "isolate" }}
 				ref={chatContainerRef}
 			>
-				{/* New chat hero overlay */}
+				{/* New chat overlay */}
 				<Stack
 					pos="absolute"
 					inset={0}
@@ -204,96 +196,13 @@ export default function Chat() {
 					align="center"
 					gap={0}
 					opacity={isNewChat ? 1 : 0}
+					pb={inputHeight}
 					style={{
 						transition: "opacity 400ms ease",
 						pointerEvents: isNewChat ? "auto" : "none",
 					}}
 				>
-					{/* Icon + title: cross-fade between incognito×temporary combinations */}
-					<div style={{ display: "grid", placeItems: "center" }}>
-						{/* Normal – New Chat */}
-						<Stack
-							align="center"
-							gap={6}
-							style={{
-								gridArea: "1 / 1",
-								opacity: !createIncognito && !createTemporary ? 1 : 0,
-								transition: "opacity 300ms ease",
-								willChange: "opacity",
-								pointerEvents:
-									!createIncognito && !createTemporary ? "auto" : "none",
-							}}
-						>
-							<Text size="xl" fw={600} mt={4}>
-								{greeting}
-							</Text>
-						</Stack>
-						{/* Normal – Temporary Chat */}
-						<Stack
-							align="center"
-							gap={6}
-							style={{
-								gridArea: "1 / 1",
-								opacity: !createIncognito && createTemporary ? 1 : 0,
-								transition: "opacity 300ms ease",
-								willChange: "opacity",
-								pointerEvents:
-									!createIncognito && createTemporary ? "auto" : "none",
-							}}
-						>
-							<Text size="xl" fw={600} mt={4}>
-								{greeting}
-							</Text>
-						</Stack>
-						{/* Incognito – New Chat */}
-						<Stack
-							align="center"
-							gap={6}
-							style={{
-								gridArea: "1 / 1",
-								opacity: createIncognito && !createTemporary ? 1 : 0,
-								transition: "opacity 300ms ease",
-								willChange: "opacity",
-								pointerEvents:
-									createIncognito && !createTemporary ? "auto" : "none",
-							}}
-						>
-							<Text size="xl" fw={600} mt={4}>
-								{greeting}
-							</Text>
-						</Stack>
-						{/* Incognito – Temporary Chat */}
-						<Stack
-							align="center"
-							gap={6}
-							style={{
-								gridArea: "1 / 1",
-								opacity: createIncognito && createTemporary ? 1 : 0,
-								transition: "opacity 300ms ease",
-								willChange: "opacity",
-								pointerEvents:
-									createIncognito && createTemporary ? "auto" : "none",
-							}}
-						>
-							<Text size="xl" fw={600} mt={4}>
-								{greeting}
-							</Text>
-						</Stack>
-					</div>
-					{/* Subtitle: cross-fade between incognito states */}
-					<Text
-						size="sm"
-						c="dimmed"
-						style={{
-							opacity: createTemporary ? 1 : 0,
-							transition: "opacity 300ms ease",
-							willChange: "opacity",
-							pointerEvents: createTemporary ? "auto" : "none",
-						}}
-					>
-						{createTemporary && "Temporary chat"}
-						&nbsp;
-					</Text>
+					<GetStarted />
 				</Stack>
 
 				{/* Messages scroll area */}

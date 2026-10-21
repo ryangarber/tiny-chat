@@ -4,6 +4,7 @@ import { createBrowserCapability } from "#client/core/capabilities/createBrowser
 import { createChatShellCapability } from "#client/core/capabilities/createChatShellCapability.ts";
 import { createEmbeddingCapability } from "#client/core/capabilities/createEmbeddingCapability.ts";
 import { createGitHubCapability } from "#client/core/capabilities/createGitHubCapability.ts";
+import { createLegiscanCapability } from "#client/core/capabilities/createLegiscanCapability.ts";
 import { createMemoriesCapability } from "#client/core/capabilities/createMemoriesCapability.ts";
 import { createShellCapability } from "#client/core/capabilities/createShellCapability.ts";
 import { createSubagentsCapability } from "#client/core/capabilities/createSubagentsCapability.ts";
@@ -82,6 +83,10 @@ export const ClientCapabilityService = {
 				chat: chat?.id,
 				...AgentUtils.getMounts({ messages: messages ?? [] }),
 			});
+		}
+
+		if (enabled.legiscan) {
+			capabilities.legiscan = await createLegiscanCapability({ client });
 		}
 
 		if (enabled.github) {

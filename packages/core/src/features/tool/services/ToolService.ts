@@ -3,6 +3,7 @@ import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import { createActionsToolset } from "#core/features/tool/tools/actions.ts";
 import { createBrowserToolset } from "#core/features/tool/tools/browser.ts";
 import { createGitHubToolset } from "#core/features/tool/tools/github.ts";
+import { createLegiscanToolset } from "#core/features/tool/tools/legiscan.ts";
 import { createMemoriesToolset } from "#core/features/tool/tools/memories.ts";
 import { createQuestionsToolset } from "#core/features/tool/tools/questions.ts";
 import { edit_file } from "#core/features/tool/tools/shell/edit_file.ts";
@@ -49,6 +50,14 @@ export const ToolService = {
 		const local = capabilities.shell?.environment?.();
 
 		return await Promise.all([
+			await createLegiscanToolset(
+				forToolset({
+					capabilities,
+					needs: ["legiscan"],
+					instructions:
+						"Use LegiScan to discover state or US congressional sessions, summarize session legislation, and check bill status. Resolve the jurisdiction and session first; use bill IDs from that session. Session lists provide current statuses and latest actions, not transcripts of debate. Follow pagination for broad summaries, inspect bill history for specific milestones, distinguish chamber passage from enactment, and cite the returned source URLs.",
+				}),
+			),
 			await createGitHubToolset(
 				forToolset({
 					capabilities,

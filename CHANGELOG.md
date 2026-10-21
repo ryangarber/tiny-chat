@@ -1,31 +1,31 @@
-# 0.10.1 (2026-10-18)
+## 0.10.1 (2026-10-18)
 
-## Features
+### Features
 
 - improved gestures, navigation on mobile ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
 
-## Bug Fixes
+### Bug Fixes
 
 - fullscreen content escapes ios safe area ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
 - update manifests not created for cli ([71b72bf](https://github.com/ryangarber/tiny-chat/commit/71b72bf26e0f49afb2485f6f33ef52ef8588eb07))
 
-# 0.10.0 (2026-10-18)
+## 0.10.0 (2026-10-18)
 
-## Breaking Changes
+### Breaking Changes
 
 - new desktop and mobile apps ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 
-## Features
+### Features
 
 - refreshed gui, tui designs ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 - fullscreen content preview in tui ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 
-## Bug Fixes
+### Bug Fixes
 
 - ios clipboard, viewport improvements ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 - memories not available in temporary chat ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 
-## Other
+### Other
 
 - improved release pipeline ([fa6057b](https://github.com/ryangarber/tiny-chat/commit/fa6057bf0dccd95855f6d6c91ffc8e7d3b817485))
 - bump dependencies [skip ci] ([dd30a38](https://github.com/ryangarber/tiny-chat/commit/dd30a385a64310b8dbd7b77325ea14225b1f2408))

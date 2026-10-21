@@ -30,6 +30,24 @@ describe("CapabilityUtils", () => {
 		expect(getEnabled({ desktop: true }).browser).toBe(true);
 	});
 
+	it("offers LegiScan only with a valid existing provider", () => {
+		expect(getEnabled().legiscan).toBe(false);
+		for (const valid of [true, false]) {
+			expect(
+				getEnabled({
+					providers: [
+						{
+							name: "legiscan",
+							type: "other",
+							settings: ["apiKey"],
+							status: { valid },
+						},
+					],
+				}).legiscan,
+			).toBe(valid);
+		}
+	});
+
 	it("withholds what writes back to the user from incognito and temporary chats", () => {
 		const incognito = getEnabled({ incognito: true });
 		expect(incognito.persistence).toBe(false);

@@ -6,6 +6,7 @@ const DEFAULT_TOOLSETS = [
 	"actions",
 	"browser",
 	"github",
+	"legiscan",
 	"memories",
 	"questions",
 	"shell",

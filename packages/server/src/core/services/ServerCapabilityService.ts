@@ -15,6 +15,7 @@ import { createActionsCapability } from "#server/core/capabilities/createActions
 import { createChatShellCapability } from "#server/core/capabilities/createChatShellCapability.ts";
 import { createEmbeddingCapability } from "#server/core/capabilities/createEmbeddingCapability.ts";
 import { createGitHubCapability } from "#server/core/capabilities/createGitHubCapability.ts";
+import { createLegiscanCapability } from "#server/core/capabilities/createLegiscanCapability.ts";
 import { createMemoriesCapability } from "#server/core/capabilities/createMemoriesCapability.ts";
 import { createSubagentsCapability } from "#server/core/capabilities/createSubagentsCapability.ts";
 import { createWebCapability } from "#server/core/capabilities/createWebCapability.ts";
@@ -61,6 +62,10 @@ export const ServerCapabilityService = {
 				chat: chat?.id,
 				...AgentUtils.getMounts({ messages: messages ?? [] }),
 			});
+		}
+
+		if (enabled.legiscan) {
+			capabilities.legiscan = await createLegiscanCapability({ user });
 		}
 
 		if (enabled.github) {

@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import type { Enum } from "#core/core/services/PostgresService.ts";
 import type { zAgentContext } from "#core/features/agent/types/agent.ts";
 import type { ActionState } from "#core/features/data/types/action.ts";
@@ -18,11 +19,31 @@ import type {
 	zBrowserStatus,
 	zBrowserStep,
 } from "#core/features/tool/types/browser.ts";
+import type {
+	zLegiscanBill,
+	zLegiscanBillInput,
+	zLegiscanBillSummary,
+	zLegiscanSession,
+	zLegiscanSessionInput,
+	zLegiscanSessionsInput,
+} from "#core/features/tool/types/legiscan.ts";
 
 export interface WebCapability {
 	search: (_: { query: string; maxResults: number }) => Promise<zWebContext[]>;
 
 	view: (_: { url: string }) => Promise<zWebContext>;
+}
+
+export interface LegiscanCapability {
+	listSessions: (
+		_: z.infer<typeof zLegiscanSessionsInput>,
+	) => Promise<z.infer<typeof zLegiscanSession>[]>;
+	listBills: (
+		_: z.infer<typeof zLegiscanSessionInput>,
+	) => Promise<z.infer<typeof zLegiscanBillSummary>[]>;
+	getBill: (
+		_: z.infer<typeof zLegiscanBillInput>,
+	) => Promise<z.infer<typeof zLegiscanBill>>;
 }
 
 export interface GitHubCapability {
@@ -242,6 +263,7 @@ export interface BrowserCapability {
 export interface Capabilities {
 	web?: WebCapability;
 	github?: GitHubCapability;
+	legiscan?: LegiscanCapability;
 	embedding?: EmbeddingCapability;
 	subagents?: SubagentsCapability;
 	actions?: ActionsCapability;

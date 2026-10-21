@@ -57,6 +57,7 @@ export const CapabilityUtils = {
 		return {
 			chatShell: true,
 			github: true,
+			legiscan: !!ProviderUtils.isValid(providers, { provider: "legiscan" }),
 			shell: desktop,
 			browser: desktop,
 			actions: !incognito && message,

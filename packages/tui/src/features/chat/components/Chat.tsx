@@ -1,5 +1,4 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { useGreeting } from "#client/core/hooks/useGreeting.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
@@ -8,8 +7,8 @@ import Box from "#tui/core/components/Box.tsx";
 import ScrollView, {
 	type ScrollViewProps,
 } from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
+import GetStarted from "#tui/features/chat/components/GetStarted.tsx";
 import Message from "#tui/features/message/components/Message.tsx";
 
 export default function Chat({ compaction }: { compaction?: Compaction }) {
@@ -21,8 +20,6 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 		() => messages.data?.messages ?? [],
 		[messages.data],
 	);
-
-	const greeting = useGreeting();
 
 	// Brings a message asked for to the top once it has been laid out, which
 	// may be a few passes away while the chat it is in loads.
@@ -41,7 +38,7 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 	if (!chat.data) {
 		return (
 			<Box flexGrow={1} justifyContent="center" alignItems="center">
-				<Text color="textSubtle">{greeting.toLowerCase()}</Text>
+				<GetStarted />
 			</Box>
 		);
 	}

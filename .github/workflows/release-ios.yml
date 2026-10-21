@@ -114,15 +114,18 @@ jobs:
           echo "IPA size: $(du -sh Tiny.Chat_iOS.ipa | cut -f1)"
 
       - name: Publish
-        uses: ryangarber/rylease@v2
+        uses: ryangarber/rylease@v3
         with:
           version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
           dry-run: ${{ env.DRY_RUN }}
+          # No preset here to give them.
+          scheme: semver
+          history: git/tags
+          tag: "{version}"
           steps: |
-            - uses: github-release-assets
+            - uses: github/upload-release-assets
               with:
-                tag: "{version}"
                 files:
                   - '${{ runner.temp }}/Tiny.Chat_iOS.ipa'
                 dryRunArtifact: true

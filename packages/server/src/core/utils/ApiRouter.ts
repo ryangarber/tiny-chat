@@ -7,6 +7,7 @@ import { memory } from "#server/features/chat/routes/memory.ts";
 import { embedding } from "#server/features/embedding/routes/embedding.ts";
 import { message } from "#server/features/message/routes/message.ts";
 import { github } from "#server/features/proxy/routes/github.ts";
+import { legiscan } from "#server/features/proxy/routes/legiscan.ts";
 import { web } from "#server/features/proxy/routes/web.ts";
 import { upload } from "#server/features/upload/routes/upload.ts";
 import { settings } from "#server/features/user/routes/settings.ts";
@@ -26,6 +27,7 @@ export const ApiRouter = router({
 	message,
 	web,
 	github,
+	legiscan,
 	testing,
 });
 

@@ -131,15 +131,18 @@ jobs:
           cp "$BIN" "$RUNNER_TEMP/${{ matrix.asset }}"
 
       - name: Publish
-        uses: ryangarber/rylease@v2
+        uses: ryangarber/rylease@v3
         with:
           version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
           dry-run: ${{ env.DRY_RUN }}
+          # No preset here to give them.
+          scheme: semver
+          history: git/tags
+          tag: "{version}"
           steps: |
-            - uses: github-release-assets
+            - uses: github/upload-release-assets
               with:
-                tag: "{version}"
                 files:
                   - '${{ runner.temp }}/${{ matrix.asset }}'
                 dryRunArtifact: true
@@ -170,15 +173,18 @@ jobs:
         run: printf '{"version":"%s"}\n' "$VERSION" > "$RUNNER_TEMP/latest.json"
 
       - name: Publish
-        uses: ryangarber/rylease@v2
+        uses: ryangarber/rylease@v3
         with:
           version: ${{ inputs.version }}
           notes: ${{ inputs.notes }}
           dry-run: ${{ env.DRY_RUN }}
+          # No preset here to give them.
+          scheme: semver
+          history: git/tags
+          tag: "{version}"
           steps: |
-            - uses: github-release-assets
+            - uses: github/upload-release-assets
               with:
-                tag: "{version}"
                 files:
                   - '${{ runner.temp }}/latest.json'
                 dryRunArtifact: true
