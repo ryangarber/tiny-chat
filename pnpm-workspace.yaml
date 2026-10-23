@@ -31,19 +31,18 @@ peerDependencyRules:
     "better-auth>prisma": "*"
     "@better-auth/prisma-adapter>prisma": "*"
 overrides:
-  "conventional-changelog-writer": "^9.1.1"
-  "effect": "4.0.0-rc.115"
+  effect: "^4.0.5"
 catalogs:
   typescript:
     "typescript": "^7.0.2"
   prisma:
-    "prisma": "8.0.0-rc.23"
-    "@prisma/orm-postgres": "8.0.0-rc.18"
-    "@prisma/orm-extension-paradedb": "8.0.0-rc.18"
-    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.18"
-    "@ryangarber/prisma-orm-extension-zod": "0.2.9"
-    "@ryangarber/better-auth-adapter-prisma": "0.1.9"
+    "prisma": "8.0.0-rc.27"
+    "@prisma/orm-postgres": "8.0.0-rc.20"
+    "@prisma/orm-extension-paradedb": "8.0.0-rc.20"
+    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.20"
+    "@ryangarber/prisma-orm-extension-zod": "0.2.12"
+    "@ryangarber/better-auth-adapter-prisma": "0.1.12"
 patchedDependencies:
-  '@alcalzone/ansi-tokenize@0.3.1': patches/@alcalzone__ansi-tokenize@0.3.1.patch
+  "@alcalzone/ansi-tokenize@0.3.1": patches/@alcalzone__ansi-tokenize@0.3.1.patch
   ink@8.0.0: patches/ink@8.0.0.patch
   native-run: patches/native-run.patch

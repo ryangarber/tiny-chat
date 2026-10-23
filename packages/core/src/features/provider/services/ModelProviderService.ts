@@ -119,10 +119,7 @@ export const ModelProviderService = {
 
 		if (VERBOSE) console.log("[ModelProviderService] final sdk input:", input);
 
-		const { stream, output } = streamText({
-			...input,
-			experimental_lowMemory: false, // fix for broken return type in ai@7.0.143
-		});
+		const { stream, output } = streamText(input);
 		// Only read with a schema; otherwise its rejection when a generation is
 		// aborted would go unhandled.
 		if (!config.schema) Promise.resolve(output).catch(() => {});

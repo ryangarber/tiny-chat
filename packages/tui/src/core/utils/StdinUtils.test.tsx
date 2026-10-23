@@ -18,7 +18,8 @@ const collect = async (chunks: (string | Buffer)[]) => {
 	const keys: string[] = [];
 	const mouse: MouseEvent[] = [];
 	output.on("data", (chunk: string) => keys.push(chunk));
-	output.on("mouse", (event: MouseEvent) => mouse.push(event));
+	// Reports split across chunks arrive later, which is all that tells them apart.
+	output.on("mouse", (event: MouseEvent) => mouse.push({ ...event, time: 0 }));
 	const ended = once(output, "end");
 	for (const chunk of chunks) source.write(chunk);
 	source.end();
@@ -27,17 +28,24 @@ const collect = async (chunks: (string | Buffer)[]) => {
 	return { text: keys.join(""), mouse };
 };
 
+type Probed = {
+	keys: { input: string; key: Key }[];
+	pastes: string[];
+	mouse: MouseEvent[];
+};
+
+function Probe({ keys, pastes, mouse }: Probed) {
+	useInput((input, key) => keys.push({ input, key }));
+	usePaste((text) => pastes.push(text));
+	useMouse({ handler: (event) => mouse.push(event) });
+	return null;
+}
+
 const probe = async () => {
-	const keys: { input: string; key: Key }[] = [];
+	const keys: Probed["keys"] = [];
 	const pastes: string[] = [];
 	const mouse: MouseEvent[] = [];
-	function Probe() {
-		useInput((input, key) => keys.push({ input, key }));
-		usePaste((text) => pastes.push(text));
-		useMouse({ handler: (event) => mouse.push(event) });
-		return null;
-	}
-	const screen = render(<Probe />);
+	const screen = render(<Probe keys={keys} pastes={pastes} mouse={mouse} />);
 	await screen.idle();
 	return { ...screen, keys, pastes, mouse };
 };

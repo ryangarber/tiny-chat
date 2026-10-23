@@ -125,20 +125,19 @@ function Completions<
 				combobox.selectFirstOption();
 			}, [groups, combobox.selectFirstOption]);
 
-			const setIsCompletionsOpen = useCompletionStore(
-				(s) => s.setIsCompletionsOpen,
-			);
-			const setIsCompletionsEmpty = useCompletionStore(
-				(s) => s.setIsCompletionsEmpty,
-			);
+			const isEmpty = groups.length === 0;
 			useEffect(() => {
-				setIsCompletionsOpen(true);
-				setIsCompletionsEmpty(groups.length === 0);
+				useCompletionStore.setState({
+					isCompletionsOpen: true,
+					isCompletionsEmpty: isEmpty,
+				});
 				return () => {
-					setIsCompletionsOpen(false);
-					setIsCompletionsEmpty(true);
+					useCompletionStore.setState({
+						isCompletionsOpen: false,
+						isCompletionsEmpty: true,
+					});
 				};
-			}, [setIsCompletionsOpen, setIsCompletionsEmpty, groups.length]);
+			}, [isEmpty]);
 
 			return (
 				<Combobox store={combobox} onOptionSubmit={select} withinPortal={false}>

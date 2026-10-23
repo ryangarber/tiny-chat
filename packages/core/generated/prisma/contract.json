@@ -2598,7 +2598,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zConfig"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zConfig",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -2616,13 +2620,16 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zData"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zData",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "embedding": {
                   "codecId": "pg/vector@1",
                   "dataType": "pgvector/vector",
-                  "nullable": true,
-                  "typeRef": "Embedding"
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -2857,7 +2864,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zConfig"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zConfig",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -2875,7 +2886,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zData"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zData",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -2886,7 +2901,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zMetadata"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zMetadata",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "userId": {
                   "codecId": "pg/text@1",
@@ -3020,6 +3039,13 @@
               "uniques": []
             },
             "file": {
+              "checks": [
+                {
+                  "expression": "array_position(\"path\", NULL) IS NULL",
+                  "name": "file_path_elem_not_null_afae3f60",
+                  "prefix": "file_path_elem_not_null"
+                }
+              ],
               "columns": {
                 "chatId": {
                   "codecId": "pg/text@1",
@@ -3046,8 +3072,7 @@
                 "embedding": {
                   "codecId": "pg/vector@1",
                   "dataType": "pgvector/vector",
-                  "nullable": true,
-                  "typeRef": "Embedding"
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -3065,9 +3090,6 @@
                   "many": {
                     "elementNullable": false
                   },
-                  "noCheck": [
-                    "elementNotNull"
-                  ],
                   "nullable": false
                 },
                 "updatedAt": {
@@ -3189,6 +3211,13 @@
               "uniques": []
             },
             "memory": {
+              "checks": [
+                {
+                  "expression": "array_position(\"evidence\", NULL) IS NULL",
+                  "name": "memory_evidence_elem_not_null_baca93e3",
+                  "prefix": "memory_evidence_elem_not_null"
+                }
+              ],
               "columns": {
                 "category": {
                   "codecId": "pg/enum@1",
@@ -3213,7 +3242,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": true,
-                  "typeRef": "zConfig"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zConfig",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -3230,8 +3263,7 @@
                 "embedding": {
                   "codecId": "pg/vector@1",
                   "dataType": "pgvector/vector",
-                  "nullable": true,
-                  "typeRef": "Embedding"
+                  "nullable": true
                 },
                 "evidence": {
                   "codecId": "pg/text@1",
@@ -3239,9 +3271,6 @@
                   "many": {
                     "elementNullable": false
                   },
-                  "noCheck": [
-                    "elementNotNull"
-                  ],
                   "nullable": false
                 },
                 "fact": {
@@ -3382,7 +3411,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zConfig"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zConfig",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -3400,13 +3433,16 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zData"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zData",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "embedding": {
                   "codecId": "pg/vector@1",
                   "dataType": "pgvector/vector",
-                  "nullable": true,
-                  "typeRef": "Embedding"
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -3417,7 +3453,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zMetadata"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zMetadata",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "previousId": {
                   "codecId": "pg/text@1",
@@ -3732,7 +3772,11 @@
                     "kind": "function"
                   },
                   "nullable": false,
-                  "typeRef": "zSettings"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zSettings",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "title": {
                   "codecId": "pg/text@1",
@@ -3908,7 +3952,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zData"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zData",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -3919,7 +3967,11 @@
                   "codecId": "zod/json@1",
                   "dataType": "pg/jsonb",
                   "nullable": false,
-                  "typeRef": "zMetadata"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zMetadata",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "partId": {
                   "codecId": "pg/text@1",
@@ -4080,7 +4132,11 @@
                     "kind": "function"
                   },
                   "nullable": false,
-                  "typeRef": "zCache"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zCache",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "createdAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -4149,7 +4205,11 @@
                     "kind": "function"
                   },
                   "nullable": false,
-                  "typeRef": "zSettings"
+                  "typeParams": {
+                    "export": "SchemaTypes",
+                    "key": "zSettings",
+                    "module": "../../prisma/zod-extension.ts"
+                  }
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamp-temporal@1",
@@ -4283,64 +4343,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d0d217dde6572df3f9f414a24451b6c815bc5a4f762662d808a4b5de1f6a7b90",
-    "types": {
-      "Embedding": {
-        "codecId": "pg/vector@1",
-        "dataType": "pgvector/vector",
-        "kind": "codec-instance"
-      },
-      "zCache": {
-        "codecId": "zod/json@1",
-        "dataType": "pg/jsonb",
-        "kind": "codec-instance",
-        "typeParams": {
-          "export": "SchemaTypes",
-          "key": "zCache",
-          "module": "../../prisma/zod-extension.ts"
-        }
-      },
-      "zConfig": {
-        "codecId": "zod/json@1",
-        "dataType": "pg/jsonb",
-        "kind": "codec-instance",
-        "typeParams": {
-          "export": "SchemaTypes",
-          "key": "zConfig",
-          "module": "../../prisma/zod-extension.ts"
-        }
-      },
-      "zData": {
-        "codecId": "zod/json@1",
-        "dataType": "pg/jsonb",
-        "kind": "codec-instance",
-        "typeParams": {
-          "export": "SchemaTypes",
-          "key": "zData",
-          "module": "../../prisma/zod-extension.ts"
-        }
-      },
-      "zMetadata": {
-        "codecId": "zod/json@1",
-        "dataType": "pg/jsonb",
-        "kind": "codec-instance",
-        "typeParams": {
-          "export": "SchemaTypes",
-          "key": "zMetadata",
-          "module": "../../prisma/zod-extension.ts"
-        }
-      },
-      "zSettings": {
-        "codecId": "zod/json@1",
-        "dataType": "pg/jsonb",
-        "kind": "codec-instance",
-        "typeParams": {
-          "export": "SchemaTypes",
-          "key": "zSettings",
-          "module": "../../prisma/zod-extension.ts"
-        }
-      }
-    }
+    "storageHash": "308cff4a25d99fec950f55c3607e3204a27cdd0a417d49488270c666310721de"
   },
   "capabilities": {
     "postgres": {
@@ -4410,13 +4413,11 @@
             "named": "CodecTypes",
             "package": "@internal/extension-pgvector/codec-types"
           },
-          "typeImports": [
-            {
-              "alias": "Vector",
-              "named": "Vector",
-              "package": "@internal/extension-pgvector/codec-types"
-            }
-          ]
+          "parameterizedOutputTypes": {
+            "alias": "PgVectorParameterizedOutputTypes",
+            "named": "ParameterizedOutputTypesForTypeParams",
+            "package": "@internal/extension-pgvector/codec-types"
+          }
         },
         "operationTypes": {
           "import": {

@@ -1,6 +1,6 @@
 /** @author https://github.com/vercel/streamdown/blob/main/packages/streamdown/hooks/use-deferred-render.ts */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Default debounce delay in milliseconds before checking if element is still in view
@@ -17,6 +17,29 @@ const DEFERRED_RENDER_ROOT_MARGIN = "300px";
  * Default timeout for requestIdleCallback in milliseconds
  */
 const DEFERRED_RENDER_IDLE_TIMEOUT = 500;
+
+const hasIdleCallback =
+	typeof window !== "undefined" && "requestIdleCallback" in window;
+
+// Polyfill for requestIdleCallback
+const requestIdle = (
+	callback: IdleRequestCallback,
+	opts?: IdleRequestOptions,
+): number => {
+	if (hasIdleCallback) return window.requestIdleCallback(callback, opts);
+	const start = Date.now();
+	return window.setTimeout(() => {
+		callback({
+			didTimeout: false,
+			timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
+		});
+	}, 1);
+};
+
+const cancelIdle = (id: number) => {
+	if (hasIdleCallback) window.cancelIdleCallback(id);
+	else clearTimeout(id);
+};
 
 export interface UseDeferredRenderOptions {
 	/**
@@ -67,51 +90,13 @@ export function useDeferredRender(options: UseDeferredRenderOptions = {}) {
 		idleTimeout = DEFERRED_RENDER_IDLE_TIMEOUT,
 	} = options;
 
-	const [shouldRender, setShouldRender] = useState(false);
+	const [inView, setInView] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
-	const renderTimeoutRef = useRef<number | null>(null);
-	const idleCallbackRef = useRef<number | null>(null);
-
-	// Polyfill for requestIdleCallback
-	const requestIdleCallbackPolyfill = useMemo(
-		() =>
-			(callback: IdleRequestCallback): number => {
-				const start = Date.now();
-				return window.setTimeout(() => {
-					callback({
-						didTimeout: false,
-						timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
-					});
-				}, 1);
-			},
-		[],
-	);
-
-	const requestIdleCallbackWrapper = useMemo(
-		() =>
-			typeof window !== "undefined" && window.requestIdleCallback
-				? (cb: IdleRequestCallback, opts?: IdleRequestOptions) =>
-						window.requestIdleCallback(cb, opts)
-				: requestIdleCallbackPolyfill,
-		[requestIdleCallbackPolyfill],
-	);
-
-	const cancelIdleCallbackWrapper = useMemo(
-		() =>
-			typeof window !== "undefined" && window.cancelIdleCallback
-				? (id: number) => window.cancelIdleCallback(id)
-				: (id: number) => {
-						clearTimeout(id);
-					},
-		[],
-	);
+	// Once rendered, stay rendered
+	const shouldRender = immediate || inView;
 
 	useEffect(() => {
-		// If immediate, render right away
-		if (immediate) {
-			setShouldRender(true);
-			return;
-		}
+		if (shouldRender) return;
 
 		const container = containerRef.current;
 		/* v8 ignore next */
@@ -119,82 +104,66 @@ export function useDeferredRender(options: UseDeferredRenderOptions = {}) {
 			return;
 		}
 
-		// Clear any pending timeout and idle callback
-		if (renderTimeoutRef.current) {
-			clearTimeout(renderTimeoutRef.current);
-			renderTimeoutRef.current = null;
-		}
-		if (idleCallbackRef.current) {
-			cancelIdleCallbackWrapper(idleCallbackRef.current);
-			idleCallbackRef.current = null;
-		}
+		let renderTimeout: number | null = null;
+		let idleCallback: number | null = null;
 
 		const clearPendingRenders = () => {
-			if (renderTimeoutRef.current) {
-				clearTimeout(renderTimeoutRef.current);
-				renderTimeoutRef.current = null;
+			if (renderTimeout !== null) {
+				clearTimeout(renderTimeout);
+				renderTimeout = null;
 			}
-			if (idleCallbackRef.current) {
-				cancelIdleCallbackWrapper(idleCallbackRef.current);
-				idleCallbackRef.current = null;
+			if (idleCallback !== null) {
+				cancelIdle(idleCallback);
+				idleCallback = null;
 			}
 		};
 
-		const scheduleRender = (obs: IntersectionObserver) => {
-			idleCallbackRef.current = requestIdleCallbackWrapper(
+		const render = () => {
+			setInView(true);
+			observer.disconnect();
+		};
+
+		const scheduleRender = () => {
+			idleCallback = requestIdle(
 				(deadline) => {
 					// If we have time remaining or it's urgent, render
 					if (deadline.timeRemaining() > 0 || deadline.didTimeout) {
-						setShouldRender(true);
-						obs.disconnect();
+						render();
 					} else {
 						// Otherwise, schedule again with shorter timeout
-						idleCallbackRef.current = requestIdleCallbackWrapper(
-							() => {
-								setShouldRender(true);
-								obs.disconnect();
-							},
-							{ timeout: idleTimeout / 2 },
-						);
+						idleCallback = requestIdle(render, { timeout: idleTimeout / 2 });
 					}
 				},
 				{ timeout: idleTimeout },
 			);
 		};
 
-		const handleIntersecting = (obs: IntersectionObserver) => {
+		const handleIntersecting = () => {
 			clearPendingRenders();
 
 			// Debounce rendering: wait for debounceDelay, then check if still in view
-			renderTimeoutRef.current = window.setTimeout(() => {
+			renderTimeout = window.setTimeout(() => {
 				// Re-check if element is still in viewport using observer records
-				const records = obs.takeRecords();
+				const records = observer.takeRecords();
 				// If no records, element hasn't changed state (still intersecting)
 				// If records exist, check the latest intersection state
 				const isStillInView =
 					records.length === 0 || (records.at(-1)?.isIntersecting ?? false);
 
 				if (isStillInView) {
-					scheduleRender(obs);
+					scheduleRender();
 				}
 			}, debounceDelay);
-		};
-
-		const handleIntersection = (
-			entry: IntersectionObserverEntry,
-			obs: IntersectionObserver,
-		) => {
-			if (entry.isIntersecting) {
-				handleIntersecting(obs);
-			} else {
-				clearPendingRenders();
-			}
 		};
 
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
-					handleIntersection(entry, observer);
+					if (entry.isIntersecting) {
+						handleIntersecting();
+					} else {
+						clearPendingRenders();
+					}
 				}
 			},
 			{
@@ -206,22 +175,10 @@ export function useDeferredRender(options: UseDeferredRenderOptions = {}) {
 		observer.observe(container);
 
 		return () => {
-			if (renderTimeoutRef.current) {
-				clearTimeout(renderTimeoutRef.current);
-			}
-			if (idleCallbackRef.current) {
-				cancelIdleCallbackWrapper(idleCallbackRef.current);
-			}
+			clearPendingRenders();
 			observer.disconnect();
 		};
-	}, [
-		immediate,
-		debounceDelay,
-		rootMargin,
-		idleTimeout,
-		cancelIdleCallbackWrapper,
-		requestIdleCallbackWrapper,
-	]);
+	}, [shouldRender, debounceDelay, rootMargin, idleTimeout]);
 
 	return {
 		shouldRender,

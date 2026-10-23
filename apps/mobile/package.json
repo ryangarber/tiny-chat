@@ -34,6 +34,6 @@
 		"gui": "workspace:*"
 	},
 	"devDependencies": {
-		"@capawesome/capacitor-assets": "^4.1.0"
+		"@capawesome/capacitor-assets": "^5.0.1"
 	}
 }

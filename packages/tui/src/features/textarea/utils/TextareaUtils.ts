@@ -5,6 +5,7 @@ import type {
 	TextareaRow,
 	TextareaSelection,
 	TextareaStyle,
+	TextareaStyles,
 } from "#tui/features/textarea/types/textarea.ts";
 
 /** Columns a tab is drawn across. */
@@ -34,11 +35,40 @@ const wordKind = (char: string | undefined): TextareaWord | null => {
 	return /[\p{L}\p{N}_]/u.test(char) ? "word" : "symbol";
 };
 
+/** Styles resolved by label, per set of styles, which outlive a render. */
+const RESOLVED = new WeakMap<TextareaStyles, Map<string, TextareaStyle>>();
+const NO_STYLES: TextareaStyles = {};
+
 /**
  * Geometry of the text area: how the value is wrapped into rows, scrolled
  * under the viewport, and stepped across by the cursor.
  */
 export const TextareaUtils = {
+	/**
+	 * The style a label is drawn in, which for labels joined by `+` is all of
+	 * theirs, the later over the earlier.
+	 */
+	style: (styles: TextareaStyles | undefined, label: string) => {
+		const key = styles ?? NO_STYLES;
+		let resolved = RESOLVED.get(key);
+		if (!resolved) {
+			resolved = new Map();
+			RESOLVED.set(key, resolved);
+		}
+
+		let style = resolved.get(label);
+		if (!style) {
+			style = Object.assign(
+				{},
+				...label
+					.split("+")
+					.map((part) => (part === TEXT_LABEL ? {} : key[part])),
+			) as TextareaStyle;
+			resolved.set(label, style);
+		}
+		return style;
+	},
+
 	/** The text split into graphemes, each with the offset it starts at. */
 	graphemes: (text: string) =>
 		Array.from(SEGMENTER.segment(text), ({ segment, index }) => ({

@@ -192,7 +192,7 @@ namespace public {
     id        String        @id(map: "file_pkey")
     userId    String
     uploadId  String?
-    path      String[]      @noCheck(elementNotNull)
+    path      String[]
     mime      String
     data      Bytes
     embedding Embedding?
@@ -216,7 +216,7 @@ namespace public {
     fact       String
     category   pg.enum(MemoryCategory)
     stability  pg.enum(MemoryStability)
-    evidence   String[]                 @noCheck(elementNotNull)
+    evidence   String[]
     confidence Float
     embedding  Embedding?
     createdAt  Timestamp(3)             @default(now())

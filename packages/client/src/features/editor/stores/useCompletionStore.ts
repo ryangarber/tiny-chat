@@ -2,20 +2,11 @@ import { create } from "zustand";
 
 interface CompletionStore {
 	isCompletionsOpen: boolean;
-	setIsCompletionsOpen: (open: boolean) => void;
-
 	isCompletionsEmpty: boolean;
-	setIsCompletionsEmpty: (empty: boolean) => void;
 }
 
-export const useCompletionStore = create<CompletionStore>((set) => ({
+/** Written by the open completion list via `setState`, read by the editor. */
+export const useCompletionStore = create<CompletionStore>(() => ({
 	isCompletionsOpen: false,
-	setIsCompletionsOpen: (open) => {
-		set({ isCompletionsOpen: open });
-	},
-
 	isCompletionsEmpty: true,
-	setIsCompletionsEmpty: (empty) => {
-		set({ isCompletionsEmpty: empty });
-	},
 }));

@@ -1,5 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: the driver is untyped Node and page script */
 /** biome-ignore-all lint/complexity/useArrowFunction: sent as source */
+/** biome-ignore-all lint/performance/useDomNodeTextContent: reads rendered text */
 
 /**
  * The browser driver: a small Node program that owns Playwright and answers

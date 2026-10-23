@@ -49,32 +49,50 @@ const KEY = {
 	paste: (text: string) => `\x1b[200~${text}\x1b[201~`,
 };
 
+function Field({
+	initial,
+	onRows,
+	...props
+}: Partial<TextareaProps> & {
+	initial: string;
+	onRows: (rows: number) => void;
+}) {
+	const [value, setValue] = useState(initial);
+	const { rows } = useWindowSize();
+	useEffect(() => {
+		onRows(rows);
+	}, [onRows, rows]);
+	return (
+		<Textarea
+			focus
+			{...props}
+			value={value}
+			onChange={(next) => {
+				props.onChange?.(next);
+				setValue(next);
+			}}
+		/>
+	);
+}
+
 /** A text area holding its own value, which is read back through `state`. */
 async function field(
 	props: Partial<TextareaProps> & { initial?: string } = {},
 ) {
 	const state = { value: props.initial ?? "", rows: 0 };
 
-	function Field() {
-		const [value, setValue] = useState(state.value);
-		const { rows } = useWindowSize();
-		useEffect(() => {
-			state.rows = rows;
-		}, [rows]);
-		return (
-			<Textarea
-				focus
-				{...props}
-				value={value}
-				onChange={(next) => {
-					state.value = next;
-					setValue(next);
-				}}
-			/>
-		);
-	}
-
-	const screen = await render(<Field />);
+	const screen = await render(
+		<Field
+			{...props}
+			initial={state.value}
+			onChange={(next) => {
+				state.value = next;
+			}}
+			onRows={(rows) => {
+				state.rows = rows;
+			}}
+		/>,
+	);
 	await screen.idle();
 
 	return {

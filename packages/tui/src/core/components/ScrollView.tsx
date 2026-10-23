@@ -113,6 +113,19 @@ export const revealRow = (node: DOMElement, y: number) => {
 const height = (node: DOMElement | null) =>
 	node?.yogaNode?.getComputedHeight() ?? 0;
 
+/**
+ * The height each child was last measured at, and what a child never laid out
+ * is held at: the average of those that were.
+ */
+const held = (heights: ReadonlyMap<string, number>, keys: string[]) => {
+	let total = 0;
+	for (const value of heights.values()) total += value;
+	return {
+		measured: keys.map((key) => heights.get(key)),
+		fallback: heights.size ? Math.max(1, Math.round(total / heights.size)) : 1,
+	};
+};
+
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(Math.max(value, min), Math.max(min, max));
 
@@ -229,7 +242,8 @@ export default function ScrollView({
 	);
 
 	const scrollToIndex = useCallback(
-		(index: number, mode: ScrollAlign = align) => {
+		(index: number, mode?: ScrollAlign) => {
+			const to = mode ?? align;
 			const position = getItemPosition(index);
 			if (!position) return;
 
@@ -237,9 +251,9 @@ export default function ScrollView({
 			const current = getScrollOffset();
 			const bottom = position.top + position.height - viewport;
 
-			if (mode === "top") return scrollTo(position.top);
-			if (mode === "bottom") return scrollTo(bottom);
-			if (mode === "center")
+			if (to === "top") return scrollTo(position.top);
+			if (to === "bottom") return scrollTo(bottom);
+			if (to === "center")
 				return scrollTo(position.top + (position.height - viewport) / 2);
 
 			// Anything already in view stays exactly where it is. A child taller than
@@ -293,7 +307,7 @@ export default function ScrollView({
 	}, [getViewportHeight, scrollBy]);
 
 	// Views nested in this one, offered the wheel before it.
-	const nestedRef = useRef(new Set<WheelHandler>());
+	const [nested] = useState(() => new Set<WheelHandler>());
 	const parent = useContext(ScrollContext);
 
 	// The wheel turns over whatever the pointer is resting on, so views sitting
@@ -309,7 +323,7 @@ export default function ScrollView({
 			if (!node || MouseUtils.isCovered(node, event, rows)) return false;
 			if (!MouseUtils.contains(MouseUtils.bounds(node, rows), event))
 				return false;
-			for (const nested of nestedRef.current) if (nested(event)) return true;
+			for (const handler of nested) if (handler(event)) return true;
 
 			const current = getScrollOffset();
 			if (event.deltaY < 0 ? current <= 0 : current >= getMaxOffset())
@@ -317,7 +331,7 @@ export default function ScrollView({
 			scrollBy(event.deltaY * wheelStep);
 			return true;
 		},
-		[wheel, rows, getScrollOffset, getMaxOffset, scrollBy, wheelStep],
+		[wheel, rows, nested, getScrollOffset, getMaxOffset, scrollBy, wheelStep],
 	);
 
 	useEffect(() => {
@@ -335,11 +349,7 @@ export default function ScrollView({
 		isActive: wheel && !parent,
 	});
 
-	const items = useMemo(() => {
-		const list = Children.toArray(children);
-		itemsRef.current.length = list.length;
-		return list;
-	}, [children]);
+	const items = useMemo(() => Children.toArray(children), [children]);
 
 	// Identity of the children, which heights and the drawn run are held by.
 	const keys = useMemo(
@@ -358,14 +368,11 @@ export default function ScrollView({
 	);
 	const heightsRef = useRef(new Map<string, number>());
 
-	// What a child never laid out is held at: the average of those that were.
-	const estimate = () => {
-		const heights = heightsRef.current;
-		if (!heights.size) return 1;
-		let total = 0;
-		for (const value of heights.values()) total += value;
-		return Math.max(1, Math.round(total / heights.size));
-	};
+	// The height each child was last measured at, read ahead of the next commit
+	// rather than waiting a frame for state to deliver them, and what a child
+	// never measured is held at in their place.
+	// biome-ignore lint/nursery/useReactCompiler: layout measurements, which only exist outside of render.
+	const { measured, fallback } = held(heightsRef.current, keys);
 
 	// The run the pass below would settle on, worked out ahead of it from the
 	// heights it last measured. Ink paints a commit before its layout effects
@@ -374,9 +381,7 @@ export default function ScrollView({
 	// on screen before it is.
 	const expected = (() => {
 		if (!keys.length) return null;
-		const fallback = estimate();
-		const heightAt = (index: number) =>
-			heightsRef.current.get(keys[index]) ?? fallback;
+		const heightAt = (index: number) => measured[index] ?? fallback;
 		// The terminal's rows stand in for the viewport, which is never taller.
 		const reach = rows + overscan;
 
@@ -433,6 +438,9 @@ export default function ScrollView({
 	// Ink recomputes the whole layout before this runs, so every height read here
 	// is the one about to be drawn.
 	useLayoutEffect(() => {
+		// Children that have gone leave their slots behind.
+		itemsRef.current.length = items.length;
+
 		// Every height is a height at a width. Once that width moves, none of them
 		// describe anything, so the list goes back to being drawn whole and is
 		// measured again from what it lays out to now.
@@ -530,6 +538,7 @@ export default function ScrollView({
 				first >= 0 &&
 				(keys[first] !== drawn?.first || keys[last] !== drawn?.last)
 			)
+				// biome-ignore lint/nursery/useReactCompiler: the run is measured from the layout Ink just computed, which only a layout effect can read.
 				setDrawn({ first: keys[first], last: keys[last] });
 
 			// Taken against the offset just settled on, for the next pass to hold.
@@ -588,7 +597,7 @@ export default function ScrollView({
 				minHeight={0}
 				justifyContent={pinned ? "flex-end" : "flex-start"}
 			>
-				<ScrollContext value={nestedRef.current}>
+				<ScrollContext value={nested}>
 					<Box
 						ref={contentRef}
 						flexDirection="column"
@@ -620,9 +629,7 @@ export default function ScrollView({
 								// Stands in for the child while it is hidden, so the rows it
 								// takes up are still there to be scrolled through and measured.
 								height={
-									hidden[index]
-										? (heightsRef.current.get(keys[index]) ?? estimate())
-										: undefined
+									hidden[index] ? (measured[index] ?? fallback) : undefined
 								}
 							>
 								{!hidden[index] && child}

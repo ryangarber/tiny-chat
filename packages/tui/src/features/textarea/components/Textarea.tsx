@@ -307,12 +307,12 @@ export default function Textarea({
 
 	// A focused selection takes Ctrl+C from the app, which otherwise quits on it.
 	const id = useId();
-	const setSelecting = useAppStore((state) => state.setSelecting);
 	const isSelecting = focus && !!selection;
 	useEffect(() => {
+		const { setSelecting } = useAppStore.getState();
 		setSelecting(id, isSelecting);
 		return () => setSelecting(id, false);
-	}, [id, isSelecting, setSelecting]);
+	}, [id, isSelecting]);
 
 	/**
 	 * The selection from its anchor out to where it was taken, by the word once
@@ -355,7 +355,7 @@ export default function Textarea({
 			}
 
 			const pressed = pointed(event);
-			const now = Date.now();
+			const now = event.time;
 
 			// A second press where the last one landed takes the word under it, and
 			// the drag that follows goes on taking whole words rather than characters.
@@ -604,26 +604,6 @@ export default function Textarea({
 		[colorScheme, styles],
 	);
 
-	// The style a label is drawn in, which for labels joined by `+` is all of
-	// theirs, the later over the earlier.
-	const resolve = useMemo(() => {
-		const resolved = new Map<string, TextareaStyle>();
-
-		return (label: string) => {
-			let style = resolved.get(label);
-			if (!style) {
-				style = Object.assign(
-					{},
-					...label
-						.split("+")
-						.map((part) => (part === TEXT_LABEL ? {} : styles?.[part])),
-				) as TextareaStyle;
-				resolved.set(label, style);
-			}
-			return style;
-		};
-	}, [styles]);
-
 	const painted = useMemo(
 		() => TextareaUtils.paint(value, labels ?? []),
 		[value, labels],
@@ -667,7 +647,7 @@ export default function Textarea({
 			if (!run || !runPaint) return;
 
 			const props = textProps({
-				...resolve(runPaint.label),
+				...TextareaUtils.style(styles, runPaint.label),
 				...runPaint.style,
 			});
 

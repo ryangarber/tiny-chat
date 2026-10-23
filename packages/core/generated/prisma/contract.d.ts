@@ -5,13 +5,17 @@ import type { SchemaTypes as ZodTypes } from '../../prisma/zod-extension.ts';
 import type { QueryOperationTypes as ParadeDbQueryOperationTypes } from '@prisma/orm-extension-paradedb/operation-types';
 import type {
   CodecTypes as PgVectorTypes,
-  Vector,
+  ParameterizedOutputTypesForTypeParams as PgVectorParameterizedOutputTypes,
 } from '@prisma/orm-extension-pgvector/codec-types';
 import type { QueryOperationTypes as PgVectorQueryOperationTypes } from '@prisma/orm-extension-pgvector/operation-types';
-import type { CodecTypes as PgTypes } from '@prisma/orm-postgres/target/codec-types';
+import type {
+  CodecTypes as PgTypes,
+  ParameterizedOutputTypesForTypeParams as PgParameterizedOutputTypes,
+} from '@prisma/orm-postgres/target/codec-types';
 import type { QueryOperationTypes as PgTargetQueryOps } from '@prisma/orm-postgres/target/operation-types';
 
 import type {
+  ColumnTypesFromStorage,
   ContractWithTypeMaps,
   RelationKeys,
   TypeMaps as TypeMapsType,
@@ -19,13 +23,14 @@ import type {
 import type {
   Contract as ContractType,
   ExecutionHashBase,
+  FieldTypesFromDomain,
   NamespaceId,
   ProfileHashBase,
   StorageHashBase,
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d0d217dde6572df3f9f414a24451b6c815bc5a4f762662d808a4b5de1f6a7b90'>;
+  StorageHashBase<'308cff4a25d99fec950f55c3607e3204a27cdd0a417d49488270c666310721de'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -239,661 +244,259 @@ type DefaultLiteralValue<CodecId extends string, Encoded> = CodecId extends keyo
     ? Encoded
     : CodecTypes[CodecId]['json']
   : Encoded;
+type ParameterizedOutputTypeFunctions =
+  PgParameterizedOutputTypes | PgVectorParameterizedOutputTypes;
 
-export type FieldOutputTypes = {
+type FieldTypeOverrides = {
   readonly public: {
-    readonly Account: {
-      readonly accessToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly accessTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly accountId: CodecTypes['pg/text@1']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly idToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly password: CodecTypes['pg/text@1']['output'] | null;
-      readonly providerId: CodecTypes['pg/text@1']['output'];
-      readonly refreshToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly refreshTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly scope: CodecTypes['pg/text@1']['output'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Action: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly lastRanAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-      readonly schedule: CodecTypes['pg/text@1']['output'];
-      readonly timezone: CodecTypes['pg/text@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Chat: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly incognito: CodecTypes['pg/bool@1']['output'];
-      readonly projectId: CodecTypes['pg/text@1']['output'] | null;
-      readonly temporary: CodecTypes['pg/bool@1']['output'];
-      readonly title: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Dream: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly DreamMessage: {
-      readonly dreamId: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly File: {
-      readonly chatId: CodecTypes['pg/text@1']['output'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: CodecTypes['pg/bytea@1']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly mime: CodecTypes['pg/text@1']['output'];
-      readonly path: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly uploadId: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Memory: {
-      readonly category: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
-      readonly confidence: CodecTypes['pg/float8@1']['output'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly evidence: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-      readonly fact: CodecTypes['pg/text@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'] | null;
-      readonly stability: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Message: {
-      readonly author: 'USER' | 'MODEL';
-      readonly chatId: CodecTypes['pg/text@1']['output'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly previousId: CodecTypes['pg/text@1']['output'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly MessageContext: {
-      readonly memoryId: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly MessageSubagent: {
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-      readonly subagentId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Project: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-      readonly title: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Session: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly ipAddress: CodecTypes['pg/text@1']['output'] | null;
-      readonly token: CodecTypes['pg/text@1']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly userAgent: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Subagent: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly partId: CodecTypes['pg/text@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly Upload: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly kind: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
-      readonly name: CodecTypes['pg/text@1']['output'];
-      readonly thumbnail: CodecTypes['pg/bytea@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly User: {
-      readonly cache: ZodTypes['zod/json@1']['schemas']['zCache']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly email: CodecTypes['pg/text@1']['output'];
-      readonly emailVerified: CodecTypes['pg/bool@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly image: CodecTypes['pg/text@1']['output'] | null;
-      readonly isAnonymous: CodecTypes['pg/bool@1']['output'] | null;
-      readonly isEphemeral: CodecTypes['pg/bool@1']['output'] | null;
-      readonly name: CodecTypes['pg/text@1']['output'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    };
-    readonly Verification: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly identifier: CodecTypes['pg/text@1']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly value: CodecTypes['pg/text@1']['output'];
+    readonly models: {
+      readonly Action: {
+        readonly config: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+        };
+        readonly data: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+        };
+      };
+      readonly Dream: {
+        readonly config: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+        };
+        readonly data: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+        };
+        readonly metadata: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+        };
+      };
+      readonly Memory: {
+        readonly category: {
+          readonly output: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
+          readonly input: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
+        };
+        readonly config: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+        };
+        readonly stability: {
+          readonly output: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
+          readonly input: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
+        };
+      };
+      readonly Message: {
+        readonly author: { readonly output: 'USER' | 'MODEL'; readonly input: 'USER' | 'MODEL' };
+        readonly config: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+        };
+        readonly data: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+        };
+        readonly metadata: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+        };
+      };
+      readonly Project: {
+        readonly settings: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
+        };
+      };
+      readonly Subagent: {
+        readonly data: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+        };
+        readonly metadata: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+        };
+      };
+      readonly Upload: {
+        readonly kind: {
+          readonly output: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
+          readonly input: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
+        };
+      };
+      readonly User: {
+        readonly cache: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zCache']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zCache']['input'];
+        };
+        readonly settings: {
+          readonly output: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
+          readonly input: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
+        };
+      };
     };
   };
 };
-export type FieldInputTypes = {
+export type FieldOutputTypes = FieldTypesFromDomain<
+  ContractBase['domain']['namespaces'],
+  CodecTypes,
+  ParameterizedOutputTypeFunctions,
+  FieldTypeOverrides,
+  'output'
+>;
+export type FieldInputTypes = FieldTypesFromDomain<
+  ContractBase['domain']['namespaces'],
+  CodecTypes,
+  ParameterizedOutputTypeFunctions,
+  FieldTypeOverrides,
+  'input'
+>;
+type ColumnTypeOverrides = {
   readonly public: {
-    readonly Account: {
-      readonly accessToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly accessTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly accountId: CodecTypes['pg/text@1']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly idToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly password: CodecTypes['pg/text@1']['input'] | null;
-      readonly providerId: CodecTypes['pg/text@1']['input'];
-      readonly refreshToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly refreshTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly scope: CodecTypes['pg/text@1']['input'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Action: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly lastRanAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-      readonly schedule: CodecTypes['pg/text@1']['input'];
-      readonly timezone: CodecTypes['pg/text@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Chat: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly incognito: CodecTypes['pg/bool@1']['input'];
-      readonly projectId: CodecTypes['pg/text@1']['input'] | null;
-      readonly temporary: CodecTypes['pg/bool@1']['input'];
-      readonly title: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Dream: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly DreamMessage: {
-      readonly dreamId: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly File: {
-      readonly chatId: CodecTypes['pg/text@1']['input'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: CodecTypes['pg/bytea@1']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly mime: CodecTypes['pg/text@1']['input'];
-      readonly path: ReadonlyArray<CodecTypes['pg/text@1']['input']>;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly uploadId: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Memory: {
-      readonly category: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
-      readonly confidence: CodecTypes['pg/float8@1']['input'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly evidence: ReadonlyArray<CodecTypes['pg/text@1']['input']>;
-      readonly fact: CodecTypes['pg/text@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'] | null;
-      readonly stability: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Message: {
-      readonly author: 'USER' | 'MODEL';
-      readonly chatId: CodecTypes['pg/text@1']['input'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly previousId: CodecTypes['pg/text@1']['input'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly MessageContext: {
-      readonly memoryId: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly MessageSubagent: {
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-      readonly subagentId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Project: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
-      readonly title: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Session: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly ipAddress: CodecTypes['pg/text@1']['input'] | null;
-      readonly token: CodecTypes['pg/text@1']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly userAgent: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Subagent: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly partId: CodecTypes['pg/text@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly Upload: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly kind: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
-      readonly name: CodecTypes['pg/text@1']['input'];
-      readonly thumbnail: CodecTypes['pg/bytea@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly User: {
-      readonly cache: ZodTypes['zod/json@1']['schemas']['zCache']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly email: CodecTypes['pg/text@1']['input'];
-      readonly emailVerified: CodecTypes['pg/bool@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly image: CodecTypes['pg/text@1']['input'] | null;
-      readonly isAnonymous: CodecTypes['pg/bool@1']['input'] | null;
-      readonly isEphemeral: CodecTypes['pg/bool@1']['input'] | null;
-      readonly name: CodecTypes['pg/text@1']['input'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-    };
-    readonly Verification: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly identifier: CodecTypes['pg/text@1']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly value: CodecTypes['pg/text@1']['input'];
-    };
-  };
-};
-export type StorageColumnTypes = {
-  readonly public: {
-    readonly account: {
-      readonly accessToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly accessTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly accountId: CodecTypes['pg/text@1']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly idToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly password: CodecTypes['pg/text@1']['output'] | null;
-      readonly providerId: CodecTypes['pg/text@1']['output'];
-      readonly refreshToken: CodecTypes['pg/text@1']['output'] | null;
-      readonly refreshTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly scope: CodecTypes['pg/text@1']['output'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
     readonly action: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly lastRanAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-      readonly schedule: CodecTypes['pg/text@1']['output'];
-      readonly timezone: CodecTypes['pg/text@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly chat: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly incognito: CodecTypes['pg/bool@1']['output'];
-      readonly projectId: CodecTypes['pg/text@1']['output'] | null;
-      readonly temporary: CodecTypes['pg/bool@1']['output'];
-      readonly title: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly config: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+      };
+      readonly data: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+      };
     };
     readonly dream: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly dream_message: {
-      readonly dreamId: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly file: {
-      readonly chatId: CodecTypes['pg/text@1']['output'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: CodecTypes['pg/bytea@1']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly mime: CodecTypes['pg/text@1']['output'];
-      readonly path: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly uploadId: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly config: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+      };
+      readonly data: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+      };
+      readonly metadata: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+      };
     };
     readonly memory: {
-      readonly category: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
-      readonly confidence: CodecTypes['pg/float8@1']['output'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly evidence: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-      readonly fact: CodecTypes['pg/text@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'] | null;
-      readonly stability: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly category: {
+        readonly output: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
+        readonly input: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
+      };
+      readonly config: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+      };
+      readonly stability: {
+        readonly output: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
+        readonly input: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
+      };
     };
     readonly message: {
-      readonly author: 'USER' | 'MODEL';
-      readonly chatId: CodecTypes['pg/text@1']['output'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly embedding: CodecTypes['pg/vector@1']['output'] | null;
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly previousId: CodecTypes['pg/text@1']['output'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly message_context: {
-      readonly memoryId: CodecTypes['pg/text@1']['output'];
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly message_subagent: {
-      readonly messageId: CodecTypes['pg/text@1']['output'];
-      readonly subagentId: CodecTypes['pg/text@1']['output'];
+      readonly author: { readonly output: 'USER' | 'MODEL'; readonly input: 'USER' | 'MODEL' };
+      readonly config: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
+      };
+      readonly data: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+      };
+      readonly metadata: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+      };
     };
     readonly project: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-      readonly title: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
-    };
-    readonly session: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly ipAddress: CodecTypes['pg/text@1']['output'] | null;
-      readonly token: CodecTypes['pg/text@1']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly userAgent: CodecTypes['pg/text@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly settings: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
+      };
     };
     readonly subagent: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-      readonly partId: CodecTypes['pg/text@1']['output'];
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly data: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zData']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zData']['input'];
+      };
+      readonly metadata: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
+      };
     };
     readonly upload: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly kind: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
-      readonly name: CodecTypes['pg/text@1']['output'];
-      readonly thumbnail: CodecTypes['pg/bytea@1']['output'] | null;
-      readonly userId: CodecTypes['pg/text@1']['output'];
+      readonly kind: {
+        readonly output: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
+        readonly input: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
+      };
     };
     readonly user: {
-      readonly cache: ZodTypes['zod/json@1']['schemas']['zCache']['output'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly email: CodecTypes['pg/text@1']['output'];
-      readonly emailVerified: CodecTypes['pg/bool@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly image: CodecTypes['pg/text@1']['output'] | null;
-      readonly isAnonymous: CodecTypes['pg/bool@1']['output'] | null;
-      readonly isEphemeral: CodecTypes['pg/bool@1']['output'] | null;
-      readonly name: CodecTypes['pg/text@1']['output'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    };
-    readonly verification: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly identifier: CodecTypes['pg/text@1']['output'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-      readonly value: CodecTypes['pg/text@1']['output'];
+      readonly cache: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zCache']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zCache']['input'];
+      };
+      readonly settings: {
+        readonly output: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
+        readonly input: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
+      };
     };
   };
 };
-export type StorageColumnInputTypes = {
-  readonly public: {
-    readonly account: {
-      readonly accessToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly accessTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly accountId: CodecTypes['pg/text@1']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly idToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly password: CodecTypes['pg/text@1']['input'] | null;
-      readonly providerId: CodecTypes['pg/text@1']['input'];
-      readonly refreshToken: CodecTypes['pg/text@1']['input'] | null;
-      readonly refreshTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly scope: CodecTypes['pg/text@1']['input'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly action: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly lastRanAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-      readonly schedule: CodecTypes['pg/text@1']['input'];
-      readonly timezone: CodecTypes['pg/text@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly chat: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly incognito: CodecTypes['pg/bool@1']['input'];
-      readonly projectId: CodecTypes['pg/text@1']['input'] | null;
-      readonly temporary: CodecTypes['pg/bool@1']['input'];
-      readonly title: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly dream: {
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly dream_message: {
-      readonly dreamId: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly file: {
-      readonly chatId: CodecTypes['pg/text@1']['input'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: CodecTypes['pg/bytea@1']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly mime: CodecTypes['pg/text@1']['input'];
-      readonly path: ReadonlyArray<CodecTypes['pg/text@1']['input']>;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly uploadId: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly memory: {
-      readonly category: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
-      readonly confidence: CodecTypes['pg/float8@1']['input'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'] | null;
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly evidence: ReadonlyArray<CodecTypes['pg/text@1']['input']>;
-      readonly fact: CodecTypes['pg/text@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'] | null;
-      readonly stability: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly message: {
-      readonly author: 'USER' | 'MODEL';
-      readonly chatId: CodecTypes['pg/text@1']['input'];
-      readonly config: ZodTypes['zod/json@1']['schemas']['zConfig']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly embedding: CodecTypes['pg/vector@1']['input'] | null;
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly previousId: CodecTypes['pg/text@1']['input'] | null;
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly message_context: {
-      readonly memoryId: CodecTypes['pg/text@1']['input'];
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly message_subagent: {
-      readonly messageId: CodecTypes['pg/text@1']['input'];
-      readonly subagentId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly project: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
-      readonly title: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly session: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly ipAddress: CodecTypes['pg/text@1']['input'] | null;
-      readonly token: CodecTypes['pg/text@1']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly userAgent: CodecTypes['pg/text@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly subagent: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly data: ZodTypes['zod/json@1']['schemas']['zData']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['input'];
-      readonly partId: CodecTypes['pg/text@1']['input'];
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly upload: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly kind: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
-      readonly name: CodecTypes['pg/text@1']['input'];
-      readonly thumbnail: CodecTypes['pg/bytea@1']['input'] | null;
-      readonly userId: CodecTypes['pg/text@1']['input'];
-    };
-    readonly user: {
-      readonly cache: ZodTypes['zod/json@1']['schemas']['zCache']['input'];
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly email: CodecTypes['pg/text@1']['input'];
-      readonly emailVerified: CodecTypes['pg/bool@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly image: CodecTypes['pg/text@1']['input'] | null;
-      readonly isAnonymous: CodecTypes['pg/bool@1']['input'] | null;
-      readonly isEphemeral: CodecTypes['pg/bool@1']['input'] | null;
-      readonly name: CodecTypes['pg/text@1']['input'];
-      readonly settings: ZodTypes['zod/json@1']['schemas']['zSettings']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-    };
-    readonly verification: {
-      readonly createdAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly expiresAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly identifier: CodecTypes['pg/text@1']['input'];
-      readonly updatedAt: CodecTypes['pg/timestamp-temporal@1']['input'];
-      readonly value: CodecTypes['pg/text@1']['input'];
-    };
-  };
-};
+export type StorageColumnTypes = ColumnTypesFromStorage<
+  ContractBase['storage'],
+  CodecTypes,
+  ParameterizedOutputTypeFunctions,
+  ColumnTypeOverrides,
+  'output'
+>;
+export type StorageColumnInputTypes = ColumnTypesFromStorage<
+  ContractBase['storage'],
+  CodecTypes,
+  ParameterizedOutputTypeFunctions,
+  ColumnTypeOverrides,
+  'input'
+>;
 
 export namespace Models {
   export type public_Account = {
-    accessToken: CodecTypes['pg/text@1']['output'] | null;
-    accessTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    accountId: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    idToken: CodecTypes['pg/text@1']['output'] | null;
-    password: CodecTypes['pg/text@1']['output'] | null;
-    providerId: CodecTypes['pg/text@1']['output'];
-    refreshToken: CodecTypes['pg/text@1']['output'] | null;
-    refreshTokenExpiresAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    scope: CodecTypes['pg/text@1']['output'] | null;
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
+    accessToken: FieldOutputTypes['public']['Account']['accessToken'];
+    accessTokenExpiresAt: FieldOutputTypes['public']['Account']['accessTokenExpiresAt'];
+    accountId: FieldOutputTypes['public']['Account']['accountId'];
+    createdAt: FieldOutputTypes['public']['Account']['createdAt'];
+    id: FieldOutputTypes['public']['Account']['id'];
+    idToken: FieldOutputTypes['public']['Account']['idToken'];
+    password: FieldOutputTypes['public']['Account']['password'];
+    providerId: FieldOutputTypes['public']['Account']['providerId'];
+    refreshToken: FieldOutputTypes['public']['Account']['refreshToken'];
+    refreshTokenExpiresAt: FieldOutputTypes['public']['Account']['refreshTokenExpiresAt'];
+    scope: FieldOutputTypes['public']['Account']['scope'];
+    updatedAt: FieldOutputTypes['public']['Account']['updatedAt'];
+    userId: FieldOutputTypes['public']['Account']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
   export type public_Action = {
-    config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-    embedding: CodecTypes['pg/vector@1']['output'] | null;
-    id: CodecTypes['pg/text@1']['output'];
-    lastRanAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    messageId: CodecTypes['pg/text@1']['output'];
-    schedule: CodecTypes['pg/text@1']['output'];
-    timezone: CodecTypes['pg/text@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
+    config: FieldOutputTypes['public']['Action']['config'];
+    createdAt: FieldOutputTypes['public']['Action']['createdAt'];
+    data: FieldOutputTypes['public']['Action']['data'];
+    embedding: FieldOutputTypes['public']['Action']['embedding'];
+    id: FieldOutputTypes['public']['Action']['id'];
+    lastRanAt: FieldOutputTypes['public']['Action']['lastRanAt'];
+    messageId: FieldOutputTypes['public']['Action']['messageId'];
+    schedule: FieldOutputTypes['public']['Action']['schedule'];
+    timezone: FieldOutputTypes['public']['Action']['timezone'];
+    userId: FieldOutputTypes['public']['Action']['userId'];
     message: public_Message;
     user: public_User;
     readonly [RelationKeys]?: 'message' | 'user';
   };
   export type public_Chat = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    incognito: CodecTypes['pg/bool@1']['output'];
-    projectId: CodecTypes['pg/text@1']['output'] | null;
-    temporary: CodecTypes['pg/bool@1']['output'];
-    title: CodecTypes['pg/text@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Chat']['createdAt'];
+    id: FieldOutputTypes['public']['Chat']['id'];
+    incognito: FieldOutputTypes['public']['Chat']['incognito'];
+    projectId: FieldOutputTypes['public']['Chat']['projectId'];
+    temporary: FieldOutputTypes['public']['Chat']['temporary'];
+    title: FieldOutputTypes['public']['Chat']['title'];
+    userId: FieldOutputTypes['public']['Chat']['userId'];
     files: public_File[];
     messages: public_Message[];
     project: public_Project | null;
@@ -901,69 +504,69 @@ export namespace Models {
     readonly [RelationKeys]?: 'files' | 'messages' | 'project' | 'user';
   };
   export type public_Dream = {
-    config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
+    config: FieldOutputTypes['public']['Dream']['config'];
+    createdAt: FieldOutputTypes['public']['Dream']['createdAt'];
+    data: FieldOutputTypes['public']['Dream']['data'];
+    id: FieldOutputTypes['public']['Dream']['id'];
+    metadata: FieldOutputTypes['public']['Dream']['metadata'];
+    userId: FieldOutputTypes['public']['Dream']['userId'];
     messages: public_Message[];
     user: public_User;
     readonly [RelationKeys]?: 'messages' | 'user';
   };
   export type public_DreamMessage = {
-    dreamId: CodecTypes['pg/text@1']['output'];
-    messageId: CodecTypes['pg/text@1']['output'];
+    dreamId: FieldOutputTypes['public']['DreamMessage']['dreamId'];
+    messageId: FieldOutputTypes['public']['DreamMessage']['messageId'];
     dream: public_Dream;
     message: public_Message;
     readonly [RelationKeys]?: 'dream' | 'message';
   };
   export type public_File = {
-    chatId: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    data: CodecTypes['pg/bytea@1']['output'];
-    embedding: CodecTypes['pg/vector@1']['output'] | null;
-    id: CodecTypes['pg/text@1']['output'];
-    mime: CodecTypes['pg/text@1']['output'];
-    path: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    uploadId: CodecTypes['pg/text@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    chatId: FieldOutputTypes['public']['File']['chatId'];
+    createdAt: FieldOutputTypes['public']['File']['createdAt'];
+    data: FieldOutputTypes['public']['File']['data'];
+    embedding: FieldOutputTypes['public']['File']['embedding'];
+    id: FieldOutputTypes['public']['File']['id'];
+    mime: FieldOutputTypes['public']['File']['mime'];
+    path: FieldOutputTypes['public']['File']['path'];
+    updatedAt: FieldOutputTypes['public']['File']['updatedAt'];
+    uploadId: FieldOutputTypes['public']['File']['uploadId'];
+    userId: FieldOutputTypes['public']['File']['userId'];
     chat: public_Chat | null;
     upload: public_Upload | null;
     user: public_User;
     readonly [RelationKeys]?: 'chat' | 'upload' | 'user';
   };
   export type public_Memory = {
-    category: 'IDENTITY' | 'PREFERENCES' | 'PROJECTS' | 'SKILLS' | 'CONSTRAINTS';
-    confidence: CodecTypes['pg/float8@1']['output'];
-    config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'] | null;
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    embedding: CodecTypes['pg/vector@1']['output'] | null;
-    evidence: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-    fact: CodecTypes['pg/text@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    messageId: CodecTypes['pg/text@1']['output'] | null;
-    stability: 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM';
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    category: FieldOutputTypes['public']['Memory']['category'];
+    confidence: FieldOutputTypes['public']['Memory']['confidence'];
+    config: FieldOutputTypes['public']['Memory']['config'];
+    createdAt: FieldOutputTypes['public']['Memory']['createdAt'];
+    embedding: FieldOutputTypes['public']['Memory']['embedding'];
+    evidence: FieldOutputTypes['public']['Memory']['evidence'];
+    fact: FieldOutputTypes['public']['Memory']['fact'];
+    id: FieldOutputTypes['public']['Memory']['id'];
+    messageId: FieldOutputTypes['public']['Memory']['messageId'];
+    stability: FieldOutputTypes['public']['Memory']['stability'];
+    updatedAt: FieldOutputTypes['public']['Memory']['updatedAt'];
+    userId: FieldOutputTypes['public']['Memory']['userId'];
     contexts: public_Message[];
     message: public_Message | null;
     user: public_User;
     readonly [RelationKeys]?: 'contexts' | 'message' | 'user';
   };
   export type public_Message = {
-    author: 'USER' | 'MODEL';
-    chatId: CodecTypes['pg/text@1']['output'];
-    config: ZodTypes['zod/json@1']['schemas']['zConfig']['output'];
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-    embedding: CodecTypes['pg/vector@1']['output'] | null;
-    id: CodecTypes['pg/text@1']['output'];
-    metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-    previousId: CodecTypes['pg/text@1']['output'] | null;
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    author: FieldOutputTypes['public']['Message']['author'];
+    chatId: FieldOutputTypes['public']['Message']['chatId'];
+    config: FieldOutputTypes['public']['Message']['config'];
+    createdAt: FieldOutputTypes['public']['Message']['createdAt'];
+    data: FieldOutputTypes['public']['Message']['data'];
+    embedding: FieldOutputTypes['public']['Message']['embedding'];
+    id: FieldOutputTypes['public']['Message']['id'];
+    metadata: FieldOutputTypes['public']['Message']['metadata'];
+    previousId: FieldOutputTypes['public']['Message']['previousId'];
+    updatedAt: FieldOutputTypes['public']['Message']['updatedAt'];
+    userId: FieldOutputTypes['public']['Message']['userId'];
     actions: public_Action[];
     chat: public_Chat;
     context: public_Memory[];
@@ -985,75 +588,75 @@ export namespace Models {
       | 'user';
   };
   export type public_MessageContext = {
-    memoryId: CodecTypes['pg/text@1']['output'];
-    messageId: CodecTypes['pg/text@1']['output'];
+    memoryId: FieldOutputTypes['public']['MessageContext']['memoryId'];
+    messageId: FieldOutputTypes['public']['MessageContext']['messageId'];
     memory: public_Memory;
     message: public_Message;
     readonly [RelationKeys]?: 'memory' | 'message';
   };
   export type public_MessageSubagent = {
-    messageId: CodecTypes['pg/text@1']['output'];
-    subagentId: CodecTypes['pg/text@1']['output'];
+    messageId: FieldOutputTypes['public']['MessageSubagent']['messageId'];
+    subagentId: FieldOutputTypes['public']['MessageSubagent']['subagentId'];
     message: public_Message;
     subagent: public_Subagent;
     readonly [RelationKeys]?: 'message' | 'subagent';
   };
   export type public_Project = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-    title: CodecTypes['pg/text@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Project']['createdAt'];
+    id: FieldOutputTypes['public']['Project']['id'];
+    settings: FieldOutputTypes['public']['Project']['settings'];
+    title: FieldOutputTypes['public']['Project']['title'];
+    userId: FieldOutputTypes['public']['Project']['userId'];
     chats: public_Chat[];
     user: public_User;
     readonly [RelationKeys]?: 'chats' | 'user';
   };
   export type public_Session = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    ipAddress: CodecTypes['pg/text@1']['output'] | null;
-    token: CodecTypes['pg/text@1']['output'];
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    userAgent: CodecTypes['pg/text@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Session']['createdAt'];
+    expiresAt: FieldOutputTypes['public']['Session']['expiresAt'];
+    id: FieldOutputTypes['public']['Session']['id'];
+    ipAddress: FieldOutputTypes['public']['Session']['ipAddress'];
+    token: FieldOutputTypes['public']['Session']['token'];
+    updatedAt: FieldOutputTypes['public']['Session']['updatedAt'];
+    userAgent: FieldOutputTypes['public']['Session']['userAgent'];
+    userId: FieldOutputTypes['public']['Session']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
   export type public_Subagent = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    data: ZodTypes['zod/json@1']['schemas']['zData']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    metadata: ZodTypes['zod/json@1']['schemas']['zMetadata']['output'];
-    partId: CodecTypes['pg/text@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Subagent']['createdAt'];
+    data: FieldOutputTypes['public']['Subagent']['data'];
+    id: FieldOutputTypes['public']['Subagent']['id'];
+    metadata: FieldOutputTypes['public']['Subagent']['metadata'];
+    partId: FieldOutputTypes['public']['Subagent']['partId'];
+    userId: FieldOutputTypes['public']['Subagent']['userId'];
     messages: public_Message[];
     user: public_User;
     readonly [RelationKeys]?: 'messages' | 'user';
   };
   export type public_Upload = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    kind: 'ATTACHMENT' | 'SKILL' | 'GITHUB';
-    name: CodecTypes['pg/text@1']['output'];
-    thumbnail: CodecTypes['pg/bytea@1']['output'] | null;
-    userId: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Upload']['createdAt'];
+    id: FieldOutputTypes['public']['Upload']['id'];
+    kind: FieldOutputTypes['public']['Upload']['kind'];
+    name: FieldOutputTypes['public']['Upload']['name'];
+    thumbnail: FieldOutputTypes['public']['Upload']['thumbnail'];
+    userId: FieldOutputTypes['public']['Upload']['userId'];
     files: public_File[];
     user: public_User;
     readonly [RelationKeys]?: 'files' | 'user';
   };
   export type public_User = {
-    cache: ZodTypes['zod/json@1']['schemas']['zCache']['output'];
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    email: CodecTypes['pg/text@1']['output'];
-    emailVerified: CodecTypes['pg/bool@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    image: CodecTypes['pg/text@1']['output'] | null;
-    isAnonymous: CodecTypes['pg/bool@1']['output'] | null;
-    isEphemeral: CodecTypes['pg/bool@1']['output'] | null;
-    name: CodecTypes['pg/text@1']['output'];
-    settings: ZodTypes['zod/json@1']['schemas']['zSettings']['output'];
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    cache: FieldOutputTypes['public']['User']['cache'];
+    createdAt: FieldOutputTypes['public']['User']['createdAt'];
+    email: FieldOutputTypes['public']['User']['email'];
+    emailVerified: FieldOutputTypes['public']['User']['emailVerified'];
+    id: FieldOutputTypes['public']['User']['id'];
+    image: FieldOutputTypes['public']['User']['image'];
+    isAnonymous: FieldOutputTypes['public']['User']['isAnonymous'];
+    isEphemeral: FieldOutputTypes['public']['User']['isEphemeral'];
+    name: FieldOutputTypes['public']['User']['name'];
+    settings: FieldOutputTypes['public']['User']['settings'];
+    updatedAt: FieldOutputTypes['public']['User']['updatedAt'];
     accounts: public_Account[];
     actions: public_Action[];
     chats: public_Chat[];
@@ -1079,12 +682,12 @@ export namespace Models {
       | 'uploads';
   };
   export type public_Verification = {
-    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    expiresAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    identifier: CodecTypes['pg/text@1']['output'];
-    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
-    value: CodecTypes['pg/text@1']['output'];
+    createdAt: FieldOutputTypes['public']['Verification']['createdAt'];
+    expiresAt: FieldOutputTypes['public']['Verification']['expiresAt'];
+    id: FieldOutputTypes['public']['Verification']['id'];
+    identifier: FieldOutputTypes['public']['Verification']['identifier'];
+    updatedAt: FieldOutputTypes['public']['Verification']['updatedAt'];
+    value: FieldOutputTypes['public']['Verification']['value'];
     readonly [RelationKeys]?: never;
   };
 }
@@ -1245,7 +848,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zConfig';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zConfig';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly createdAt: {
@@ -1260,14 +867,17 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zData';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zData';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly embedding: {
                   readonly dataType: 'pgvector/vector';
                   readonly codecId: 'pg/vector@1';
                   readonly nullable: true;
-                  readonly typeRef: 'Embedding';
                   readonly many: false;
                 };
                 readonly id: {
@@ -1455,7 +1065,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zConfig';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zConfig';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly createdAt: {
@@ -1470,7 +1084,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zData';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zData';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly id: {
@@ -1483,7 +1101,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zMetadata';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zMetadata';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly userId: {
@@ -1605,7 +1227,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pgvector/vector';
                   readonly codecId: 'pg/vector@1';
                   readonly nullable: true;
-                  readonly typeRef: 'Embedding';
                   readonly many: false;
                 };
                 readonly id: {
@@ -1726,7 +1347,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: true;
-                  readonly typeRef: 'zConfig';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zConfig';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly createdAt: {
@@ -1741,7 +1366,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pgvector/vector';
                   readonly codecId: 'pg/vector@1';
                   readonly nullable: true;
-                  readonly typeRef: 'Embedding';
                   readonly many: false;
                 };
                 readonly evidence: {
@@ -1851,7 +1475,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zConfig';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zConfig';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly createdAt: {
@@ -1866,14 +1494,17 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zData';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zData';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly embedding: {
                   readonly dataType: 'pgvector/vector';
                   readonly codecId: 'pg/vector@1';
                   readonly nullable: true;
-                  readonly typeRef: 'Embedding';
                   readonly many: false;
                 };
                 readonly id: {
@@ -1886,7 +1517,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zMetadata';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zMetadata';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly previousId: {
@@ -2116,7 +1751,11 @@ type ContractBase = Omit<
                     readonly kind: 'function';
                     readonly expression: "'{}'::jsonb";
                   };
-                  readonly typeRef: 'zSettings';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zSettings';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly title: {
@@ -2256,7 +1895,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zData';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zData';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly id: {
@@ -2269,7 +1912,11 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'zod/json@1';
                   readonly nullable: false;
-                  readonly typeRef: 'zMetadata';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zMetadata';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly partId: {
@@ -2392,7 +2039,11 @@ type ContractBase = Omit<
                     readonly kind: 'function';
                     readonly expression: "'{}'::jsonb";
                   };
-                  readonly typeRef: 'zCache';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zCache';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly createdAt: {
@@ -2465,7 +2116,11 @@ type ContractBase = Omit<
                     readonly kind: 'function';
                     readonly expression: "'{}'::jsonb";
                   };
-                  readonly typeRef: 'zSettings';
+                  readonly typeParams: {
+                    readonly export: 'SchemaTypes';
+                    readonly key: 'zSettings';
+                    readonly module: '../../prisma/zod-extension.ts';
+                  };
                   readonly many: false;
                 };
                 readonly updatedAt: {
@@ -2566,64 +2221,6 @@ type ContractBase = Omit<
               readonly values: readonly ['ATTACHMENT', 'SKILL', 'GITHUB'];
             };
           };
-        };
-      };
-    };
-    readonly types: {
-      readonly Embedding: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'pg/vector@1';
-        readonly dataType: 'pgvector/vector';
-        readonly typeParams: Record<string, never>;
-      };
-      readonly zCache: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'zod/json@1';
-        readonly dataType: 'pg/jsonb';
-        readonly typeParams: {
-          readonly export: 'SchemaTypes';
-          readonly key: 'zCache';
-          readonly module: '../../prisma/zod-extension.ts';
-        };
-      };
-      readonly zConfig: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'zod/json@1';
-        readonly dataType: 'pg/jsonb';
-        readonly typeParams: {
-          readonly export: 'SchemaTypes';
-          readonly key: 'zConfig';
-          readonly module: '../../prisma/zod-extension.ts';
-        };
-      };
-      readonly zData: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'zod/json@1';
-        readonly dataType: 'pg/jsonb';
-        readonly typeParams: {
-          readonly export: 'SchemaTypes';
-          readonly key: 'zData';
-          readonly module: '../../prisma/zod-extension.ts';
-        };
-      };
-      readonly zMetadata: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'zod/json@1';
-        readonly dataType: 'pg/jsonb';
-        readonly typeParams: {
-          readonly export: 'SchemaTypes';
-          readonly key: 'zMetadata';
-          readonly module: '../../prisma/zod-extension.ts';
-        };
-      };
-      readonly zSettings: {
-        readonly kind: 'codec-instance';
-        readonly codecId: 'zod/json@1';
-        readonly dataType: 'pg/jsonb';
-        readonly typeParams: {
-          readonly export: 'SchemaTypes';
-          readonly key: 'zSettings';
-          readonly module: '../../prisma/zod-extension.ts';
         };
       };
     };
@@ -4277,13 +3874,11 @@ type ContractBase = Omit<
             readonly named: 'CodecTypes';
             readonly package: '@internal/extension-pgvector/codec-types';
           };
-          readonly typeImports: readonly [
-            {
-              readonly alias: 'Vector';
-              readonly named: 'Vector';
-              readonly package: '@internal/extension-pgvector/codec-types';
-            },
-          ];
+          readonly parameterizedOutputTypes: {
+            readonly alias: 'PgVectorParameterizedOutputTypes';
+            readonly named: 'ParameterizedOutputTypesForTypeParams';
+            readonly package: '@internal/extension-pgvector/codec-types';
+          };
         };
         readonly operationTypes: {
           readonly import: {

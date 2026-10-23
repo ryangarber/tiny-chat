@@ -136,7 +136,7 @@ export const FileExtractionService = {
 		let markdown: string | null = null;
 		try {
 			const result = await (await getEngine()).convert(data, {
-				file_extension: `.${format}`,
+				extension: format,
 			});
 			markdown = result?.markdown.trim() || null;
 		} catch (error) {

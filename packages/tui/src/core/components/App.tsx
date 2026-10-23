@@ -13,6 +13,7 @@ import { ContentFullscreen } from "#tui/core/components/Content.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
 import StatusText from "#tui/core/components/StatusText.tsx";
 import type { Color } from "#tui/core/hooks/useColor.ts";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import {
 	type Panel as PanelName,
@@ -51,6 +52,9 @@ export default function App() {
 	const { rows, columns } = useWindowSize();
 
 	const page = useAppStore(selectPage);
+	// A page takes the mouse over the chat it covers.
+	const pageRef = useRef<DOMElement>(null);
+	useMouseLayer(pageRef, page !== "chat");
 	const statuses = useAppStore((state) => state.statuses);
 	const setStatus = useAppStore((state) => state.setStatus);
 	const unsetStatus = useAppStore((state) => state.unsetStatus);
@@ -159,6 +163,7 @@ export default function App() {
 								    completions do, rather than pushing the chat up. */}
 								{page !== "chat" && (
 									<Box
+										ref={pageRef}
 										position="absolute"
 										bottom="100%"
 										left={0}

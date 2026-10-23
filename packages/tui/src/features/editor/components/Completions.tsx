@@ -109,22 +109,20 @@ export default function Completions<
 	const selected = controlledSelected ?? uncontrolledSelected;
 	const setSelected = setControlledSelected ?? setUncontrolledSelected;
 
-	const setIsCompletionsOpen = useCompletionStore(
-		(state) => state.setIsCompletionsOpen,
-	);
-	const setIsCompletionsEmpty = useCompletionStore(
-		(state) => state.setIsCompletionsEmpty,
-	);
-
+	const isEmpty = !items.length;
 	useEffect(() => {
 		if (!active) return;
-		setIsCompletionsOpen(true);
-		setIsCompletionsEmpty(!items.length);
+		useCompletionStore.setState({
+			isCompletionsOpen: true,
+			isCompletionsEmpty: isEmpty,
+		});
 		return () => {
-			setIsCompletionsOpen(false);
-			setIsCompletionsEmpty(true);
+			useCompletionStore.setState({
+				isCompletionsOpen: false,
+				isCompletionsEmpty: true,
+			});
 		};
-	}, [setIsCompletionsOpen, setIsCompletionsEmpty, items.length, active]);
+	}, [isEmpty, active]);
 
 	const pick = useCallback(
 		(offset: number) => {

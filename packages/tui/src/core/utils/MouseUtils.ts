@@ -26,6 +26,8 @@ export type MouseEvent = MousePoint & {
 	ctrl: boolean;
 	alt: boolean;
 	shift: boolean;
+	/** When the report arrived, in milliseconds since the epoch. */
+	time: number;
 };
 
 /**
@@ -141,6 +143,7 @@ export const MouseUtils = {
 	 */
 	parse: (data: string): MouseEvent[] => {
 		const events: MouseEvent[] = [];
+		const time = Date.now();
 
 		for (const match of data.matchAll(SGR_REGEX)) {
 			const code = Number.parseInt(match[1], 10);
@@ -163,6 +166,7 @@ export const MouseUtils = {
 				shift: (code & SHIFT) !== 0,
 				alt: (code & ALT) !== 0,
 				ctrl: (code & CTRL) !== 0,
+				time,
 			});
 		}
 

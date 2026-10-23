@@ -1,4 +1,4 @@
-import { type Key, useInput } from "ink";
+import { type DOMElement, type Key, useInput } from "ink";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { ClientContext } from "#client/client.ts";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
@@ -24,6 +24,7 @@ import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
 import type { Color } from "#tui/core/hooks/useColor.ts";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
@@ -63,6 +64,9 @@ export default function Editor({
 	const { disabled } = useDisabled({
 		disabled: _disabled || focus !== "editor",
 	});
+	// Completions and shell output take the mouse over the chat they cover.
+	const overlayRef = useRef<DOMElement>(null);
+	useMouseLayer(overlayRef, !disabled);
 	// Feedback that turns up, live or by opening a chat that has some waiting,
 	// takes the focus from the editor so it can be answered right away — but
 	// not from a page or a panel the reader is busy in.
@@ -347,6 +351,7 @@ export default function Editor({
 			{/* Drawn over what is above the editor, which stays where it is. */}
 			{!disabled && (
 				<Box
+					ref={overlayRef}
 					position="absolute"
 					bottom="100%"
 					left={0}
