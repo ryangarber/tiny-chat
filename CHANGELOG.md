@@ -1,3 +1,13 @@
+## 0.10.3 (2026-10-23)
+
+### Bug Fixes
+
+- completions not blocking mouse hit tests ([1781472](https://github.com/ryangarber/tiny-chat/commit/17814726abb917b3ecf5efea0a21fd8e84895943))
+
+### Other
+
+- bump dependencies ([1781472](https://github.com/ryangarber/tiny-chat/commit/17814726abb917b3ecf5efea0a21fd8e84895943))
+
 ## 0.10.2 (2026-10-21)
 
 ### Features
