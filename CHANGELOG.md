@@ -1,3 +1,25 @@
+## 0.10.4 (2026-10-24)
+
+### Features
+
+- computer use toolset ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- reference other chats, 'ask in new chat' ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- chat/content scoped ctrl+f menu ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- chat list, source list panels save their state ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- **gui:** /projects, /quit commands ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- **tui:** chat/content selection, ctrl+c to copy ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- **tui:** hover over citations, click a source to view it in source list ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+
+### Bug Fixes
+
+- **tui:** table cells render with wrong padding ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- grep_files accepts single file paths ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+- action, memory lists virtualized ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+
+### Other
+
+- rename find_files to glob_files ([d598bd5](https://github.com/ryangarber/tiny-chat/commit/d598bd572cea1035d373c6d2c92127fee3fefa6c))
+
 ## 0.10.3 (2026-10-23)
 
 ### Bug Fixes
