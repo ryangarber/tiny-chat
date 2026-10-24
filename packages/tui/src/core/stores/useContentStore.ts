@@ -13,6 +13,7 @@ interface OpenContent {
 	id: string;
 	formatter?: ContentFormatter;
 	streaming?: boolean;
+	findLabel?: string;
 	children?: ReactNode;
 }
 
@@ -41,6 +42,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 			open?.id !== content.id ||
 			(open.formatter === content.formatter &&
 				open.streaming === content.streaming &&
+				open.findLabel === content.findLabel &&
 				open.children === content.children)
 		)
 			return;

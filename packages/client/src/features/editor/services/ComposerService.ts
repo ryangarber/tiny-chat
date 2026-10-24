@@ -6,6 +6,7 @@ import { useComposerStore } from "#client/features/editor/stores/useComposerStor
 import type { AttachmentItem } from "#client/features/editor/types/attachment.ts";
 import type { EditorNode } from "#client/features/editor/types/node.ts";
 import { AttachmentUtils } from "#client/features/editor/utils/AttachmentUtils.ts";
+import { EditorNodeUtils } from "#client/features/editor/utils/EditorNodeUtils.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 
@@ -64,6 +65,23 @@ export const ComposerService = {
 		if (!client.input) throw new Error("missing client input");
 		const node = await AttachmentService.create({ client, item });
 		client.input.insertNode({ client, node });
+	},
+
+	/** Quote a passage of a message into the message being written. */
+	insertQuote: ({
+		client,
+		model,
+		text,
+	}: {
+		client: Client;
+		model: string;
+		text: string;
+	}) => {
+		if (!client.input) throw new Error("missing client input");
+		client.input.insertNode({
+			client,
+			node: EditorNodeUtils.quote({ model, text }),
+		});
 	},
 
 	/**

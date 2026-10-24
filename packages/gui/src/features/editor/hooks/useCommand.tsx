@@ -10,6 +10,7 @@ import {
 } from "@tiptap/react";
 import { Suggestion } from "@tiptap/suggestion";
 import { useMemo } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useCommands } from "#client/features/editor/hooks/useCommands.ts";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
 import {
@@ -23,11 +24,12 @@ import type {
 	CommandItem,
 } from "#client/features/editor/types/command.ts";
 import { CommandUtils } from "#client/features/editor/utils/CommandUtils.ts";
+import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
-import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import { renderCompletions } from "#gui/features/editor/components/Completions.tsx";
 import { NodeUtils } from "#gui/features/editor/utils/NodeUtils.ts";
 import CommandView from "#gui/features/part/components/Command.tsx";
+import { useUpdate } from "#gui/features/update/hooks/useUpdate.ts";
 
 interface CommandOptions {
 	getCommands: () => CommandGroup[];
@@ -268,16 +270,29 @@ const Command = Node.create({
 });
 
 export const useCommand = () => {
+	const runtime = useRuntime();
+	const { update, installUpdate } = useUpdate();
+
 	const { getCommands } = useCommands({
 		onOpenSettings: () => AppService.openSettings(),
 		onOpenChats: () => AppService.openSidebar(),
-		onOpenFiles: () => useAppStore.getState().setAsideOpen(true),
+		onOpenFiles: () => useLayoutStore.getState().setPanel("files", true),
 		onOpenProjects: () => AppService.openSidebar(),
-		onOpenTools: () => AppService.openCapabilities("tools:native"),
-		onOpenSkills: () => AppService.openCapabilities("skills:native"),
+		onOpenConfig: () => AppService.openConfig(),
+		onOpenUploads: () => AppService.openUploads("attachment"),
+		onOpenGitHub: () => AppService.openUploads("github"),
 		onOpenMemories: () => AppService.openMemories(),
 		onOpenActions: () => AppService.openActions(),
 		onOpenConsole: () => AppService.openConsole(),
+		onQuit: runtime.quit && (() => void runtime.quit?.()),
+		onLogin: () => AppService.openAccount(),
+		onLogout: () => window.location.reload(),
+		update: update.data
+			? {
+					version: update.data.version,
+					install: () => update.data && installUpdate.mutate(update.data),
+				}
+			: undefined,
 	});
 
 	return useMemo(

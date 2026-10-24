@@ -38,12 +38,45 @@ export interface FindOptions {
 }
 
 /**
- * What a runtime gives find in page: the text it draws, and a way to show a
- * match. Highlighting goes back through the matches `useFind` returns.
+ * A piece of what a scope holds — a message's part, a block of code — as its
+ * data has it, so it can be found while it is not drawn: scrolled out of a
+ * virtualized list, or folded shut. `blocks` only has to read close to what is
+ * drawn, which takes over as soon as it is.
+ */
+export interface FindSegment {
+	key: string;
+	blocks?: string[];
+}
+
+/** A segment as it is searched: what is drawn of it, or else its data. */
+export interface FindSearchSegment<N> extends FindSegment {
+	/** Present only while all of the segment is drawn. */
+	drawn?: Iterable<FindBlock<N>>;
+}
+
+/**
+ * A match placed by its segment and its count within it, which holds while the
+ * segment goes from being known by its data to being drawn.
+ */
+export interface FindHit<N> {
+	key: string;
+	ordinal: number;
+	/** Where it is drawn, absent while its segment is not. */
+	match?: FindMatch<N>;
+}
+
+/**
+ * What a runtime gives find in page: the text it holds, and a way to show a
+ * match. Highlighting goes back through the hits `useFind` returns.
  */
 export interface FindAdapter<N> {
-	/** The text to search, in reading order, read afresh on every search. */
-	blocks: () => Iterable<FindBlock<N>>;
-	/** Brings a match into view as it becomes the current one. */
-	reveal?: (match: FindMatch<N>) => void;
+	/** The segments to search, in reading order, read afresh on every search. */
+	segments: () => Iterable<FindSearchSegment<N>>;
+	/** Brings a drawn match into view as it becomes the current one. */
+	reveal?: (match: FindMatch<N>, key: string) => void;
+	/**
+	 * Has a segment drawn in full, settling once it is, or once there is no
+	 * more point waiting for it.
+	 */
+	show?: (key: string) => Promise<void>;
 }

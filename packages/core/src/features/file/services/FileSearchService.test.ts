@@ -256,6 +256,50 @@ describe("FileSearchService", () => {
 		expect(report.summary).toContain("1 match(es) in 1 file(s)");
 	});
 
+	it("searches a single file when the path names one", async () => {
+		const shell = createShell({
+			"/project/a.ts": "const answer = 42;\n",
+			"/project/node_modules/dep/index.js": "const answer = 'dep';\n",
+		});
+		// Some shells throw when asked to list a file rather than listing nothing.
+		const strict: ShellCapability = {
+			...shell,
+			readDir: async ({ path }) => {
+				if (path.endsWith(".ts")) throw new Error(`Not a directory: ${path}`);
+				return await shell.readDir({ path });
+			},
+		};
+
+		for (const current of [shell, strict])
+			await expect(
+				FileSearchService.grep({
+					shell: current,
+					path: "/project/a.ts",
+					query: "answer",
+				}),
+			).resolves.toMatchObject({
+				results: [{ path: "/project/a.ts", matches: 1 }],
+			});
+
+		await expect(
+			FileSearchService.grep({
+				shell,
+				path: "/project/node_modules/dep/index.js",
+				query: "answer",
+			}),
+		).resolves.toMatchObject({
+			results: [{ path: "/project/node_modules/dep/index.js" }],
+		});
+
+		await expect(
+			FileSearchService.grep({
+				shell: strict,
+				path: "/project/missing.ts",
+				query: "answer",
+			}),
+		).rejects.toThrow("Not a directory");
+	});
+
 	it("is case-insensitive until the query says otherwise", async () => {
 		const shell = createShell({ "/project/a.ts": "const Answer = 1;\n" });
 

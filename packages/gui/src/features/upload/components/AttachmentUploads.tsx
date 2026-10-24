@@ -14,8 +14,8 @@ import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import Sentinel from "#gui/core/components/Sentinel.tsx";
 import { useSentinel } from "#gui/core/hooks/useSentinel.ts";
+import SourceChip from "#gui/features/part/components/SourceChip.tsx";
 import Dropzone from "#gui/features/upload/components/Dropzone.tsx";
-import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
 
 export function AttachmentUploads({ close }: { close: () => void }) {
 	const client = useContext(ClientContext);
@@ -51,7 +51,7 @@ export function AttachmentUploads({ close }: { close: () => void }) {
 								}}
 							>
 								<Group justify="space-between" wrap="nowrap" gap="xs">
-									<SourceTag
+									<SourceChip
 										path={upload.name}
 										directory={true}
 										thumbnail={upload.thumbnail ?? undefined}
@@ -81,7 +81,7 @@ export function AttachmentUploads({ close }: { close: () => void }) {
 													: ""}
 											</Text>
 										</Stack>
-									</SourceTag>
+									</SourceChip>
 									<ActionIcon
 										variant="subtle"
 										color="red"

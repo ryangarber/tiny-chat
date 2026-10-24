@@ -8,6 +8,7 @@ import {
 	useRef,
 } from "react";
 import { ComponentUtils } from "#client/core/utils/ComponentUtils.ts";
+import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import {
 	type Source,
 	SourceUtils,
@@ -19,6 +20,7 @@ import Text from "#tui/core/components/Text.tsx";
 import { useMouse } from "#tui/core/hooks/useMouse.ts";
 import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { MouseUtils } from "#tui/core/utils/MouseUtils.ts";
+import SourceChip from "#tui/features/message/components/SourceChip.tsx";
 import { useCitationStore } from "#tui/features/message/stores/useCitationStore.ts";
 
 const CARD_WIDTH = 60;
@@ -28,9 +30,28 @@ const TITLE_LINES = 2;
 const clip = (text: string, length: number) =>
 	text.length > length ? `${text.slice(0, length - 1)}…` : text;
 
+/** The citations of a span of text, one emoji for each source it cites. */
+export function Citations({
+	sources: sourceKeys,
+	cited,
+}: {
+	/** The keys of the sources cited, as the model gave them. */
+	sources: string;
+	/** What they are attached to, which a web source's snippet is picked by. */
+	cited?: ReactNode;
+}) {
+	// Only citations need to rerender when the chat's sources change.
+	const sources = useMessageStore((state) => state.sources);
+	const keys = SourceUtils.matchKeys({ sources, keys: sourceKeys });
+
+	return keys.map((key) => (
+		<Citation key={key} sourceKey={key} sources={sources} cited={cited} />
+	));
+}
+
 /**
- * A citation's emoji, inline in the text it cites. Clicking it opens a
- * {@link CitationCard} with the source.
+ * A citation's emoji, inline in the text it cites. Hovering it, or clicking
+ * it, opens a {@link CitationCard} with the source.
  */
 export function Citation({
 	sourceKey,
@@ -83,8 +104,10 @@ export function Citation({
 }
 
 /**
- * The card for whichever citation was clicked last. Mounted once, over
- * everything else, and only listening for clicks while there are citations.
+ * The card for whichever citation is hovered or was clicked last. Mounted
+ * once, over everything else, and only listening to the mouse while there are
+ * citations. A source that has a chip shows it, which opens the source in the
+ * chat's sources; any other, its title and description.
  */
 export function CitationCard() {
 	const { rows, columns } = useWindowSize();
@@ -95,6 +118,7 @@ export function CitationCard() {
 
 	useMouse({
 		isActive: active,
+		motion: active,
 		handler: (event) => {
 			const { open, citations } = useCitationStore.getState();
 
@@ -103,7 +127,10 @@ export function CitationCard() {
 				if (open) setOpen(null);
 				return;
 			}
-			if (event.type !== "down" || event.button !== "left") return;
+			// A hover, or a click where the terminal reports no motion.
+			const isHover = event.type === "move" && event.button === "none";
+			const isClick = event.type === "down" && event.button === "left";
+			if (!isHover && !isClick) return;
 
 			if (
 				open &&
@@ -120,7 +147,7 @@ export function CitationCard() {
 					MouseUtils.contains(bounds, event) &&
 					!MouseUtils.isCovered(citation.node, event, rows)
 				) {
-					setOpen(open?.citation === citation ? null : { citation, bounds });
+					if (open?.citation !== citation) setOpen({ citation, bounds });
 					return;
 				}
 			}
@@ -140,6 +167,7 @@ export function CitationCard() {
 	if (!open || !source) return null;
 
 	const { bounds } = open;
+	const close = () => setOpen(null);
 	const width = Math.max(1, Math.min(CARD_WIDTH, columns - 2));
 	const inner = width - 2;
 	// Below the citation in the top half of the screen, above it in the bottom.
@@ -161,23 +189,38 @@ export function CitationCard() {
 		>
 			{source.type === "web" && (
 				<>
-					<Text bold wrap="truncate-end">
-						{source.value.title || source.value.url}
-					</Text>
+					<SourceChip
+						path={`web:${source.value.url}`}
+						web={source.value}
+						onOpen={close}
+					>
+						<Text bold wrap="truncate-end">
+							{source.value.title || source.value.url}
+						</Text>
+					</SourceChip>
 					<Anchor href={source.value.url} color="textSubtle">
 						{clip(source.value.url, inner)}
 					</Anchor>
 				</>
 			)}
-			{source.type !== "web" && (
+			{(source.type === "memory" || source.type === "action") && (
+				<SourceChip path={`${source.type}:${source.value.id}`} onOpen={close}>
+					<Text wrap="truncate-end">{source.title}</Text>
+				</SourceChip>
+			)}
+			{source.type === "file" && (
+				<SourceChip
+					path={source.value.path}
+					directory={source.value.directory}
+					onOpen={close}
+				>
+					<Text wrap="truncate-start">{source.value.path}</Text>
+				</SourceChip>
+			)}
+			{(source.type === "toolCall" || source.type === "unknown") && (
 				<>
 					<Text bold>{clip(source.title, inner * TITLE_LINES)}</Text>
-					<Text
-						color="textSubtle"
-						wrap={source.type === "file" ? "truncate-start" : "wrap"}
-					>
-						{source.description}
-					</Text>
+					<Text color="textSubtle">{source.description}</Text>
 				</>
 			)}
 		</Box>

@@ -6,6 +6,7 @@ import {
 	Updater,
 	Utils,
 } from "electrobun/main";
+import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
 import { AfmHostService } from "#desktop/core/services/AfmHostService.ts";
 import { McpHostService } from "#desktop/core/services/McpHostService.ts";
 import { ShellHostService } from "#desktop/core/services/ShellHostService.ts";
@@ -30,6 +31,8 @@ const send: DesktopSend = new Proxy({} as DesktopSend, {
 		(rpc.send[message] as (payload: never) => void)(payload),
 });
 
+const computer = ComputerHostService.create();
+
 const rpc = BrowserView.defineRPC<DesktopRPC>({
 	// Commands, model streams and updates run as long as they take; each side
 	// stops them itself.
@@ -52,6 +55,10 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 			...McpHostService.create({ send }),
 			...AfmHostService.create({ send }),
 			...UpdateHostService.create({ send }),
+			computerCall: (request) => computer.call(request),
+			quit: async () => {
+				Utils.quit();
+			},
 		},
 		messages: {},
 	},

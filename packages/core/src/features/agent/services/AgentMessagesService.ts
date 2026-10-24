@@ -223,6 +223,12 @@ export const AgentMessagesService = {
 				type: "text",
 				value: attachment.content.content,
 			};
+		} else if (attachment.content.type === "chat") {
+			content = {
+				id: attachment.id,
+				type: "text",
+				value: attachment.content.transcript,
+			};
 		} else if (attachment.content.type === "directory") {
 			content = {
 				id: attachment.id,

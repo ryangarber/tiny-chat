@@ -2,12 +2,13 @@ import type { Capabilities } from "#core/core/types/capability.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import { createActionsToolset } from "#core/features/tool/tools/actions.ts";
 import { createBrowserToolset } from "#core/features/tool/tools/browser.ts";
+import { createComputerToolset } from "#core/features/tool/tools/computer.ts";
 import { createGitHubToolset } from "#core/features/tool/tools/github.ts";
 import { createLegiscanToolset } from "#core/features/tool/tools/legiscan.ts";
 import { createMemoriesToolset } from "#core/features/tool/tools/memories.ts";
 import { createQuestionsToolset } from "#core/features/tool/tools/questions.ts";
 import { edit_file } from "#core/features/tool/tools/shell/edit_file.ts";
-import { find_files } from "#core/features/tool/tools/shell/find_files.ts";
+import { glob_files } from "#core/features/tool/tools/shell/glob_files.ts";
 import { grep_files } from "#core/features/tool/tools/shell/grep_files.ts";
 import { read_dir } from "#core/features/tool/tools/shell/read_dir.ts";
 import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
@@ -104,6 +105,15 @@ export const ToolService = {
 				}),
 			),
 
+			await createComputerToolset(
+				forToolset({
+					capabilities,
+					needs: ["computer"],
+					instructions:
+						"You can use the apps on the user's computer — to test and debug what they are building, or to do something in an app for them. It is their real machine and their open windows, so prefer the shell, browser and web tools whenever they can do the job, and stay in the apps the user asked about. Batch predictable steps into one call, read a window before acting in it, and take a screenshot when layout or visual state matters. Never type passwords or other secrets, and ask before anything that cannot be undone — sending, deleting, buying, or changing settings.",
+				}),
+			),
+
 			await createShellToolset(
 				forToolset({
 					capabilities,
@@ -118,12 +128,12 @@ The virtual chat (\`${PathUtils.mount}\`) filesystem holds three trees:
 - \`${PathUtils.mount}/chat/<id>\` — this chat's own working directory, and the only place you can write.
 To change a file from an upload or a skill, \`cp\` it into the chat's directory first and work on the copy; the original stays as it is for every other chat that uses it.
 
-Finding things: \`${find_files.name}\` for a glob when you want to see how the tree is laid out, \`${search_files.name}\` when you know what the code does but not what it says, and \`${grep_files.name}\` when you know the exact text or pattern. Searches skip dependency, build, generated, minified and git-ignored files, and report what they left out — when results are truncated, narrow the query or pass \`include\` instead of asking for more results.
+Finding things: \`${glob_files.name}\` for a glob when you want to see how the tree is laid out, \`${search_files.name}\` when you know what the code does but not what it says, and \`${grep_files.name}\` when you know the exact text or pattern. Searches skip dependency, build, generated, minified and git-ignored files, and report what they left out — when results are truncated, narrow the query or pass \`include\` instead of asking for more results.
 Reading: \`${read_file.name}\` returns a window of lines. Page through a long file with \`offset\` and \`limit\`, and grep for what you need first rather than reading a large file end to end.
 Editing: read the part of a file you are about to change, then use \`${edit_file.name}\` with enough surrounding context that \`old_string\` occurs exactly once. Its result shows the edited lines, so there is no need to re-read the file afterwards.
 
-Always use ${read_dir.name}, ${read_file.name}, ${find_files.name}, ${search_files.name} and ${grep_files.name} over \`ls\`, \`cat\`, \`find\`, and \`grep\`.
-${search_files.name} and ${grep_files.name} read text, so they pass over images, archives, databases and build output. When you need to know what files exist rather than what they say — and whenever an attachment is a directory the user sent you — use ${find_files.name} or ${read_dir.name}, which hide nothing of the sort.
+Always use ${read_dir.name}, ${read_file.name}, ${glob_files.name}, ${search_files.name} and ${grep_files.name} over \`ls\`, \`cat\`, \`find\`, and \`grep\`.
+${search_files.name} and ${grep_files.name} read text, so they pass over images, archives, databases and build output. When you need to know what files exist rather than what they say — and whenever an attachment is a directory the user sent you — use ${glob_files.name} or ${read_dir.name}, which hide nothing of the sort.
 When working in a codebase, look before you act: find the relevant files, read the parts you are about to change, then make the smallest edit that does the job. Say what you changed and how you verified it. When a search or a file comes back truncated, ask a narrower question rather than pulling in more of it — context you spend on noise is context you no longer have for the task.
 
 For all file-related tools, the filesystem will be detected automatically from the path provided.

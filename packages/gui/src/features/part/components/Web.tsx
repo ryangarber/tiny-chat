@@ -31,6 +31,7 @@ export default function Web({
 			formats={formats}
 			formatter={formatter}
 			streaming={streaming}
+			findLabel={source.title ?? URL.parse(source.url)?.hostname ?? "Page"}
 			bg="var(--tc-surface)"
 			style={{ borderRadius: "var(--mantine-radius-md)" }}
 			{...props}

@@ -49,6 +49,7 @@ export default function Code({
 			formats={formats}
 			formatter={formatter}
 			streaming={streaming}
+			findLabel={filename ?? (language ? `${language} code` : "Code")}
 			data-streamdown="code-block"
 			data-language={language}
 			data-incomplete={incomplete || undefined}

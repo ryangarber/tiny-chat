@@ -17,7 +17,7 @@
 	},
 	"dependencies": {
 		"@crosscopy/clipboard": "^0.3.6",
-		"@tanstack/react-query": "^5.104.3",
+		"@tanstack/react-query": "^5.104.5",
 		"chalk": "^6.0.1",
 		"cli-boxes": "^4.0.1",
 		"client": "workspace:*",
@@ -30,7 +30,7 @@
 		"string-width": "^8.3.0",
 		"terminal-link": "^5.0.0",
 		"wrap-ansi": "^10.0.2",
-		"zustand": "^5.0.15"
+		"zustand": "^5.0.16"
 	},
 	"devDependencies": {
 		"@types/react": "^19.3.0",

@@ -65,6 +65,7 @@ export default function Mermaid({
 			formats={formats}
 			formatter={formatter}
 			streaming={streaming}
+			findLabel="Diagram"
 			data-streamdown="mermaid-block"
 			data-language="mermaid"
 			data-incomplete={streaming}

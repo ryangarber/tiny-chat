@@ -1,4 +1,5 @@
 import { type RefObject, useEffect } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 
@@ -70,8 +71,8 @@ function topPanel({
 	navbar: HTMLElement | null;
 	aside: HTMLElement | null;
 }): Panel | null | undefined {
-	const { currentModal, currentDrawer, isSidebarOpen, isAsideOpen } =
-		useAppStore.getState();
+	const { currentModal, currentDrawer } = useAppStore.getState();
+	const { panels } = useLayoutStore.getState();
 	if (currentModal || document.querySelector(".mantine-Modal-content"))
 		return null;
 	if (currentDrawer) {
@@ -88,19 +89,19 @@ function topPanel({
 			},
 		};
 	}
-	if (isSidebarOpen && navbar)
+	if (panels.chats && navbar)
 		return {
 			element: navbar,
 			side: 1,
 			open: true,
-			commit: (open) => useAppStore.getState().setSidebarOpen(open),
+			commit: (open) => useLayoutStore.getState().setPanel("chats", open),
 		};
-	if (isAsideOpen && aside)
+	if (panels.files && aside)
 		return {
 			element: aside,
 			side: -1,
 			open: true,
-			commit: (open) => useAppStore.getState().setAsideOpen(open),
+			commit: (open) => useLayoutStore.getState().setPanel("files", open),
 		};
 	// Nothing is open: the swipe's direction picks what it opens.
 	return undefined;
@@ -180,8 +181,8 @@ export function usePanelSwipe({
 							open: false,
 							commit: (open) =>
 								dx > 0
-									? useAppStore.getState().setSidebarOpen(open)
-									: useAppStore.getState().setAsideOpen(open),
+									? useLayoutStore.getState().setPanel("chats", open)
+									: useLayoutStore.getState().setPanel("files", open),
 						};
 				}
 				// Only a swipe toward closing moves an open panel.

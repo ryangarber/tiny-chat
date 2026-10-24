@@ -9,6 +9,7 @@ import type { zData } from "#core/features/data/types/part.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
 import Code from "#gui/features/code/components/Code.tsx";
+import FindSegment from "#gui/features/find/components/FindSegment.tsx";
 import CompactionBadge from "#gui/features/message/components/CompactionBadge.tsx";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
 import Image from "#gui/features/part/components/Image.tsx";
@@ -49,36 +50,42 @@ export default function MessageParts({
 			if (previous && EditorPartUtils.isRun(previous)) return null;
 			const run = EditorPartUtils.toRun(parts.slice(index));
 			return (
-				<div key={index}>
-					{run.map((item) => (
-						<CompactionBadge
-							key={item.id}
-							compaction={compaction}
-							id={item.id}
-						/>
-					))}
-					<Markdown source={[run]} streaming={status !== undefined} />
-				</div>
+				<FindSegment key={index} id={run[0].id}>
+					<div>
+						{run.map((item) => (
+							<CompactionBadge
+								key={item.id}
+								compaction={compaction}
+								id={item.id}
+							/>
+						))}
+						<Markdown source={[run]} streaming={status !== undefined} />
+					</div>
+				</FindSegment>
 			);
 		}
 		if (part.type === "interjection")
 			return (
-				<Stack key={part.id} bg="var(--tc-surface)" p="sm" gap="xs">
-					<Text size="xs" c="dimmed">
-						You
-					</Text>
-					<MessageParts data={[part.value]} compaction={compaction} />
-				</Stack>
+				<FindSegment key={part.id} id={part.id}>
+					<Stack bg="var(--tc-surface)" p="sm" gap="xs">
+						<Text size="xs" c="dimmed">
+							You
+						</Text>
+						<MessageParts data={[part.value]} compaction={compaction} />
+					</Stack>
+				</FindSegment>
 			);
 		if (part.type === "group" && part.of === "thought") {
 			return (
-				<div key={index}>
-					<CompactionBadge
-						compaction={compaction}
-						id={part.value.find((thought) => compaction?.has(thought.id))?.id}
-					/>
-					<Thought thoughts={part.value} hold={hold(index)} />
-				</div>
+				<FindSegment key={index} id={part.value[0].id}>
+					<div>
+						<CompactionBadge
+							compaction={compaction}
+							id={part.value.find((thought) => compaction?.has(thought.id))?.id}
+						/>
+						<Thought thoughts={part.value} hold={hold(index)} />
+					</div>
+				</FindSegment>
 			);
 		}
 		if (part.type === "group" && part.of === "toolCall") {
@@ -148,44 +155,47 @@ export default function MessageParts({
 			}
 		} else if (part.type === "abort") {
 			return (
-				<Alert
-					key={index}
-					mb={10}
-					color={part.reason === "error" ? "red" : "gray"}
-					variant="light"
-					title={`${part.reason === "error" ? "Failed" : "Stopped"}: ${part.reason}`}
-				>
-					<Stack align="flex-end">
-						<Text size="sm" w="100%">
-							{part.message ?? JSON.stringify(part.details)}
-						</Text>
-						{/* Once the reply carries on past it, it has nothing left to offer. */}
-						{message && status === undefined && index === parts.length - 1 && (
-							<Group gap="xs">
-								{resume && (
-									<Button
-										variant="subtle"
-										color="dimmed"
-										onClick={() => resume(message)}
-										leftSection={<PlayIcon size={20} />}
-									>
-										Continue
-									</Button>
+				<FindSegment key={index} id={part.id}>
+					<Alert
+						mb={10}
+						color={part.reason === "error" ? "red" : "gray"}
+						variant="light"
+						title={`${part.reason === "error" ? "Failed" : "Stopped"}: ${part.reason}`}
+					>
+						<Stack align="flex-end">
+							<Text size="sm" w="100%">
+								{part.message ?? JSON.stringify(part.details)}
+							</Text>
+							{/* Once the reply carries on past it, it has nothing left to offer. */}
+							{message &&
+								status === undefined &&
+								index === parts.length - 1 && (
+									<Group gap="xs">
+										{resume && (
+											<Button
+												variant="subtle"
+												color="dimmed"
+												onClick={() => resume(message)}
+												leftSection={<PlayIcon size={20} />}
+											>
+												Continue
+											</Button>
+										)}
+										{regenerate && (
+											<Button
+												variant="subtle"
+												color="dimmed"
+												onClick={() => regenerate(message)}
+												leftSection={<ArrowClockwiseIcon size={20} />}
+											>
+												Retry
+											</Button>
+										)}
+									</Group>
 								)}
-								{regenerate && (
-									<Button
-										variant="subtle"
-										color="dimmed"
-										onClick={() => regenerate(message)}
-										leftSection={<ArrowClockwiseIcon size={20} />}
-									>
-										Retry
-									</Button>
-								)}
-							</Group>
-						)}
-					</Stack>
-				</Alert>
+						</Stack>
+					</Alert>
+				</FindSegment>
 			);
 		}
 		return null;

@@ -1,9 +1,10 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: lines stay in order */
 
 import chalk, { type ChalkInstance } from "chalk";
-import { Text } from "ink";
+import { Box, Text } from "ink";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import type { CodeResult } from "#core/core/utils/CodeUtils.ts";
+import { TextLayoutUtils } from "#tui/core/utils/TextLayoutUtils.ts";
 
 export default function CodeLines({
 	code,
@@ -36,15 +37,20 @@ export default function CodeLines({
 		const node = line.map((token) => color(token)(token.content));
 
 		if (lineNumbers) {
+			// Beside the line rather than in it, so it is never found as part of it.
 			return (
-				<Text key={lineIndex}>
-					{chalk.gray(
-						`${(lineIndex + startLine)
-							.toString()
-							.padStart(lineNumberLength, " ")}. `,
-					)}
-					{node}
-				</Text>
+				<Box key={lineIndex}>
+					<Box flexShrink={0} ref={TextLayoutUtils.ignore}>
+						<Text>
+							{chalk.gray(
+								`${(lineIndex + startLine)
+									.toString()
+									.padStart(lineNumberLength, " ")}. `,
+							)}
+						</Text>
+					</Box>
+					<Text>{node}</Text>
+				</Box>
 			);
 		}
 

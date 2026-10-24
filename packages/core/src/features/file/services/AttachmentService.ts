@@ -3,7 +3,9 @@ import type {
 	WebCapability,
 } from "#core/core/types/capability.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zAttachmentPart } from "#core/features/data/types/part.ts";
+import { TranscriptUtils } from "#core/features/data/utils/TranscriptUtils.ts";
 import { FileOperationService } from "#core/features/file/services/FileOperationService.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
@@ -30,12 +32,18 @@ export const AttachmentService = {
 		directory = false,
 		shell,
 		web,
+		chat,
 	}: {
 		source: string;
 		label?: string;
 		directory?: boolean;
 		shell?: Pick<ShellCapability, "readFile" | "readDir">;
 		web?: Pick<WebCapability, "view">;
+		/** Reads another of the user's chats, for a `chat:<id>` source. */
+		chat?: (id: string) => Promise<{
+			title: string | null;
+			messages: Pick<MessageState, "author" | "createdAt" | "data">[];
+		}>;
 	}): Promise<zAttachmentPart> => {
 		const id = CommonUtils.getRandomId();
 		let content: zAttachmentPart["content"];
@@ -47,6 +55,14 @@ export const AttachmentService = {
 				type: "web",
 				title: result.title,
 				content: result.content,
+			};
+		} else if (source.startsWith("chat:")) {
+			if (!chat) throw new Error(`Cannot read chat attachment: ${source}`);
+			const { title, messages } = await chat(source.slice(5));
+			content = {
+				type: "chat",
+				title,
+				transcript: TranscriptUtils.build({ title, messages }),
 			};
 		} else if (directory) {
 			if (!shell)

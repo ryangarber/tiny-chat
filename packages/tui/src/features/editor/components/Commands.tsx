@@ -1,5 +1,5 @@
 import { useApp } from "ink";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
 import { useCommands } from "#client/features/editor/hooks/useCommands.ts";
@@ -31,83 +31,45 @@ export default function Commands({
 	const client = useContext(ClientContext);
 	const { exit } = useApp();
 
-	const { session, requestClone } = useSession();
+	const { requestClone } = useSession();
 	const { update, doUpdate } = useUpdate();
 
 	const setFocus = useAppStore((state) => state.setFocus);
 	const togglePanel = useAppStore((state) => state.togglePanel);
+	const openPanel = useAppStore((state) => state.openPanel);
 	const setStatus = useAppStore((state) => state.setStatus);
 	const unsetStatus = useAppStore((state) => state.unsetStatus);
 
-	const isAnonymous =
-		!session.data?.user || session.data.user.isAnonymous === true;
-
-	// Offered only once there is a release to take, which is also the only time
-	// the status announcing it points here.
 	const version = update.data;
 
-	const cliCommands = useMemo<CommandItem[]>(
-		() => [
-			{
-				name: "quit",
-				value: "quit",
-				run: () => exit(),
-			},
-			...(version
-				? [
-						{
-							name: "update",
-							value: "update",
-							run: () => doUpdate.mutate(version),
-						},
-					]
-				: []),
-			isAnonymous
-				? {
-						name: "login",
-						value: "login",
-						run: async () =>
-							requestClone.mutate(
-								(id) => {
-									ClipboardService.copy(`${client.webUrl}#/?clone=${id}`);
-									setStatus({
-										id: "clone",
-										text: "Waiting for you to sign in...",
-									});
-								},
-								{ onSettled: () => unsetStatus({ id: "clone" }) },
-							),
-					}
-				: {
-						name: "logout",
-						value: "logout",
-						run: () => client.auth.signOut(),
-					},
-		],
-		[
-			isAnonymous,
-			requestClone,
-			doUpdate,
-			version,
-			setStatus,
-			unsetStatus,
-			client,
-			exit,
-		],
-	);
-
 	const { getCommands } = useCommands({
-		commands: cliCommands,
 		onOpenSettings: () => setFocus("settings"),
-		onOpenChats: () => togglePanel("chats"),
+		onOpenChats: () => openPanel("chats"),
 		onOpenFiles: () => togglePanel("files"),
-		onOpenProjects: () => setFocus("projects"),
+		onOpenProjects: () => openPanel("chats"),
 		onOpenConfig: () => setFocus("config"),
 		onOpenUploads: () => setFocus("uploads"),
 		onOpenGitHub: () => setFocus("github"),
 		onOpenMemories: () => setFocus("memories"),
 		onOpenActions: () => setFocus("actions"),
 		onOpenConsole: () => setFocus("console"),
+		onQuit: () => exit(),
+		onLogin: () =>
+			requestClone.mutate(
+				(id) => {
+					ClipboardService.copy(`${client.webUrl}#/?clone=${id}`);
+					setStatus({
+						id: "clone",
+						text: "Waiting for you to sign in...",
+					});
+				},
+				{ onSettled: () => unsetStatus({ id: "clone" }) },
+			),
+		// Offered only once there is a release to take, which is also the only
+		// time the status announcing it points here.
+		update: version
+			? { version, install: () => doUpdate.mutate(version) }
+			: undefined,
 	});
 
 	const commands = getCommands();

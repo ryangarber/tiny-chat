@@ -308,6 +308,9 @@ export const SourceUtils = {
 		});
 	},
 
+	/** The emoji any source of `type` is shown with. */
+	getTypeEmoji: (type: SourceDisplayType["type"]) => EMOJIS[type],
+
 	/** The emoji {@link SourceUtils.getDisplay} would give, without the rest of it. */
 	getEmoji: ({ sources, key }: { sources?: Source[]; key: string }) =>
 		EMOJIS[findClosestSource({ sources, key })?.type ?? "unknown"],

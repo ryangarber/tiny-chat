@@ -1,6 +1,10 @@
 import { Box, Collapse, Group, Text } from "@mantine/core";
 import { ClipboardTextIcon } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 
 export default function Paste({
 	lines,
@@ -11,14 +15,18 @@ export default function Paste({
 	grabbable?: boolean;
 	children: ReactNode;
 }) {
-	const [expanded, setExpanded] = useState(false);
+	const [open, setOpen] = useState(false);
+	// Opened, too, while find shows a match somewhere in it.
+	const revealed = useFindRevealed();
+	const expanded = open || revealed;
+	useFindHidden(!expanded);
 	const label = lines ? `${lines} pasted lines` : "Pasted";
 
 	return (
 		<Box my={10}>
 			<Group
 				onClick={() => {
-					setExpanded(!expanded);
+					setOpen(!expanded);
 				}}
 				style={{ cursor: grabbable ? "grab" : "pointer" }}
 				gap="xs"

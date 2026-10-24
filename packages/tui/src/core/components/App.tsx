@@ -1,6 +1,8 @@
 import { type DOMElement, useApp, useInput, useWindowSize } from "ink";
 import { type ReactNode, useEffect, useRef } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
+import { usePersistedPanels } from "#client/core/hooks/usePersistedPanels.ts";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
@@ -26,10 +28,11 @@ import Chat from "#tui/features/chat/components/Chat.tsx";
 import ChatEffects from "#tui/features/chat/components/ChatEffects.tsx";
 import ChatList from "#tui/features/chat/components/ChatList.tsx";
 import ChatSources from "#tui/features/chat/components/ChatSources.tsx";
-import ProjectList from "#tui/features/chat/components/ProjectList.tsx";
 import Editor from "#tui/features/editor/components/Editor.tsx";
 import Find from "#tui/features/find/components/Find.tsx";
+import FindScope from "#tui/features/find/components/FindScope.tsx";
 import { CitationCard } from "#tui/features/message/components/Citation.tsx";
+import { useSelectionStore } from "#tui/features/selection/stores/useSelectionStore.ts";
 import Settings from "#tui/features/settings/components/Settings.tsx";
 import { useUpdate } from "#tui/features/update/hooks/useUpdate.ts";
 import GitHub from "#tui/features/upload/components/GitHub.tsx";
@@ -39,6 +42,9 @@ import Memories from "#tui/features/user/components/Memories.tsx";
 
 /** Columns from which the chat list and files open beside the chat rather than below it. */
 const SIDEBAR_COLUMNS = 120;
+
+/** The scope of the whole screen, searched once nothing narrower is. */
+const FIND_ROOT = "app";
 // Halfway between the former chat-list (32) and file-preview (up to 64) widths.
 const panelWidth = (columns: number) =>
 	Math.floor((32 + Math.min(64, Math.floor(columns * 0.4))) / 2);
@@ -46,6 +52,7 @@ const panelWidth = (columns: number) =>
 export default function App() {
 	usePrepareCode();
 	useDefaultProject();
+	usePersistedPanels();
 
 	const { exit } = useApp();
 	const rootRef = useRef<DOMElement>(null);
@@ -87,8 +94,8 @@ export default function App() {
 			return;
 		}
 		if (key.ctrl && (input === "c" || input === "d")) {
-			// Ctrl+C copies a selection, which the text area holding it sees to.
-			if (input === "c" && useAppStore.getState().selecting.length) return;
+			// Ctrl+C copies a selection, which whatever holds it sees to.
+			if (input === "c" && useSelectionStore.getState().holder) return;
 			if (statuses.find((status) => status.id === "quit")) {
 				// Unmounted rather than killed, so the host decides what quitting does.
 				exit();
@@ -105,7 +112,7 @@ export default function App() {
 		colors: { low: "primary", moderate: "yellowBright", high: "redBright" },
 	});
 
-	const panels = useAppStore((state) => state.panels);
+	const panels = useLayoutStore((state) => state.panels);
 	const sidebars = columns >= SIDEBAR_COLUMNS;
 	const left = sidebars && panels.chats ? panelWidth(columns) : 0;
 	const right = sidebars && panels.files ? panelWidth(columns) : 0;
@@ -115,7 +122,10 @@ export default function App() {
 
 	return (
 		<MessageProvider>
-			<Box
+			<FindScope
+				id={FIND_ROOT}
+				label="window"
+				region
 				ref={rootRef}
 				flexDirection="row"
 				height={rows}
@@ -129,7 +139,11 @@ export default function App() {
 					</Box>
 				)}
 				<WidthContext.Provider value={width}>
-					<Box
+					<FindScope
+						label="chat"
+						region
+						segmented
+						focus={(focus) => focus === "editor" || focus.startsWith("tool:")}
 						flexDirection="column"
 						width={width}
 						flexShrink={0}
@@ -170,7 +184,6 @@ export default function App() {
 										right={0}
 										flexDirection="column"
 									>
-										{page === "projects" && <ProjectList />}
 										{page === "uploads" && <Uploads />}
 										{page === "github" && <GitHub />}
 										{page === "memories" && <Memories />}
@@ -189,7 +202,7 @@ export default function App() {
 								/>
 							</Box>
 						</Box>
-					</Box>
+					</FindScope>
 				</WidthContext.Provider>
 				{right > 0 && (
 					<Box width={right} flexShrink={0} flexDirection="column">
@@ -201,9 +214,9 @@ export default function App() {
 				<CitationCard />
 				{page === "fullscreen" && <ContentFullscreen />}
 				{page === "console" && <Console />}
-				{/* The keys go to whichever page is up, so only the chat is searched. */}
-				<Find targetRef={rootRef} disabled={page !== "chat"} />
-			</Box>
+				{/* The keys go to whichever page is up; the fullscreen one has its own bar. */}
+				<Find targetRef={rootRef} root={FIND_ROOT} disabled={page !== "chat"} />
+			</FindScope>
 		</MessageProvider>
 	);
 }
@@ -218,19 +231,27 @@ function AppPanel({
 	const closePanel = useAppStore((state) => state.closePanel);
 
 	return (
-		<Panel
-			id={name}
-			title={name}
-			closable
-			onClose={() => closePanel(name)}
+		<FindScope
+			label={name}
+			region
+			focus={(focus) => focus === name}
 			flexGrow={1}
 			minHeight={0}
-			padding={1}
-			backgroundColor="interior"
-			borderStyle="round"
-			border={true}
 		>
-			{children}
-		</Panel>
+			<Panel
+				id={name}
+				title={name}
+				closable
+				onClose={() => closePanel(name)}
+				flexGrow={1}
+				minHeight={0}
+				padding={1}
+				backgroundColor="interior"
+				borderStyle="round"
+				border={true}
+			>
+				{children}
+			</Panel>
+		</FindScope>
 	);
 }

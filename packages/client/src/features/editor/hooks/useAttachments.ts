@@ -1,9 +1,12 @@
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useChatFiles } from "#client/features/chat/hooks/useChatFiles.ts";
+import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
+import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import type { AttachmentGroup } from "#client/features/editor/types/attachment.ts";
 import { AttachmentUtils } from "#client/features/editor/utils/AttachmentUtils.ts";
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
+import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 import { FileOperationService } from "#core/features/file/services/FileOperationService.ts";
 import { FileSearchService } from "#core/features/file/services/FileSearchService.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
@@ -31,8 +34,8 @@ interface LocalTree {
 
 /**
  * Build the attachments available to any client: everything on the mount, the
- * uploads and repositories the account holds, plus files on the local machine
- * when the client can read the filesystem.
+ * uploads and repositories the account holds, recent chats, plus files on the
+ * local machine when the client can read the filesystem.
  */
 export const useAttachments = () => {
 	const client = useContext(ClientContext);
@@ -75,6 +78,33 @@ export const useAttachments = () => {
 
 	const uploadGroupsRef = useRef(uploadGroups);
 	uploadGroupsRef.current = uploadGroups;
+
+	// The chats on the sidebar's first page, newest first, to ask about from
+	// this one. The chat being written in is already all there.
+	const { projects: chatList } = useChatList();
+	const chatId = useChatStore((state) => state.active.chatId);
+	const chatGroups = useMemo((): AttachmentGroup[] => {
+		const page = chatList.data?.pages[0];
+		const chats = [
+			...(page?.chats ?? []),
+			...(page?.projects.flatMap((project) => project.chats) ?? []),
+		]
+			.filter((chat) => chat.id !== chatId)
+			.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
+			.slice(0, 5);
+
+		return chats.length
+			? [
+					{
+						name: "Chats",
+						items: chats.map((chat) => AttachmentUtils.forChat({ chat })),
+					},
+				]
+			: [];
+	}, [chatList.data, chatId]);
+
+	const chatGroupsRef = useRef(chatGroups);
+	chatGroupsRef.current = chatGroups;
 
 	// Walking a large tree is the slow part of a search and its answer barely
 	// changes between keystrokes, so each directory is walked once and kept for
@@ -240,6 +270,7 @@ export const useAttachments = () => {
 				// so they are only offered while the query is still a bare name
 				// rather than a path being walked down.
 				...(directory.length ? [] : uploadGroupsRef.current),
+				...(directory.length ? [] : chatGroupsRef.current),
 				...local,
 			];
 		},

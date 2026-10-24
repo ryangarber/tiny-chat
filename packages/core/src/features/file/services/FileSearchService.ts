@@ -324,7 +324,7 @@ const getSummary = ({
 			? (advice ?? "Narrow the query or pass `include` to see the rest.")
 			: null,
 		unsearchable
-			? `${unsearchable} path(s) here hold no searchable text — use find_files to list them or read_file to open one`
+			? `${unsearchable} path(s) here hold no searchable text — use glob_files to list them or read_file to open one`
 			: null,
 	].filter(Boolean);
 
@@ -651,7 +651,7 @@ export const FileSearchService = {
 			);
 		}
 
-		const { candidates, stats } = await FileSearchService.getCandidates({
+		const { candidates, stats, root } = await FileSearchService.getCandidates({
 			shell,
 			path,
 			include,
@@ -671,7 +671,7 @@ export const FileSearchService = {
 			const read = await FileSearchService.readSearchables({
 				shell,
 				files: batch,
-				root: path,
+				root,
 			});
 
 			for (const [index, file] of read.entries()) {
@@ -758,7 +758,7 @@ export const FileSearchService = {
 	}): Promise<FileSearchReport> => {
 		if (!query.trim()) throw new Error("Search query must not be empty.");
 
-		const { candidates, stats } = await FileSearchService.getCandidates({
+		const { candidates, stats, root } = await FileSearchService.getCandidates({
 			shell,
 			path,
 			include,
@@ -774,7 +774,7 @@ export const FileSearchService = {
 				const read = await FileSearchService.readSearchables({
 					shell,
 					files: batch,
-					root: path,
+					root,
 				});
 				return batch.map((candidate, index) => {
 					const file = read[index];
@@ -987,13 +987,41 @@ export const FileSearchService = {
 	}): Promise<{
 		candidates: { path: string; size?: number }[];
 		stats: FileSearchStats;
+		/** What candidates are judged relative to: `path`, or a file's directory. */
+		root: string;
 	}> => {
 		const stats = getEmptyStats();
-		const { entries, truncated, skipped } = await FileSearchService.walk({
-			shell,
-			path,
-			scope: "search",
-		});
+
+		// A path naming a file searches just that file. Shells disagree on what
+		// listing a file does, so failing or finding nothing both mean "try it".
+		const getSingle = async () => {
+			const file = await FileSearchService.getFile({ shell, path });
+			if (!file) return null;
+			stats.found = 1;
+			const matched =
+				!include ||
+				FileMatchUtils.matches({ pattern: include, path: getName(path) });
+			return {
+				candidates: matched ? [file] : [],
+				stats,
+				root: getParent(path),
+			};
+		};
+
+		let walked: Awaited<ReturnType<typeof FileSearchService.walk>>;
+		try {
+			walked = await FileSearchService.walk({ shell, path, scope: "search" });
+		} catch (error) {
+			const single = await getSingle();
+			if (single) return single;
+			throw error;
+		}
+		if (!walked.entries.length) {
+			const single = await getSingle();
+			if (single) return single;
+		}
+
+		const { entries, truncated, skipped } = walked;
 		stats.truncated = truncated;
 		// What the walk turned away by name counts as skipped too, or a summary
 		// would claim full coverage of a directory it barely looked at.
@@ -1025,6 +1053,23 @@ export const FileSearchService = {
 			stats.truncated = true;
 		}
 
-		return { candidates, stats };
+		return { candidates, stats, root: path };
+	},
+
+	/** `path` as a single readable file, or null when it is not one. */
+	getFile: async ({
+		shell,
+		path,
+	}: {
+		shell: Pick<ShellCapability, "readFile"> &
+			Partial<Pick<ShellCapability, "readFiles">>;
+		path: string;
+	}): Promise<{ path: string; size: number } | null> => {
+		const [file] = await FileSearchService.readFiles({
+			shell,
+			paths: [path],
+			maxBytes: 1,
+		}).catch(() => [null]);
+		return file ? { path, size: file.size } : null;
 	},
 } as const;

@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useEffectEvent, useMemo } from "react";
-import { useFind } from "#client/features/find/hooks/useFind.ts";
+import { useFindInScope } from "#client/features/find/hooks/useFindInScope.ts";
+import { FindScopeService } from "#client/features/find/services/FindScopeService.ts";
 import type { FindBlock, FindMatch } from "#client/features/find/types/find.ts";
 
 /** `::highlight()` names the matches are painted under, styled in `find.css`. */
@@ -126,7 +127,8 @@ const isScrollable = (element: Element) => {
 };
 
 /**
- * Centers a range in every view it is scrolled out of, up to `root`.
+ * Centers a range in every view it is scrolled out of, up to `root`: nested
+ * ones, such as a tail of output in a message, from the inside out.
  * `scrollIntoView` would do the same but also scrolls containers that only
  * hide their overflow, which the app shell relies on staying put.
  */
@@ -150,36 +152,43 @@ const reveal = (range: Range, root: Element) => {
 };
 
 /**
- * Find in page over the DOM under `targetRef`, painted with the CSS Custom
- * Highlight API so nothing searched is wrapped or otherwise touched.
+ * Find in page over a registered scope, painted with the CSS Custom Highlight
+ * API so nothing searched is wrapped or otherwise touched. What the scope does
+ * not draw is searched from its data, and drawn as it is stepped onto.
  *
  * Text under `ignoreRef` — the find bar itself — is never matched.
  */
 export function useFindInElement({
-	targetRef,
 	ignoreRef,
 }: {
-	targetRef: RefObject<HTMLElement | null>;
 	ignoreRef?: RefObject<HTMLElement | null>;
 }) {
-	const find = useFind<Text>({
-		blocks: () =>
-			targetRef.current
-				? textBlocks(targetRef.current, ignoreRef?.current)
-				: [],
-		reveal: (match) => {
-			if (targetRef.current) reveal(toRange(match), targetRef.current);
-		},
+	const find = useFindInScope<Text>({
+		blocksOf: (node) =>
+			node instanceof HTMLElement ? textBlocks(node, ignoreRef?.current) : [],
+		// Once whatever opened to show it has been laid out; and again once
+		// blocks whose layout was skipped off screen (`content-visibility`) have
+		// been laid out on it.
+		reveal: (match) =>
+			requestAnimationFrame(() => {
+				const range = toRange(match);
+				reveal(range, document.documentElement);
+				requestAnimationFrame(() => reveal(range, document.documentElement));
+			}),
 	});
 
-	const { isOpen, matches, index } = find;
-	const ranges = useMemo(() => matches.map(toRange), [matches]);
+	const { isOpen, hits, index, scope } = find;
+	const ranges = useMemo(
+		() => hits.map((hit) => (hit.match ? toRange(hit.match) : null)),
+		[hits],
+	);
 
 	useEffect(() => {
 		const id = Symbol();
+		const current = ranges[index];
 		painted.set(id, {
-			all: ranges,
-			current: ranges[index] ? [ranges[index]] : [],
+			all: ranges.filter((range) => range !== null),
+			current: current ? [current] : [],
 		});
 		paint();
 		return () => {
@@ -188,16 +197,16 @@ export function useFindInElement({
 		};
 	}, [ranges, index]);
 
-	// Content streaming in, or a page of messages loading, is searched again
-	// once it settles — but not the bar's own count changing.
+	// Content streaming in, a message scrolled into the list, or a part opening
+	// is searched again once it settles — but not the bar's own count changing.
 	const isOwnMutation = useEffectEvent((records: MutationRecord[]) => {
 		const ignored = ignoreRef?.current;
 		return records.every((record) => ignored?.contains(record.target));
 	});
 	const refresh = useEffectEvent(() => find.refresh());
 	useEffect(() => {
-		const target = targetRef.current;
-		if (!isOpen || !target) return;
+		const target = FindScopeService.get(scope)?.node();
+		if (!isOpen || !(target instanceof HTMLElement)) return;
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		const observer = new MutationObserver((records) => {
 			if (isOwnMutation(records)) return;
@@ -213,7 +222,7 @@ export function useFindInElement({
 			observer.disconnect();
 			clearTimeout(timeout);
 		};
-	}, [isOpen, targetRef]);
+	}, [isOpen, scope]);
 
 	return find;
 }

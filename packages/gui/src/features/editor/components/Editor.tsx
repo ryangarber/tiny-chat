@@ -102,6 +102,7 @@ export default function Editor({
 									disabled={disabled}
 									usage={usage}
 									categories={categories}
+									hidden={isMultiline}
 								/>
 							</div>
 						}
@@ -171,6 +172,7 @@ export default function Editor({
 									disabled={disabled}
 									usage={usage}
 									categories={categories}
+									hidden={!isMultiline}
 								/>
 							</div>
 						</div>

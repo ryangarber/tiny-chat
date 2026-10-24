@@ -4,7 +4,7 @@ import type { zSettings } from "#core/features/data/types/user.ts";
 import { createShell } from "#core/features/file/services/FileSearchService.test.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createEditFileTool } from "#core/features/tool/tools/shell/edit_file.ts";
-import { createFindFilesTool } from "#core/features/tool/tools/shell/find_files.ts";
+import { createGlobFilesTool } from "#core/features/tool/tools/shell/glob_files.ts";
 import { createGrepFilesTool } from "#core/features/tool/tools/shell/grep_files.ts";
 import { createReadDirTool } from "#core/features/tool/tools/shell/read_dir.ts";
 import { createReadFileTool } from "#core/features/tool/tools/shell/read_file.ts";
@@ -198,7 +198,7 @@ describe("shell", () => {
 			"/project/src/a.test.ts": "a",
 			"/project/src/a.ts": "b",
 		});
-		const tool = await createFindFilesTool({ capabilities: { shell } });
+		const tool = await createGlobFilesTool({ capabilities: { shell } });
 
 		const parts = await tool.execute({
 			input: { path: "/project", pattern: "**/*.test.ts" },

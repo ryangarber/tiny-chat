@@ -1,6 +1,6 @@
 import type { Capabilities } from "#core/core/types/capability.ts";
 import { createEditFileTool } from "#core/features/tool/tools/shell/edit_file.ts";
-import { createFindFilesTool } from "#core/features/tool/tools/shell/find_files.ts";
+import { createGlobFilesTool } from "#core/features/tool/tools/shell/glob_files.ts";
 import { createGrepFilesTool } from "#core/features/tool/tools/shell/grep_files.ts";
 import { createReadDirTool } from "#core/features/tool/tools/shell/read_dir.ts";
 import { createReadFileTool } from "#core/features/tool/tools/shell/read_file.ts";
@@ -19,7 +19,7 @@ export const createShellToolset: ToolsetFactory<
 	tools: [
 		await createReadFileTool(options),
 		await createReadDirTool(options),
-		await createFindFilesTool(options),
+		await createGlobFilesTool(options),
 		await createSearchFilesTool(options),
 		await createGrepFilesTool(options),
 		await createWriteFileTool(options),

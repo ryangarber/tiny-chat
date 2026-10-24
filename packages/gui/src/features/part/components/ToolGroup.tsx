@@ -1,6 +1,11 @@
 import { Box, Collapse } from "@mantine/core";
 import { StackIcon } from "@phosphor-icons/react";
 import { useEffect } from "react";
+import {
+	useFindHidden,
+	useFindRevealed,
+	useFindRevealing,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
@@ -39,10 +44,16 @@ export default function ToolGroup({
 
 	const group = ToolCallUtils.getGroup({ parts, toolsets });
 	const groupKey = `group:${parts[0]?.id}`;
+	// Open for find showing a match in one of its calls, or in a run of them
+	// inside a segment, such as a subagent's.
+	const revealing = useFindRevealing(parts.map((part) => part.id));
+	const revealed = useFindRevealed();
 	const { expanded, auto, toggle } = useAutoExpand(
 		groupKey,
 		group.pending || !!hold,
+		revealing || revealed,
 	);
+	useFindHidden(!expanded && parts.length > 1);
 
 	// Opens to let a call in it that is being gone to be drawn.
 	const focusing = useExpandStore(

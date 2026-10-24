@@ -1,10 +1,12 @@
+import type { Panel } from "#client/core/stores/useLayoutStore.ts";
 import type { ProjectRef } from "#client/features/chat/types/activeChat.ts";
 
 /** Where a get-started link goes. */
 export type GetStartedTarget =
 	| { type: "chat"; id: string }
 	/** A new chat in the project. */
-	| { type: "project"; project: ProjectRef };
+	| { type: "project"; project: ProjectRef }
+	| { type: "panel"; panel: Panel };
 
 export interface GetStartedLink {
 	label: string;

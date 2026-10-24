@@ -41,11 +41,11 @@ function Links({
 						color={hover === index ? "primary" : undefined}
 						wrap="truncate-end"
 					>
-						{link.label.replaceAll("\n", " ")}
+						{link.label.replaceAll("\n", " ").toLowerCase()}
 					</Text>
 					{link.description && (
 						<Box flexShrink={0}>
-							<Text color="textSubtle">{link.description}</Text>
+							<Text color="textSubtle">{link.description.toLowerCase()}</Text>
 						</Box>
 					)}
 				</Box>

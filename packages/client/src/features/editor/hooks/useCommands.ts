@@ -1,14 +1,17 @@
 import { useCallback, useContext, useRef } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useSession } from "#client/core/hooks/useSession.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { useProviders } from "#client/features/agent/hooks/useProviders.ts";
 import { useSkills } from "#client/features/agent/hooks/useSkills.ts";
 import { useTools } from "#client/features/agent/hooks/useTools.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
+import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import type {
 	CommandChoiceGroup,
+	CommandChoiceItem,
 	CommandGroup,
 	CommandItem,
 } from "#client/features/editor/types/command.ts";
@@ -18,6 +21,11 @@ import { usePresets } from "#client/features/settings/hooks/usePresets.ts";
 import { useProviderSettings } from "#client/features/settings/hooks/useProviderSettings.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import { ThemeUtils } from "#core/core/utils/ThemeUtils.ts";
+import type {
+	ChatState,
+	ProjectState,
+} from "#core/features/data/types/chat.ts";
+import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 import type { ModelProviderStatus } from "#core/features/provider/types/model.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
 
@@ -25,6 +33,12 @@ import type { ProviderState } from "#core/features/provider/types/provider.ts";
 const MEMORY_BUDGETS = Array.from({ length: 21 }, (_, i) => i * 500);
 
 const onOff = (value: boolean) => (value ? "on" : "off");
+
+/** How many recent chats and projects are offered before the full list. */
+const RECENTS = 10;
+
+/** The choice that opens the full list, after the recents. */
+const MORE = "more…";
 
 /**
  * Build the commands available to any client, optionally extended with
@@ -37,28 +51,38 @@ export const useCommands = ({
 	onOpenFiles,
 	onOpenProjects,
 	onOpenConfig,
-	onOpenTools,
-	onOpenSkills,
 	onOpenUploads,
 	onOpenGitHub,
 	onOpenMemories,
 	onOpenActions,
 	onOpenConsole,
+	onQuit,
+	onLogin,
+	onLogout,
+	update,
 }: {
 	commands?: CommandItem[];
-	onOpenSettings?: () => void;
-	onOpenChats?: () => void;
+	onOpenSettings: () => void;
+	/** The full list of chats, past the recents offered as choices. */
+	onOpenChats: () => void;
 	onOpenFiles?: () => void;
-	onOpenProjects?: () => void;
-	onOpenConfig?: () => void;
-	onOpenTools?: () => void;
-	onOpenSkills?: () => void;
+	/** The full list of projects, past the recents offered as choices. */
+	onOpenProjects: () => void;
+	onOpenConfig: () => void;
 	onOpenUploads?: () => void;
 	onOpenGitHub?: () => void;
-	onOpenMemories?: () => void;
-	onOpenActions?: () => void;
+	onOpenMemories: () => void;
+	onOpenActions: () => void;
 	onOpenConsole?: () => void;
-} = {}) => {
+	/** Where the host can be quit from inside it. */
+	onQuit?: () => void;
+	/** Links an anonymous user to an account. */
+	onLogin?: () => void;
+	/** After signing out. */
+	onLogout?: () => void;
+	/** A release of the host waiting to be installed. */
+	update?: { version: string; install: () => void };
+}) => {
 	const client = useContext(ClientContext);
 
 	const { providers, updateProviders } = useProviders();
@@ -91,30 +115,63 @@ export const useCommands = ({
 	const commandsRef = useRef(commands);
 	commandsRef.current = commands;
 
-	const onOpenSettingsRef = useRef(onOpenSettings);
-	onOpenSettingsRef.current = onOpenSettings;
-	const onOpenChatsRef = useRef(onOpenChats);
-	onOpenChatsRef.current = onOpenChats;
-	const onOpenFilesRef = useRef(onOpenFiles);
-	onOpenFilesRef.current = onOpenFiles;
-	const onOpenProjectsRef = useRef(onOpenProjects);
-	onOpenProjectsRef.current = onOpenProjects;
-	const onOpenConfigRef = useRef(onOpenConfig);
-	onOpenConfigRef.current = onOpenConfig;
-	const onOpenToolsRef = useRef(onOpenTools);
-	onOpenToolsRef.current = onOpenTools;
-	const onOpenSkillsRef = useRef(onOpenSkills);
-	onOpenSkillsRef.current = onOpenSkills;
-	const onOpenUploadsRef = useRef(onOpenUploads);
-	onOpenUploadsRef.current = onOpenUploads;
-	const onOpenGitHubRef = useRef(onOpenGitHub);
-	onOpenGitHubRef.current = onOpenGitHub;
-	const onOpenMemoriesRef = useRef(onOpenMemories);
-	onOpenMemoriesRef.current = onOpenMemories;
-	const onOpenActionsRef = useRef(onOpenActions);
-	onOpenActionsRef.current = onOpenActions;
-	const onOpenConsoleRef = useRef(onOpenConsole);
-	onOpenConsoleRef.current = onOpenConsole;
+	// What the host does for a command, read when the command runs.
+	const hostRef = useRef({
+		onOpenSettings,
+		onOpenChats,
+		onOpenFiles,
+		onOpenProjects,
+		onOpenConfig,
+		onOpenUploads,
+		onOpenGitHub,
+		onOpenMemories,
+		onOpenActions,
+		onOpenConsole,
+		onQuit,
+		onLogin,
+		onLogout,
+		update,
+	});
+	hostRef.current = {
+		onOpenSettings,
+		onOpenChats,
+		onOpenFiles,
+		onOpenProjects,
+		onOpenConfig,
+		onOpenUploads,
+		onOpenGitHub,
+		onOpenMemories,
+		onOpenActions,
+		onOpenConsole,
+		onQuit,
+		onLogin,
+		onLogout,
+		update,
+	};
+
+	const { session } = useSession();
+	const isAnonymousRef = useRef(true);
+	isAnonymousRef.current =
+		!session.data?.user || session.data.user.isAnonymous === true;
+
+	// The chats most recently written in, across projects, and the newest
+	// projects, as far as the list has been loaded.
+	const { projects: chatList } = useChatList();
+	const recentsRef = useRef({
+		chats: [] as ChatState[],
+		projects: [] as ProjectState[],
+	});
+	const pages = chatList.data?.pages;
+	recentsRef.current = {
+		chats: (pages ?? [])
+			.flatMap((page) => [
+				...page.chats,
+				...page.projects.flatMap((project) => project.chats),
+			])
+			.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
+			.slice(0, RECENTS),
+		projects: (pages ?? []).flatMap((page) => page.projects).slice(0, RECENTS),
+	};
 
 	const providersRef = useRef(providers.data);
 	providersRef.current = providers.data;
@@ -270,71 +327,34 @@ export const useCommands = ({
 			value: `skill:${skill.path}`,
 		}));
 
+		const host = hostRef.current;
+
+		/** A command the host runs, offered only where it has one. */
+		const hosted = (name: string, run?: () => void): CommandItem[] =>
+			run ? [{ name, value: name, run: () => run() }] : [];
+
 		// Only offered where the host has somewhere to open them.
 		const uploads: CommandItem[] = [
-			...(onOpenUploadsRef.current
-				? [
-						{
-							name: "uploads",
-							value: "uploads",
-							run: () => onOpenUploadsRef.current?.(),
-						},
-					]
-				: []),
-			...(onOpenGitHubRef.current
-				? [
-						{
-							name: "github",
-							value: "github",
-							run: () => onOpenGitHubRef.current?.(),
-						},
-					]
-				: []),
+			...hosted("uploads", host.onOpenUploads),
+			...hosted("github", host.onOpenGitHub),
 		];
 
 		// What the user is remembered by and has scheduled, across their chats.
 		const userData: CommandItem[] = [
-			...(onOpenMemoriesRef.current
-				? [
-						{
-							name: "memories",
-							value: "memories",
-							run: () => onOpenMemoriesRef.current?.(),
-						},
-					]
-				: []),
-			...(onOpenActionsRef.current
-				? [
-						{
-							name: "actions",
-							value: "actions",
-							run: () => onOpenActionsRef.current?.(),
-						},
-					]
-				: []),
+			...hosted("memories", host.onOpenMemories),
+			...hosted("actions", host.onOpenActions),
 		];
 
-		// One config menu where the host has it; its tools and skills pages otherwise.
-		const capabilities: CommandItem[] = onOpenConfigRef.current
-			? [
-					{
-						name: "config",
-						value: "config",
-						run: () => onOpenConfigRef.current?.(),
-					},
-				]
-			: [
-					{
-						name: "tools",
-						value: "tools",
-						run: () => onOpenToolsRef.current?.(),
-					},
-					{
-						name: "skills",
-						value: "skills",
-						run: () => onOpenSkillsRef.current?.(),
-					},
-				];
+		const app: CommandItem[] = [
+			...(host.update ? hosted("update", host.update.install) : []),
+			...(isAnonymousRef.current
+				? hosted("login", host.onLogin)
+				: hosted("logout", async () => {
+						await clientRef.current.auth.signOut();
+						hostRef.current.onLogout?.();
+					})),
+			...hosted("quit", host.onQuit),
+		];
 
 		const shell: CommandItem[] = clientRef.current.shell?.chdir
 			? [
@@ -442,40 +462,65 @@ export const useCommands = ({
 			),
 		];
 
+		const recents = recentsRef.current;
+
+		/**
+		 * The full list, after the recents and ranked among them, so typing it
+		 * finds it over a loose match on a title.
+		 */
+		const more = (run: () => void): CommandChoiceItem => ({
+			name: MORE,
+			value: MORE,
+			run: () => run(),
+		});
+
 		const navigation: CommandItem[] = [
 			{
 				name: "projects",
 				value: "projects",
-				run: () => onOpenProjectsRef.current?.(),
+				choices: [
+					{
+						name: "Recent",
+						items: [
+							{
+								name: "(none)",
+								value: "(none)",
+								active: settings.project === null,
+								run: () => ChatService.newChat(null),
+							},
+							...recents.projects.map((project) => ({
+								name: project.title || "Untitled",
+								value: project.id,
+								active: settings.project?.id === project.id,
+								run: () => ChatService.newChat(project),
+							})),
+							more(() => hostRef.current.onOpenProjects()),
+						],
+					},
+				],
 			},
 			{
 				name: "chats",
 				value: "chats",
-				run: () => onOpenChatsRef.current?.(),
+				choices: [
+					{
+						name: "Recent",
+						items: [
+							...recents.chats.map((chat) => ({
+								name: chat.title || "Untitled",
+								value: chat.id,
+								active: chatRef.current?.id === chat.id,
+								run: () => ChatService.setChat(chat),
+							})),
+							more(() => hostRef.current.onOpenChats()),
+						],
+					},
+				],
 			},
-			...(onOpenFilesRef.current
-				? [
-						{
-							name: "files",
-							value: "files",
-							run: () => onOpenFilesRef.current?.(),
-						},
-					]
-				: []),
-			{
-				name: "settings",
-				value: "settings",
-				run: () => onOpenSettingsRef.current?.(),
-			},
-			...(onOpenConsoleRef.current
-				? [
-						{
-							name: "console",
-							value: "console",
-							run: () => onOpenConsoleRef.current?.(),
-						},
-					]
-				: []),
+			...hosted("files", host.onOpenFiles),
+			...hosted("settings", host.onOpenSettings),
+			...hosted("config", host.onOpenConfig),
+			...hosted("console", host.onOpenConsole),
 		];
 
 		return [
@@ -526,10 +571,10 @@ export const useCommands = ({
 						choices: presets,
 					},
 					{ name: "system-prompt", value: "system-prompt", dynamic: true },
-					...capabilities,
 					...userData,
 					...uploads,
 					...shell,
+					...app,
 				],
 			},
 			{

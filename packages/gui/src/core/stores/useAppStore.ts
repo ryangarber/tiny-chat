@@ -25,13 +25,9 @@ interface LayoutStore {
 	isMobile: boolean;
 	setMobile: (value: boolean) => void;
 
-	isSidebarOpen: boolean;
-	setSidebarOpen: (value: boolean) => void;
 	sidebarWidth: number;
 	setSidebarWidth: (value: number) => void;
 
-	isAsideOpen: boolean;
-	setAsideOpen: (value: boolean) => void;
 	asideWidth: number;
 	setAsideWidth: (value: number) => void;
 
@@ -46,19 +42,19 @@ interface LayoutStore {
 
 	currentCapabilities: CapabilitiesType;
 	setCurrentCapabilities: (capability: CapabilitiesType) => void;
+
+	/** The editor's config popover, with the model, tools and skills. */
+	isConfigOpen: boolean;
+	setConfigOpen: (value: boolean) => void;
 }
 
 export const useAppStore = create<LayoutStore>((set) => ({
 	isMobile: false,
 	setMobile: (isMobile) => set({ isMobile }),
 
-	isSidebarOpen: false,
-	setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 	sidebarWidth: 300,
 	setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
 
-	isAsideOpen: false,
-	setAsideOpen: (isAsideOpen) => set({ isAsideOpen }),
 	asideWidth: 300,
 	setAsideWidth: (asideWidth) => set({ asideWidth }),
 
@@ -73,4 +69,7 @@ export const useAppStore = create<LayoutStore>((set) => ({
 
 	currentCapabilities: "tools:native",
 	setCurrentCapabilities: (currentCapabilities) => set({ currentCapabilities }),
+
+	isConfigOpen: false,
+	setConfigOpen: (isConfigOpen) => set({ isConfigOpen }),
 }));

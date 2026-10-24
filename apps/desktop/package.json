@@ -20,7 +20,7 @@
 	"dependencies": {
 		"client": "workspace:*",
 		"core": "workspace:*",
-		"electrobun": "^2.0.2",
+		"electrobun": "^2.0.4",
 		"gui": "workspace:*"
 	}
 }

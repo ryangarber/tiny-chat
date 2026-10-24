@@ -232,6 +232,18 @@ export const DiffUtils = {
 		return result;
 	},
 
+	/**
+	 * The lines of a diff in order as text, folded runs of unchanged lines
+	 * included and both sides of a changed line, for searching it.
+	 */
+	lines: (diff: DiffContext[]): string[] =>
+		diff.flatMap((change) => {
+			if (change.type === "unchanged") return change.lines;
+			if (change.type === "changed")
+				return [change.lineBefore, change.lineAfter];
+			return [change.line];
+		}),
+
 	split: (value: string): string[] => {
 		const lines = value.split("\n");
 		if (lines.length && lines[lines.length - 1] === "") {

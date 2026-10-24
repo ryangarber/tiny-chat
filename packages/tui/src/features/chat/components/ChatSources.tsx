@@ -12,6 +12,10 @@ import { useChatSources } from "#client/features/chat/hooks/useChatSources.ts";
 import { useFileDiff } from "#client/features/chat/hooks/useFileDiff.ts";
 import { useFileViewer } from "#client/features/chat/hooks/useFileViewer.ts";
 import { useOpenMessage } from "#client/features/chat/hooks/useOpenMessage.ts";
+import {
+	useChatSourcesStore,
+	type ViewedFile,
+} from "#client/features/chat/stores/useChatSourcesStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import type {
 	ChatFile,
@@ -21,6 +25,8 @@ import type {
 } from "#client/features/chat/types/chatFiles.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
+import { useActions } from "#client/features/user/hooks/useActions.ts";
+import { useMemories } from "#client/features/user/hooks/useMemories.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { ActionState } from "#core/features/data/types/action.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
@@ -66,6 +72,21 @@ const rowValue = (row: Row) => {
 	if (row.type === "web") return `web:${row.source.url}`;
 	if (row.type === "memory") return `memory:${row.memory.id}`;
 	return `action:${row.action.id}`;
+};
+
+/** What the shared store is told is previewed, as a source chip would tell it. */
+const viewed = (preview: Preview): Omit<ViewedFile, "chatId"> => {
+	if (preview.type === "file")
+		return { path: preview.file.path, directory: preview.file.directory };
+	if (preview.type === "web")
+		return {
+			path: `web:${preview.source.url}`,
+			web: preview.source,
+			directory: false,
+		};
+	if (preview.type === "memory")
+		return { path: `memory:${preview.memory.id}`, directory: false };
+	return { path: `action:${preview.action.id}`, directory: false };
 };
 
 function Changes({ changes }: { changes: ChatFileChanges }) {
@@ -239,12 +260,17 @@ function PreviewPane({
 			lastMessageId,
 		}).messageId;
 	const { openMessage } = useOpenMessage();
+	const openRecord = useAppStore((state) => state.openRecord);
 
 	const { focused } = usePanel();
 	useInput(
-		(_input, key) => {
+		(input, key) => {
 			if (key.return && messageId && !openMessage.isPending)
 				openMessage.mutate(messageId);
+			if (input === "e" && preview.type === "memory")
+				openRecord("memories", preview.memory.id);
+			if (input === "e" && preview.type === "action")
+				openRecord("actions", preview.action.id);
 			const page = Math.max(1, (ref.current?.getViewportHeight() ?? 1) - 2);
 			if (key.upArrow) ref.current?.scrollBy(-1);
 			if (key.downArrow) ref.current?.scrollBy(1);
@@ -322,6 +348,11 @@ function PreviewPane({
 						name: openMessage.isPending ? "opening…" : "go to message",
 						when: !!messageId,
 					},
+					{
+						key: "e",
+						name: "edit",
+						when: preview.type === "memory" || preview.type === "action",
+					},
 					"back",
 				]}
 			/>
@@ -337,7 +368,7 @@ function PreviewPane({
 export default function ChatSources(props: ChatSourcesProps) {
 	// What is open and selected starts over with each chat.
 	const chatId = useChatStore((state) => state.active.chatId);
-	return <ChatSourcesList key={chatId} {...props} />;
+	return <ChatSourcesList key={chatId} chatId={chatId} {...props} />;
 }
 
 interface ChatSourcesProps {
@@ -347,14 +378,87 @@ interface ChatSourcesProps {
 	width?: number;
 }
 
-function ChatSourcesList({ fill = false, width }: ChatSourcesProps) {
-	const { chatFiles, tree, webSources, repos, loadDirectory } =
-		useChatSources();
-	const { chatMemories } = useChatMemories();
-	const { chatActions } = useChatActions();
+function ChatSourcesList({
+	chatId,
+	fill = false,
+	width,
+}: ChatSourcesProps & { chatId: string | null }) {
+	const {
+		chatFiles,
+		files,
+		tree,
+		webSources: chatWebSources,
+		repos,
+		loadDirectory,
+	} = useChatSources();
+	const { chatMemories: ownMemories } = useChatMemories();
+	const { chatActions: ownActions } = useChatActions();
+	const { memories } = useMemories();
+	const { actions } = useActions();
 	useWorkingStatus(chatFiles);
 
-	const [preview, setPreview] = useState<Preview | null>(null);
+	// What is previewed is shared with the source chips, which open it from
+	// anywhere, as the app's are.
+	const viewFile = useChatSourcesStore((state) => state.viewFile);
+	const viewedFile = useChatSourcesStore((state) =>
+		state.viewedFile?.chatId === chatId ? state.viewedFile : null,
+	);
+	const setPreview = (preview: Preview | null) =>
+		viewFile(preview && { ...viewed(preview), chatId });
+
+	// A page, memory or action opened from a citation stays listed even if no
+	// message of this chat has it.
+	const viewedWeb = viewedFile?.path.startsWith("web:")
+		? (viewedFile.web ??
+			chatWebSources.find((source) => source.url === viewedFile.path.slice(4)))
+		: undefined;
+	const viewedMemory = viewedFile?.path.startsWith("memory:")
+		? memories.data?.find((memory) => viewedFile.path === `memory:${memory.id}`)
+		: undefined;
+	const viewedAction = viewedFile?.path.startsWith("action:")
+		? actions.data?.find((action) => viewedFile.path === `action:${action.id}`)
+		: undefined;
+	const webSources = useMemo(
+		() =>
+			viewedWeb &&
+			!chatWebSources.some((source) => source.url === viewedWeb.url)
+				? [...chatWebSources, viewedWeb]
+				: chatWebSources,
+		[chatWebSources, viewedWeb],
+	);
+	const chatMemories = useMemo(
+		() =>
+			viewedMemory && !ownMemories.includes(viewedMemory)
+				? [...ownMemories, viewedMemory]
+				: ownMemories,
+		[ownMemories, viewedMemory],
+	);
+	const chatActions = useMemo(
+		() =>
+			viewedAction && !ownActions.includes(viewedAction)
+				? [...ownActions, viewedAction]
+				: ownActions,
+		[ownActions, viewedAction],
+	);
+	const viewedChatFile = useMemo(
+		() =>
+			viewedFile &&
+			files.find(
+				(candidate) =>
+					candidate.directory === viewedFile.directory &&
+					PathUtils.equals(candidate.path, viewedFile.path),
+			),
+		[files, viewedFile],
+	);
+	const preview: Preview | null = viewedWeb
+		? { type: "web", source: viewedWeb }
+		: viewedMemory
+			? { type: "memory", memory: viewedMemory }
+			: viewedAction
+				? { type: "action", action: viewedAction }
+				: viewedChatFile
+					? { type: "file", file: viewedChatFile }
+					: null;
 	// Folders the reader opened or closed. The rest are open only when they are
 	// just the way down to something, so the files themselves show at first.
 	const [toggled, setToggled] = useState<Map<string, boolean>>(() => new Map());
@@ -362,6 +466,7 @@ function ChatSourcesList({ fill = false, width }: ChatSourcesProps) {
 
 	const { focused } = usePanel();
 	const closePanel = useAppStore((state) => state.closePanel);
+	const openRecord = useAppStore((state) => state.openRecord);
 	usePage({
 		active: focused,
 		onBack: () => {
@@ -371,25 +476,49 @@ function ChatSourcesList({ fill = false, width }: ChatSourcesProps) {
 		},
 	});
 
+	// The folders down to a previewed file are open until closed.
+	const viewedParents = useMemo(
+		() =>
+			new Set(
+				viewedChatFile ? ChatSourcesUtils.node(viewedChatFile).parents : [],
+			),
+		[viewedChatFile],
+	);
 	const isExpanded = (node: ChatFileNode) =>
-		toggled.get(node.value) ?? !node.file;
+		toggled.get(node.value) ?? (!node.file || viewedParents.has(node.value));
 
 	const rows = useMemo<Row[]>(
 		() => [
 			...ChatSourcesUtils.flatten({
 				nodes: tree,
-				expanded: (node) => toggled.get(node.value) ?? !node.file,
+				expanded: (node) =>
+					toggled.get(node.value) ??
+					(!node.file || viewedParents.has(node.value)),
 			}).map((entry): Row => ({ type: "node", ...entry })),
 			...webSources.map((source): Row => ({ type: "web", source })),
 			...chatMemories.map((memory): Row => ({ type: "memory", memory })),
 			...chatActions.map((action): Row => ({ type: "action", action })),
 		],
-		[tree, toggled, webSources, chatMemories, chatActions],
+		[tree, toggled, viewedParents, webSources, chatMemories, chatActions],
 	);
 	const byValue = useMemo(
 		() => new Map(rows.map((row) => [rowValue(row), row])),
 		[rows],
 	);
+
+	// A source opened from elsewhere is selected once it is listed.
+	const [revealed, setRevealed] = useState<ViewedFile | null>(null);
+	if (viewedFile && preview && revealed !== viewedFile) {
+		const value =
+			preview.type === "file"
+				? ChatSourcesUtils.node(preview.file).value
+				: viewedFile.path;
+		const index = rows.findIndex((row) => rowValue(row) === value);
+		if (index !== -1) {
+			setRevealed(viewedFile);
+			setSelected(index);
+		}
+	}
 
 	const toggle = (node: ChatFileNode, open = !isExpanded(node)) => {
 		if (open && node.file?.local) loadDirectory(node.file);
@@ -431,7 +560,12 @@ function ChatSourcesList({ fill = false, width }: ChatSourcesProps) {
 				{...(preview && { maxHeight: listHeight, paddingBottom: 0 })}
 				ref={listRef}
 				selected={selectedIndex}
-				setSelected={(update) => setSelected(update)}
+				setSelected={(update) => {
+					// With a preview open the list only hears presses, and one on it
+					// closes the preview, so the list has the keys and presses again.
+					if (preview) setPreview(null);
+					setSelected(update);
+				}}
 				selectFirstOnChange={false}
 				groups={[
 					{
@@ -528,6 +662,18 @@ function ChatSourcesList({ fill = false, width }: ChatSourcesProps) {
 					}
 					if (key.return && node.file)
 						setPreview({ type: "file", file: node.file });
+				}}
+				bindings={{
+					edit: {
+						run: (item) => {
+							const row = byValue.get(item.value);
+							if (row?.type === "memory") openRecord("memories", row.memory.id);
+							if (row?.type === "action") openRecord("actions", row.action.id);
+						},
+						when: (item) =>
+							item.value.startsWith("memory:") ||
+							item.value.startsWith("action:"),
+					},
 				}}
 				renderEmpty={() => "nothing here yet"}
 				actions={["select", "back"]}

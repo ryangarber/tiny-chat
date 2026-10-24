@@ -19,13 +19,10 @@ export default function GetStartedBlock({
 		case "links":
 			return (
 				<Stack gap={0}>
-					{block.links.map((link) => (
+					{block.links.map((link, index) => (
 						<NavLink
-							key={
-								link.target.type === "chat"
-									? link.target.id
-									: link.target.project.id
-							}
+							// biome-ignore lint/suspicious/noArrayIndexKey: list remains stable
+							key={index}
 							component="a"
 							href={
 								link.target.type === "chat" ? `/#/${link.target.id}` : undefined

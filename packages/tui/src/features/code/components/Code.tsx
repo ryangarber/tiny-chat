@@ -27,12 +27,16 @@ export const Code = ({
 	/** The code is still streaming in. */
 	incomplete?: boolean;
 }) => {
-	const codeShown = code.slice(0, maxHeight);
-	const overflow = code.length - codeShown.length;
-
 	// tabs are expanded before highlighting so the tokens Ink measures are the
-	// same width the terminal draws
-	const displayed = useMemo(() => TuiUtils.display(code), [code]);
+	// same width the terminal draws; and only as many lines as are shown are
+	const { displayed, overflow } = useMemo(() => {
+		const lines = TuiUtils.display(code).split("\n");
+		const shown = maxHeight ? lines.slice(0, maxHeight) : lines;
+		return {
+			displayed: shown.join("\n"),
+			overflow: lines.length - shown.length,
+		};
+	}, [code, maxHeight]);
 
 	const { highlighted } = useCode({
 		code: displayed,
@@ -44,10 +48,16 @@ export const Code = ({
 		<Content
 			formatter={() => code}
 			streaming={incomplete}
+			findLabel={filename ?? (language ? `${language} code` : "code")}
 			backgroundColor={highlighted.bg}
 		>
 			<Highlight code={highlighted} filename={filename} {...props}>
-				<CodeLines code={highlighted} language={language} />
+				<CodeLines
+					code={highlighted}
+					language={language}
+					lineNumbers={lineNumbers}
+					startLine={startLine}
+				/>
 				{overflow > 0 && <Text dimColor>{` ⋮ ${overflow} more lines`}</Text>}
 			</Highlight>
 		</Content>

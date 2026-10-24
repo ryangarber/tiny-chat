@@ -20,15 +20,18 @@ import {
 	CaretLeftIcon,
 	CaretRightIcon,
 	ChatTextIcon,
+	PencilSimpleIcon,
 } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { BundledLanguage } from "streamdown";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatActions } from "#client/features/chat/hooks/useChatActions.ts";
 import { useChatMemories } from "#client/features/chat/hooks/useChatMemories.ts";
 import { useChatSources } from "#client/features/chat/hooks/useChatSources.ts";
 import { useFileDiff } from "#client/features/chat/hooks/useFileDiff.ts";
 import { useFileViewer } from "#client/features/chat/hooks/useFileViewer.ts";
 import { useOpenMessage } from "#client/features/chat/hooks/useOpenMessage.ts";
+import { useChatSourcesStore } from "#client/features/chat/stores/useChatSourcesStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import type {
 	ChatFile,
@@ -45,14 +48,15 @@ import type { ActionState } from "#core/features/data/types/action.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
+import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
-import { useChatSourcesStore } from "#gui/features/chat/stores/useChatSourcesStore.ts";
 import Code from "#gui/features/code/components/Code.tsx";
 import Diff from "#gui/features/code/components/Diff.tsx";
+import FindScope from "#gui/features/find/components/FindScope.tsx";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
 import Image from "#gui/features/part/components/Image.tsx";
+import SourceChip from "#gui/features/part/components/SourceChip.tsx";
 import Web from "#gui/features/part/components/Web.tsx";
-import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
 
 interface FileTreeNodeProps {
 	node: ChatFileNode;
@@ -115,7 +119,7 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		return (
 			<Stack gap={5}>
 				{content.data.items?.map((item) => (
-					<SourceTag
+					<SourceChip
 						key={item.path}
 						path={item.path}
 						directory={item.directory}
@@ -124,7 +128,7 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 							{PathUtils.name(item)}
 							{item.directory && "/"}
 						</Text>
-					</SourceTag>
+					</SourceChip>
 				)) ?? <Loader size="xs" my="md" />}
 			</Stack>
 		);
@@ -182,9 +186,15 @@ function PreviewPane({
 					</Text>
 				)}
 			</Group>
-			<Box flex={1} mih={0}>
+			<FindScope
+				label={title ?? "Preview"}
+				region
+				flex={1}
+				mih={0}
+				pos="relative"
+			>
 				{children}
-			</Box>
+			</FindScope>
 		</Stack>
 	);
 }
@@ -192,7 +202,7 @@ function PreviewPane({
 function GoToMessage({ id }: { id: string }) {
 	const { openMessage } = useOpenMessage();
 	const isMobile = useAppStore((state) => state.isMobile);
-	const setAsideOpen = useAppStore((state) => state.setAsideOpen);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	return (
 		<Button
 			variant="light"
@@ -202,13 +212,49 @@ function GoToMessage({ id }: { id: string }) {
 			onClick={() => {
 				// Close up front: the message may be in another chat, which unmounts
 				// this button before the mutation settles.
-				if (isMobile) setAsideOpen(false);
+				if (isMobile) setPanel("files", false);
 				openMessage.mutate(id);
 			}}
-			style={{ alignSelf: "flex-start" }}
 		>
 			Go to message
 		</Button>
+	);
+}
+
+/** Opens a memory or action where it is edited, scrolled to. */
+function EditButton({ type, id }: { type: "memory" | "action"; id: string }) {
+	return (
+		<Button
+			variant="light"
+			size="xs"
+			leftSection={<PencilSimpleIcon size={16} />}
+			onClick={() =>
+				type === "memory"
+					? AppService.openMemories(id)
+					: AppService.openActions(id)
+			}
+		>
+			Edit
+		</Button>
+	);
+}
+
+/** The same, as an icon beside the source in the list. */
+function EditIcon({ type, id }: { type: "memory" | "action"; id: string }) {
+	return (
+		<ActionIcon
+			variant="subtle"
+			size="sm"
+			color="gray"
+			aria-label={`Edit ${type}`}
+			onClick={() =>
+				type === "memory"
+					? AppService.openMemories(id)
+					: AppService.openActions(id)
+			}
+		>
+			<PencilSimpleIcon size={14} />
+		</ActionIcon>
 	);
 }
 
@@ -257,7 +303,10 @@ function MemoryPreview({ memory }: { memory: MemoryState }) {
 				<br />
 				{learned}
 			</Text>
-			{messageId && <GoToMessage id={messageId} />}
+			<Group gap="xs">
+				<EditButton type="memory" id={memory.id} />
+				{messageId && <GoToMessage id={messageId} />}
+			</Group>
 		</Stack>
 	);
 }
@@ -290,7 +339,10 @@ function ActionPreview({
 					</>
 				)}
 			</Text>
-			{messageId && <GoToMessage id={messageId} />}
+			<Group gap="xs">
+				<EditButton type="action" id={action.id} />
+				{messageId && <GoToMessage id={messageId} />}
+			</Group>
 		</Stack>
 	);
 }
@@ -341,7 +393,7 @@ function FileTreeNode({
 					style={{ opacity: directory ? 1 : 0, flexShrink: 0 }}
 				/>
 			)}
-			<SourceTag
+			<SourceChip
 				path={file?.path ?? String(node.label)}
 				directory={directory}
 				expanded={expanded}
@@ -352,7 +404,7 @@ function FileTreeNode({
 					{String(node.label)}
 					{directory && "/"}
 				</Text>
-			</SourceTag>
+			</SourceChip>
 			{fileNode.changes && <Changes changes={fileNode.changes} />}
 		</Group>
 	);
@@ -374,8 +426,8 @@ export default function ChatSources() {
 	const { messages } = useMessages();
 	const lastMessageId = messages.data?.messages.at(-1)?.id;
 	const chatId = useChatStore((state) => state.active.chatId);
-	const isAsideOpen = useAppStore((state) => state.isAsideOpen);
-	const setAsideOpen = useAppStore((state) => state.setAsideOpen);
+	const isAsideOpen = useLayoutStore((state) => state.panels.files);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	const viewFile = useChatSourcesStore((state) => state.viewFile);
 	const viewedFile = useChatSourcesStore((state) => {
 		if (!state.viewedFile) return null;
@@ -496,7 +548,7 @@ export default function ChatSources() {
 		<Stack flex={1} h="100%" p={5} gap="xs">
 			<Burger
 				opened={isAsideOpen}
-				onClick={() => setAsideOpen(!isAsideOpen)}
+				onClick={() => setPanel("files", !isAsideOpen)}
 				size="sm"
 			/>
 			<ScrollArea
@@ -547,7 +599,7 @@ export default function ChatSources() {
 							key={source.url}
 							ref={previewedWeb?.url === source.url ? selectionRef : undefined}
 						>
-							<SourceTag
+							<SourceChip
 								path={`web:${source.url}`}
 								web={source}
 								wrap="nowrap"
@@ -558,7 +610,7 @@ export default function ChatSources() {
 										URL.parse(source.url)?.hostname ??
 										source.url}
 								</Text>
-							</SourceTag>
+							</SourceChip>
 						</div>
 					))}
 					{!webSources.length && (
@@ -572,16 +624,25 @@ export default function ChatSources() {
 				</Text>
 				<Stack gap="xs">
 					{chatMemories.map((memory) => (
-						<div
+						<Group
 							key={memory.id}
 							ref={previewedMemory === memory ? selectionRef : undefined}
+							gap={4}
+							wrap="nowrap"
 						>
-							<SourceTag path={`memory:${memory.id}`} wrap="nowrap" py={4}>
+							<SourceChip
+								path={`memory:${memory.id}`}
+								wrap="nowrap"
+								py={4}
+								flex={1}
+								miw={0}
+							>
 								<Text size="sm" flex={1} miw={0} truncate>
 									{memory.fact}
 								</Text>
-							</SourceTag>
-						</div>
+							</SourceChip>
+							<EditIcon type="memory" id={memory.id} />
+						</Group>
 					))}
 					{!chatMemories.length && (
 						<Text size="sm" c="dimmed">
@@ -594,16 +655,25 @@ export default function ChatSources() {
 				</Text>
 				<Stack gap="xs">
 					{chatActions.map((action) => (
-						<div
+						<Group
 							key={action.id}
 							ref={previewedAction === action ? selectionRef : undefined}
+							gap={4}
+							wrap="nowrap"
 						>
-							<SourceTag path={`action:${action.id}`} wrap="nowrap" py={4}>
+							<SourceChip
+								path={`action:${action.id}`}
+								wrap="nowrap"
+								py={4}
+								flex={1}
+								miw={0}
+							>
 								<Text size="sm" flex={1} miw={0} truncate>
 									{ChatSourcesUtils.action({ action }).prompt}
 								</Text>
-							</SourceTag>
-						</div>
+							</SourceChip>
+							<EditIcon type="action" id={action.id} />
+						</Group>
 					))}
 					{!chatActions.length && (
 						<Text size="sm" c="dimmed">

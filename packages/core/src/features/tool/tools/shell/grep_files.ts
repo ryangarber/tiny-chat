@@ -13,9 +13,9 @@ import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts"
 export const grep_files = {
 	name: "grep_files",
 	description:
-		"Search file contents for a regular expression and return the matching lines with their line numbers. Use this when you know what the code says; use search_files when you only know what it does. This reads text, so images, archives, databases, build output, generated and git-ignored files are all skipped — reach for find_files when you need to know those exist.",
+		"Search file contents for a regular expression and return the matching lines with their line numbers. Use this when you know what the code says; use search_files when you only know what it does. This reads text, so images, archives, databases, build output, generated and git-ignored files are all skipped — reach for glob_files when you need to know those exist.",
 	input: z.object({
-		path: z.string().describe("Directory to search."),
+		path: z.string().describe("Directory or file to search."),
 		query: z
 			.string()
 			.describe(

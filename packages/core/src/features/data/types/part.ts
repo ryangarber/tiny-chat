@@ -101,6 +101,12 @@ export const zAttachmentPart = _zDataPart.extend({
 		zFilePart.omit({ id: true }),
 		zDirectoryPart.omit({ id: true }),
 		zWebPart.omit({ id: true, url: true }),
+		/** Another chat, read down to the transcript of its current branch. */
+		z.object({
+			type: z.literal("chat"),
+			title: z.string().nullish(),
+			transcript: z.string(),
+		}),
 		z.object({ type: z.literal("unavailable") }),
 	]),
 });

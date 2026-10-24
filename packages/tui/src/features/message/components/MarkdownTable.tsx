@@ -8,7 +8,7 @@ import {
 	useMemo,
 } from "react";
 import Box from "#tui/core/components/Box.tsx";
-import Content from "#tui/core/components/Content.tsx";
+import Content, { ContentWidthContext } from "#tui/core/components/Content.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
@@ -161,12 +161,8 @@ function computeColumns(
 	const padded = natural.map((w) => w + GUTTER * 2);
 	const paddedTotal = padded.reduce((a, b) => a + b, 0);
 
-	// One "│" separator between every pair of columns, plus the outer two.
-	const separators = colCount + 1;
-	const usable = Math.max(
-		colCount * MIN_COL_WIDTH,
-		availableWidth - separators,
-	);
+	// Columns are set apart by their gutters alone, with no separator drawn.
+	const usable = Math.max(colCount * MIN_COL_WIDTH, availableWidth);
 
 	if (paddedTotal <= usable) {
 		// Content fits: give every column its natural width, then distribute
@@ -193,24 +189,35 @@ function computeColumns(
  */
 
 export function TableComponent({ children }: { children?: ReactNode }) {
+	return (
+		<Content formatter={() => toMarkdown(children)}>
+			<TableLayout>{children}</TableLayout>
+		</Content>
+	);
+}
+
+/**
+ * Sizes the columns to wherever the table is drawn: its message, or the whole
+ * screen once opened with `[+]`, which draws these same children again.
+ */
+function TableLayout({ children }: { children?: ReactNode }) {
 	const terminalWidth = useWidth();
+	const fullscreenWidth = useContext(ContentWidthContext);
 
-	const width = Math.max(20, terminalWidth - 4);
+	const width = fullscreenWidth ?? Math.max(20, terminalWidth - 4);
 
-	// Recompute only when the row content or the terminal width changes.
+	// Recompute only when the row content or the width changes.
 	const columns = useMemo(
-		() => computeColumns(children, width),
+		() => computeColumns(children, width - 4),
 		[children, width],
 	);
 
 	return (
-		<Content formatter={() => toMarkdown(children)}>
-			<Box flexDirection="column" width={width} paddingX={2} paddingY={1}>
-				<ColumnsContext.Provider value={columns}>
-					{children}
-				</ColumnsContext.Provider>
-			</Box>
-		</Content>
+		<Box flexDirection="column" width={width} paddingX={2} paddingY={1}>
+			<ColumnsContext.Provider value={columns}>
+				{children}
+			</ColumnsContext.Provider>
+		</Box>
 	);
 }
 

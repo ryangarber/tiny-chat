@@ -7,23 +7,17 @@ import {
 	usePaste,
 	useWindowSize,
 } from "ink";
-import {
-	type ReactNode,
-	useContext,
-	useEffect,
-	useId,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { type ReactNode, useContext, useMemo, useRef, useState } from "react";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
 import { useMergedRef } from "#client/core/hooks/useMergedRef.ts";
 import Box from "#tui/core/components/Box.tsx";
 import { useMouse } from "#tui/core/hooks/useMouse.ts";
 import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
-import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
-import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import { MouseUtils } from "#tui/core/utils/MouseUtils.ts";
+import {
+	SELECTION_STYLE,
+	useSelection,
+} from "#tui/features/selection/hooks/useSelection.ts";
 import { useCursorBlink } from "#tui/features/textarea/hooks/useCursorBlink.ts";
 import { useUndo } from "#tui/features/textarea/hooks/useUndo.ts";
 import type {
@@ -43,16 +37,13 @@ import {
 	TextareaUtils,
 } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
-/** How long after a press a second one on the same spot still counts as a double click. */
-const DOUBLE_CLICK_DELAY = 400;
-
 /** Rows a single turn of the wheel scrolls. */
 const WHEEL_STEP = 1;
 
 /** Selected text is drawn the way the terminal draws its own selection. */
 const SELECTION_PAINT: TextareaPaint = {
 	label: TEXT_LABEL,
-	style: { color: "black", bgColor: "blueBright" },
+	style: SELECTION_STYLE,
 };
 
 /** Text drawn with its colours swapped, which is how the cursor is drawn. */
@@ -117,8 +108,9 @@ export type TextareaProps = {
 
 /**
  * A multiline text field: wrapped to its width, scrolled under half the
- * terminal's height, painted by pattern, and selected out of with the mouse or
- * with Shift and the arrows — copied to the clipboard with Ctrl+C.
+ * terminal's height, and painted by pattern. It is selected out of as any
+ * other text is (see {@link useSelection}), with the cursor following the
+ * selection, and cut out of with Ctrl+X and pasted into.
  */
 export default function Textarea({
 	value,
@@ -145,21 +137,9 @@ export default function Textarea({
 	const [uncontrolledCursor, setUncontrolledCursor] = useState<TextareaCursor>([
 		0, 0,
 	]);
-	const [uncontrolledSelection, setUncontrolledSelection] =
-		useState<TextareaSelection | null>(null);
 
 	const cursor = controlledCursor ?? uncontrolledCursor;
-	const selection =
-		controlledSelection !== undefined
-			? controlledSelection
-			: uncontrolledSelection;
-
 	const offset = TextareaUtils.offset(value, cursor);
-
-	const setSelection = (next: TextareaSelection | null) => {
-		setUncontrolledSelection(next);
-		onSelectionChange?.(next);
-	};
 
 	const blink = useCursorBlink(focus);
 	const history = useUndo();
@@ -171,62 +151,6 @@ export default function Textarea({
 		onCursorChange?.(next);
 		blink.hold();
 	};
-
-	/**
-	 * Hands a new value on with the cursor left at an offset into it. The cursor
-	 * goes first, so that a parent rewriting the change on its way in has the
-	 * last word on where the cursor ends up.
-	 */
-	const change = (next: string, to: number) => {
-		moveTo(to, next);
-		if (selection) setSelection(null);
-		onChange(next);
-	};
-
-	/** Writes text in at the cursor, over whatever is selected. */
-	const write = (text: string, isWhole = false) => {
-		const [start, end] = selection
-			? TextareaUtils.range(selection)
-			: [offset, offset];
-
-		history.record("insert", { value, offset }, isWhole);
-		change(
-			value.slice(0, start) + text + value.slice(end),
-			start + text.length,
-		);
-	};
-
-	/** Makes an edit whole, leaving its selection behind it. */
-	const edit = ({ value: next, selection: selected }: TextareaEdit) => {
-		const [anchor, focused] = selected;
-
-		if (next !== value) history.record("insert", { value, offset }, true);
-		moveTo(focused, next);
-		setSelection(anchor === focused ? null : selected);
-		if (next !== value) onChange(next);
-	};
-
-	/** Takes a range out of the value. */
-	const remove = (
-		[start, end]: [start: number, end: number],
-		isWhole = false,
-	) => {
-		if (start === end) return;
-
-		history.record("delete", { value, offset }, isWhole);
-		change(value.slice(0, start) + value.slice(end), start);
-	};
-
-	// Where the selection was started, which it is stretched away from.
-	const anchorRef = useRef(0);
-
-	// Where and when the last press landed, which a second one on the same spot
-	// turns into a double click.
-	const pressRef = useRef({ at: 0, offset: -1 });
-
-	// The word a double click took, which the drag after it goes on taking whole
-	// words away from. Null while the selection is taken a character at a time.
-	const wordRef = useRef<[start: number, end: number] | null>(null);
 
 	// Whether the last press was taken by `onClick`, along with its drag.
 	const isTakenRef = useRef(false);
@@ -301,48 +225,65 @@ export default function Textarea({
 	/** Where the cursor lands moving from where it is, kept out of anything that goes as one. */
 	const snapped = (to: number) => snap?.(to, offset) ?? to;
 
-	const copy = (selected: TextareaSelection) => {
-		ClipboardService.copy(TextareaUtils.selected(value, selected));
-	};
-
-	// A focused selection takes Ctrl+C from the app, which otherwise quits on it.
-	const id = useId();
-	const isSelecting = focus && !!selection;
-	useEffect(() => {
-		const { setSelecting } = useAppStore.getState();
-		setSelecting(id, isSelecting);
-		return () => setSelecting(id, false);
-	}, [id, isSelecting]);
+	const { selection, setSelection, ...selecting } = useSelection({
+		value,
+		selection: controlledSelection,
+		onSelectionChange,
+		isActive: focus,
+		expand,
+		vertical: (from, direction) =>
+			TextareaUtils.vertical({
+				value,
+				rows,
+				cursor: TextareaUtils.cursor(value, from),
+				direction,
+			}),
+		onFocus: moveTo,
+	});
 
 	/**
-	 * The selection from its anchor out to where it was taken, by the word once
-	 * a double click has started it on one.
+	 * Hands a new value on with the cursor left at an offset into it. The cursor
+	 * goes first, so that a parent rewriting the change on its way in has the
+	 * last word on where the cursor ends up.
 	 */
-	const stretched = (focused: number): TextareaSelection => {
-		const word = wordRef.current;
-		const selected: TextareaSelection = word
-			? TextareaUtils.words(value, word, focused)
-			: [anchorRef.current, focused];
-
-		// Nothing is selected yet, and a cursor reaches into no run of its own.
-		if (selected[0] === selected[1]) return selected;
-
-		return expand?.(selected) ?? selected;
+	const change = (next: string, to: number) => {
+		moveTo(to, next);
+		if (selection) setSelection(null);
+		onChange(next);
 	};
 
-	/** Stretches the selection out and follows it with the cursor. */
-	const reach = (focused: number) => {
-		const selected = stretched(focused);
-		moveTo(selected[1]);
+	/** Writes text in at the cursor, over whatever is selected. */
+	const write = (text: string, isWhole = false) => {
+		const [start, end] = selection
+			? TextareaUtils.range(selection)
+			: [offset, offset];
 
-		if (selected[0] === selected[1]) {
-			setSelection(null);
-			return null;
-		}
+		history.record("insert", { value, offset }, isWhole);
+		change(
+			value.slice(0, start) + text + value.slice(end),
+			start + text.length,
+		);
+	};
 
-		setSelection(selected);
+	/** Makes an edit whole, leaving its selection behind it. */
+	const edit = ({ value: next, selection: selected }: TextareaEdit) => {
+		const [anchor, focused] = selected;
 
-		return selected;
+		if (next !== value) history.record("insert", { value, offset }, true);
+		moveTo(focused, next);
+		setSelection(anchor === focused ? null : selected);
+		if (next !== value) onChange(next);
+	};
+
+	/** Takes a range out of the value. */
+	const remove = (
+		[start, end]: [start: number, end: number],
+		isWhole = false,
+	) => {
+		if (start === end) return;
+
+		history.record("delete", { value, offset }, isWhole);
+		change(value.slice(0, start) + value.slice(end), start);
 	};
 
 	const { mouseRef } = useMouseInput({
@@ -350,34 +291,15 @@ export default function Textarea({
 			// A click taken from the text area takes the drag after it along.
 			isTakenRef.current = !!onClick?.(pointedAt(event));
 			if (isTakenRef.current) {
-				pressRef.current = { at: 0, offset: -1 };
+				selecting.forget();
 				return;
 			}
 
-			const pressed = pointed(event);
-			const now = event.time;
-
-			// A second press where the last one landed takes the word under it, and
-			// the drag that follows goes on taking whole words rather than characters.
-			const isDouble =
-				pressed === pressRef.current.offset &&
-				now - pressRef.current.at < DOUBLE_CLICK_DELAY;
-
-			pressRef.current = { at: now, offset: pressed };
-			wordRef.current = isDouble ? TextareaUtils.word(value, pressed) : null;
-			anchorRef.current = pressed;
-
-			if (isDouble) {
-				reach(pressed);
-				return;
-			}
-
-			moveTo(pressed);
-			setSelection(null);
+			selecting.press(pointed(event), event.time);
 		},
 		onDrag: ({ event }) => {
 			if (isTakenRef.current) return;
-			reach(pointed(event, anchorRef.current));
+			selecting.drag(pointed(event, selecting.anchor()));
 		},
 		isActive: focus,
 	});
@@ -415,6 +337,10 @@ export default function Textarea({
 						}
 					: pressed;
 
+			// A selection in the chat takes the keys a selection answers from the
+			// text area, and is left behind by any other.
+			if (selecting.isHeldElsewhere(input, key)) return;
+
 			const taken = onKey?.(input, key);
 			if (taken === true) return;
 			if (taken) {
@@ -440,33 +366,9 @@ export default function Textarea({
 				return;
 			}
 
-			// Shift stretches the selection; Alt takes a whole word at a time.
-			// The stdin adapter normalizes Terminal.app's escaped arrows to Shift.
-			if (isArrow && key.shift) {
-				// A selection starts where the cursor already was, and one already
-				// taken carries on from the end it was anchored at.
-				anchorRef.current = selection ? selection[0] : offset;
-				wordRef.current = null;
-
-				const focused =
-					key.upArrow || key.downArrow
-						? TextareaUtils.vertical({
-								value,
-								rows,
-								cursor,
-								direction: key.upArrow ? -1 : 1,
-							})
-						: key.meta
-							? key.leftArrow
-								? TextareaUtils.wordStart(value, offset)
-								: TextareaUtils.wordEnd(value, offset)
-							: key.leftArrow
-								? TextareaUtils.previous(value, offset)
-								: TextareaUtils.next(value, offset);
-
-				reach(focused);
-				return;
-			}
+			// Shift and an arrow stretch the selection, from the cursor; Ctrl+A
+			// takes it all, and Ctrl+C copies it.
+			if (selecting.handleKey(input, key, offset)) return;
 
 			// An arrow collapses the selection to the side it points at, rather
 			// than stepping from the end the cursor happens to be on.
@@ -548,29 +450,11 @@ export default function Textarea({
 				return;
 			}
 
-			// Select all.
-			if (key.ctrl && input === "a") {
-				if (!value) return;
-
-				anchorRef.current = 0;
-				wordRef.current = null;
-
-				reach(value.length);
-				return;
-			}
-
-			// Copy, which leaves the selection where it is. With nothing selected
-			// Ctrl+C is the app's to quit on.
-			if (key.ctrl && input === "c") {
-				if (selection) copy(selection);
-				return;
-			}
-
 			// Cut, which takes the selection out and hands it to the clipboard.
 			if (key.ctrl && input === "x") {
 				if (!selection) return;
 
-				copy(selection);
+				selecting.copy();
 				remove(TextareaUtils.range(selection), true);
 				return;
 			}

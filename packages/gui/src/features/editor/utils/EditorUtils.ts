@@ -113,10 +113,6 @@ export const EditorUtils = {
 		editor.commands.setContent({ type: "doc", content });
 	},
 
-	insertQuote: (model: string, text: string) => {
-		return EditorUtils.insertNode(EditorNodeUtils.quote({ model, text }));
-	},
-
 	/**
 	 * Insert a paste folded away when it is long, or as a code block when it
 	 * looks like source. Returns false when the editor should keep its default

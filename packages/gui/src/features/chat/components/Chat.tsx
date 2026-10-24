@@ -25,9 +25,11 @@ import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useDisabled } from "#client/features/editor/hooks/useDisabled.ts";
 import { useEstimatedTokens } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
+import { useFindMessages } from "#client/features/find/hooks/useFindMessages.ts";
 import { MessageProvider } from "#client/features/message/components/MessageProvider.tsx";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { uploadMutationKey } from "#client/features/upload/hooks/useUploads.ts";
+import type { MessageState } from "#core/features/data/types/message.ts";
 import { useAutoScroll } from "#gui/core/hooks/useAutoScroll.ts";
 import { useVirtualList } from "#gui/core/hooks/useVirtualList.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
@@ -37,7 +39,20 @@ import ChatHeader from "#gui/features/chat/components/ChatHeader.tsx";
 import GetStarted from "#gui/features/chat/components/GetStarted.tsx";
 import Editor from "#gui/features/editor/components/Editor.tsx";
 import { useEditorStore } from "#gui/features/editor/stores/useEditorStore.ts";
+import FindScope from "#gui/features/find/components/FindScope.tsx";
 import Message from "#gui/features/message/components/Message.tsx";
+
+/** Makes the messages searchable, drawn or not, from inside their provider. */
+function FindMessages({
+	messages,
+	onReveal,
+}: {
+	messages: MessageState[];
+	onReveal: (id: string) => void;
+}) {
+	useFindMessages(messages, onReveal);
+	return null;
+}
 
 export default function Chat() {
 	const client = useContext(ClientContext);
@@ -140,6 +155,17 @@ export default function Chat() {
 		scrollToNode,
 	]);
 
+	// A message find has a match in is scrolled to, which draws it, if it is
+	// not drawn already; once it is, find brings the match itself into view.
+	const revealMessage = (id: string) => {
+		const index = messageKeys.indexOf(id);
+		if (index === -1 || isMounted(index)) return;
+		const node = viewportNode.current?.querySelector(
+			`[data-message-slot="${CSS.escape(id)}"]`,
+		);
+		if (node) scrollToNode(node, "instant");
+	};
+
 	const messageOpacities = useMemo(() => {
 		const map = new Map<string, number>();
 		let hasHitEdit = false;
@@ -181,7 +207,10 @@ export default function Chat() {
 		<Stack h="100%" gap={0}>
 			<ChatHeader fixed={true} />
 			{/* Main content area */}
-			<Box
+			<FindScope
+				label="Chat"
+				region
+				segmented
 				flex={1}
 				pos="relative"
 				mih={0}
@@ -233,6 +262,7 @@ export default function Chat() {
 						style={{ paddingBottom: inputHeight }}
 					>
 						<MessageProvider>
+							<FindMessages messages={messageList} onReveal={revealMessage} />
 							{messageList.map((message, index) => (
 								<div
 									key={message.id}
@@ -357,7 +387,7 @@ export default function Chat() {
 						categories={categories}
 					/>
 				</Box>
-			</Box>
+			</FindScope>
 		</Stack>
 	);
 }

@@ -1,5 +1,9 @@
 import { Box, Collapse, Group, Text } from "@mantine/core";
 import { BrainIcon } from "@phosphor-icons/react";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
@@ -27,7 +31,9 @@ export default function Thought({
 	const { expanded, auto, toggle } = useAutoExpand(
 		thoughts[0]?.id ?? "",
 		pending || !!hold,
+		useFindRevealed(),
 	);
+	useFindHidden(!expanded);
 
 	return (
 		<Box my={10}>

@@ -5,6 +5,7 @@ import type { CompletionGroup } from "#client/features/editor/types/completion.t
 import { useInstructions } from "#client/features/settings/hooks/useInstructions.ts";
 import { useShellSettings } from "#client/features/settings/hooks/useShellSettings.ts";
 import type { ProjectState } from "#core/features/data/types/chat.ts";
+import { usePanel } from "#tui/core/components/Panel.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import CommandSettings from "#tui/features/settings/components/CommandSettings.tsx";
@@ -42,7 +43,9 @@ export default function ProjectEditor({
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [selected, setSelected] = useState(0);
 
+	const { focused } = usePanel();
 	usePage({
+		active: focused,
 		onBack: () => {
 			if (draft) setDraft(null);
 			else if (path.length) pop();

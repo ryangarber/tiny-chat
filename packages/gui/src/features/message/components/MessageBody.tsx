@@ -11,15 +11,18 @@ import {
 import {
 	ArrowClockwiseIcon,
 	ChatCircleIcon,
+	ChatsCircleIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { type CSSProperties, useMemo } from "react";
+import { type CSSProperties, useContext, useMemo } from "react";
+import { ClientContext } from "#client/client.ts";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { useStream } from "#client/features/agent/hooks/useStream.ts";
+import { ChatService } from "#client/features/chat/services/ChatService.ts";
+import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
-import { EditorUtils } from "#gui/features/editor/utils/EditorUtils.ts";
 import MessageParts from "#gui/features/message/components/MessageParts.tsx";
 import { useMessageSelection } from "#gui/features/message/hooks/useMessageSelection.ts";
 
@@ -47,9 +50,28 @@ export default function MessageBody({
 
 	const isSelected = rect !== null;
 
+	const client = useContext(ClientContext);
 	const handleQuoteClick = () => {
 		const text = getSelectedText();
-		if (text) EditorUtils.insertQuote(streamed.config.model, text);
+		if (text)
+			ComposerService.insertQuote({
+				client,
+				model: streamed.config.model,
+				text,
+			});
+	};
+
+	const handleQuoteInNewChatClick = () => {
+		const text = getSelectedText();
+		if (!text) return;
+		ChatService.quoteInNewChat({
+			client,
+			chatId: streamed.chatId,
+			model: streamed.config.model,
+			text,
+		}).catch((error) =>
+			console.warn("[MessageBody] failed to quote in a new chat", error),
+		);
 	};
 
 	const boxProps = useMemo<BoxProps>(() => {
@@ -117,9 +139,9 @@ export default function MessageBody({
 						<Portal target={document.body}>
 							<Transition mounted={isSelected ?? false} transition="fade">
 								{(styles) => (
-									<ActionIcon
-										className="glass-shadow"
-										size={32}
+									<Group
+										gap={6}
+										wrap="nowrap"
 										style={{
 											position: "fixed",
 											top: (rect?.top ?? 0) - 30,
@@ -128,15 +150,33 @@ export default function MessageBody({
 											zIndex: "var(--mantine-zindex-app)",
 											...styles,
 										}}
-										onMouseDown={captureSelection}
-										onTouchStart={captureSelection}
-										onClick={handleQuoteClick}
 									>
-										<ChatCircleIcon
-											size={18}
-											style={{ transform: "scale(-1,1)" }}
-										/>
-									</ActionIcon>
+										<ActionIcon
+											className="glass-shadow"
+											size={32}
+											title="Quote"
+											aria-label="Quote"
+											onMouseDown={captureSelection}
+											onTouchStart={captureSelection}
+											onClick={handleQuoteClick}
+										>
+											<ChatCircleIcon
+												size={18}
+												style={{ transform: "scale(-1,1)" }}
+											/>
+										</ActionIcon>
+										<ActionIcon
+											className="glass-shadow"
+											size={32}
+											title="Quote in a new chat"
+											aria-label="Quote in a new chat"
+											onMouseDown={captureSelection}
+											onTouchStart={captureSelection}
+											onClick={handleQuoteInNewChatClick}
+										>
+											<ChatsCircleIcon size={18} />
+										</ActionIcon>
+									</Group>
 								)}
 							</Transition>
 						</Portal>

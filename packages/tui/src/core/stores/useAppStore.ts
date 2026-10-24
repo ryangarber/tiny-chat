@@ -1,8 +1,11 @@
 import { create } from "zustand";
+import {
+	type Panel,
+	useLayoutStore,
+} from "#client/core/stores/useLayoutStore.ts";
 
 export type Page =
 	| "chat"
-	| "projects"
 	| "config"
 	| "settings"
 	| "uploads"
@@ -13,7 +16,7 @@ export type Page =
 	/** A block of content opened over the whole screen. */
 	| "fullscreen";
 
-export type Panel = "chats" | "files";
+export type { Panel };
 
 /**
  * What takes the keys in turn on the chat page, Tab moving between them: the
@@ -63,8 +66,9 @@ interface AppStore {
 	removeFocusable: (focusable: Focusable) => void;
 	cycleFocus: (direction: 1 | -1) => void;
 
-	panels: Record<Panel, boolean>;
+	/** Open and close the panels in `useLayoutStore`, moving the focus with them. */
 	togglePanel: (panel: Panel) => void;
+	openPanel: (panel: Panel) => void;
 	closePanel: (panel: Panel) => void;
 
 	/**
@@ -74,17 +78,15 @@ interface AppStore {
 	armed: { list: string; value: string } | null;
 	setArmed: (armed: { list: string; value: string } | null) => void;
 
+	/** Opens the memories or actions page on the one with `id`, kept in `useLayoutStore`. */
+	openRecord: (page: "memories" | "actions", id: string) => void;
+	clearRecord: () => void;
+
 	statuses: Status[];
 	setStatus: (status: Status) => void;
 	unsetStatus: (status: { id: string }) => void;
 
 	workingStatus: Set<string>;
-	/**
-	 * Text areas holding a selection, which Ctrl+C copies out of rather than
-	 * quitting.
-	 */
-	selecting: string[];
-	setSelecting: (id: string, isSelecting: boolean) => void;
 	setWorkingStatus: (id: string) => void;
 	unsetWorkingStatus: (id: string) => void;
 }
@@ -97,9 +99,14 @@ interface AppStore {
 export const selectFocus = ({ focus, focusables }: AppStore): Focus =>
 	!isFocusable(focus) || focusables.includes(focus) ? focus : "editor";
 
-/** The page the focus is on, which is the chat for anything focusable on it. */
+/**
+ * The page the focus is on, which is the chat for anything focusable on it —
+ * but for the find bar of the block opened over the screen, which is drawn on
+ * the page it searches.
+ */
 export const selectPage = (state: AppStore): Page => {
 	const focus = selectFocus(state);
+	if (focus === "find:fullscreen") return "fullscreen";
 	return isFocusable(focus) ? "chat" : focus;
 };
 
@@ -135,20 +142,30 @@ export const useAppStore = create<AppStore>((set) => ({
 			};
 		}),
 
-	panels: { chats: false, files: false },
-	togglePanel: (panel) =>
-		set(({ panels, focus }) => ({
-			panels: { ...panels, [panel]: !panels[panel] },
+	togglePanel: (panel) => {
+		const { panels, setPanel } = useLayoutStore.getState();
+		setPanel(panel, !panels[panel]);
+		set(({ focus }) => ({
 			focus: panels[panel] ? (focus === panel ? "editor" : focus) : panel,
-		})),
-	closePanel: (panel) =>
-		set(({ panels, focus }) => ({
-			panels: { ...panels, [panel]: false },
-			focus: focus === panel ? "editor" : focus,
-		})),
+		}));
+	},
+	openPanel: (panel) => {
+		useLayoutStore.getState().setPanel(panel, true);
+		set({ focus: panel });
+	},
+	closePanel: (panel) => {
+		useLayoutStore.getState().setPanel(panel, false);
+		set(({ focus }) => ({ focus: focus === panel ? "editor" : focus }));
+	},
 
 	armed: null,
 	setArmed: (armed) => set({ armed }),
+
+	openRecord: (page, id) => {
+		useLayoutStore.getState().setRecord(id);
+		set({ focus: page });
+	},
+	clearRecord: () => useLayoutStore.getState().setRecord(null),
 
 	statuses: [],
 	setStatus: (status: Status) => {
@@ -166,18 +183,6 @@ export const useAppStore = create<AppStore>((set) => ({
 			return { statuses: state.statuses.filter((s) => s.id !== id) };
 		});
 	},
-
-	selecting: [],
-	setSelecting: (id, isSelecting) =>
-		set(({ selecting }) =>
-			selecting.includes(id) === isSelecting
-				? {}
-				: {
-						selecting: isSelecting
-							? [...selecting, id]
-							: selecting.filter((other) => other !== id),
-					},
-		),
 
 	workingStatus: new Set(),
 	setWorkingStatus: (id: string) => {

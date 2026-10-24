@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useMemories } from "#client/features/user/hooks/useMemories.ts";
 import { Enum } from "#core/core/services/PostgresService.ts";
@@ -6,6 +7,7 @@ import type { MemoryState } from "#core/features/data/types/memory.ts";
 import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
+import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import Choice from "#tui/features/settings/components/Choice.tsx";
 import Details from "#tui/features/settings/components/Details.tsx";
 import TextList, {
@@ -31,7 +33,12 @@ export default function Memories() {
 
 	const [draft, setDraft] = useState<Draft | null>(null);
 	// Looked up afresh so the editor shows a change as soon as it lands.
-	const [editingId, setEditingId] = useState<string | null>(null);
+	// Opened on the one a source was edited from, if it was.
+	const [editingId, setEditingId] = useState<string | null>(
+		() => useLayoutStore.getState().record,
+	);
+	const clearRecord = useAppStore((state) => state.clearRecord);
+	useEffect(() => clearRecord(), [clearRecord]);
 	const editing = items.find((memory) => memory.id === editingId);
 	const [route, setRoute] = useState<Route | null>(null);
 	const [selected, setSelected] = useState(0);

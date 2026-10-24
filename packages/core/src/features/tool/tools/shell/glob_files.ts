@@ -10,8 +10,8 @@ import type {
 import { ShellUtils } from "#core/features/tool/utils/ShellUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
-export const find_files = {
-	name: "find_files",
+export const glob_files = {
+	name: "glob_files",
 	description:
 		"List the files whose paths match a glob, without reading any of them. The cheapest way to learn how a project is laid out, and the way to find files of any type — images, logs, archives and data files are all listed here, including ones the text search tools will not open. Only version-control, dependency and cache directories are left out.",
 	input: z.object({
@@ -29,7 +29,7 @@ export const find_files = {
 	output: z.string(),
 } as const satisfies ToolDefinition;
 
-const display: ToolDisplay<typeof find_files> = {
+const display: ToolDisplay<typeof glob_files> = {
 	status: ({ input }) => [
 		["Looking for", "Looked for"],
 		{ count: ["pattern", "patterns"], subject: input.pattern ?? "" },
@@ -48,10 +48,10 @@ const display: ToolDisplay<typeof find_files> = {
 			: [],
 };
 
-export const createFindFilesTool: ToolFactory<
-	Tool<typeof find_files, Pick<Capabilities, "shell" | "chatShell">>
+export const createGlobFilesTool: ToolFactory<
+	Tool<typeof glob_files, Pick<Capabilities, "shell" | "chatShell">>
 > = (options) => ({
-	...find_files,
+	...glob_files,
 	...options,
 	display,
 	execute: async ({ input }) => {

@@ -129,6 +129,24 @@ export const AttachmentUtils = {
 	},
 
 	/**
+	 * Another chat as an attachment, read as its transcript when attached. It
+	 * is not a place on the mount, so there is nothing to walk into.
+	 */
+	forChat: ({
+		chat,
+	}: {
+		chat: { id: string; title: string | null };
+	}): AttachmentItem => {
+		const title = `${chat.title ? `${chat.title?.slice(0, 50)}…` : "Untitled"}`;
+		return {
+			name: title,
+			// Quoted into a directive the same way an upload's name is.
+			label: title.replace(/["}]/g, ""),
+			value: `chat:${chat.id}`,
+		};
+	},
+
+	/**
 	 * Write the chosen attachment into a plain text buffer as an atom standing
 	 * for its part, which is the file's name alone.
 	 */

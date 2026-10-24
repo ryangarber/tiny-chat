@@ -1,3 +1,4 @@
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import {
 	type CapabilitiesType,
 	type UploadsType,
@@ -22,13 +23,9 @@ export const AppService = {
 	},
 
 	closeSidebar: () => {
-		const {
-			currentModal,
-			currentDrawer,
-			setCurrentDrawer,
-			isSidebarOpen,
-			setSidebarOpen,
-		} = useAppStore.getState();
+		const { currentModal, currentDrawer, setCurrentDrawer } =
+			useAppStore.getState();
+		const { panels, setPanel } = useLayoutStore.getState();
 
 		if (!currentModal) {
 			if (currentDrawer) {
@@ -36,8 +33,8 @@ export const AppService = {
 				return true;
 			}
 
-			if (isSidebarOpen) {
-				setSidebarOpen(false);
+			if (panels.chats) {
+				setPanel("chats", false);
 				return true;
 			}
 		}
@@ -46,10 +43,11 @@ export const AppService = {
 	},
 
 	closeAside: () => {
-		const { currentModal, setAsideOpen } = useAppStore.getState();
+		const { currentModal } = useAppStore.getState();
+		const { setPanel } = useLayoutStore.getState();
 
 		if (!currentModal) {
-			setAsideOpen(false);
+			setPanel("files", false);
 			return true;
 		}
 
@@ -57,9 +55,9 @@ export const AppService = {
 	},
 
 	openSidebar: () => {
-		const { setSidebarOpen } = useAppStore.getState();
+		const { setPanel } = useLayoutStore.getState();
 
-		setSidebarOpen(true);
+		setPanel("chats", true);
 		return true;
 	},
 
@@ -86,16 +84,34 @@ export const AppService = {
 		return true;
 	},
 
-	openMemories: () => {
+	openAccount: () => {
+		const { setCurrentDrawer } = useAppStore.getState();
+
+		setCurrentDrawer("account");
+		return true;
+	},
+
+	openConfig: () => {
+		const { setConfigOpen } = useAppStore.getState();
+
+		setConfigOpen(true);
+		return true;
+	},
+
+	/** Opens the memories, scrolled to the one with `id` if given. */
+	openMemories: (id?: string) => {
 		const { setCurrentModal } = useAppStore.getState();
 
+		useLayoutStore.getState().setRecord(id ?? null);
 		setCurrentModal("memories");
 		return true;
 	},
 
-	openActions: () => {
+	/** Opens the actions, scrolled to the one with `id` if given. */
+	openActions: (id?: string) => {
 		const { setCurrentModal } = useAppStore.getState();
 
+		useLayoutStore.getState().setRecord(id ?? null);
 		setCurrentModal("actions");
 		return true;
 	},

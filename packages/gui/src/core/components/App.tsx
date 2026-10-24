@@ -1,10 +1,12 @@
-import { AppShell, Box, LoadingOverlay, MantineProvider } from "@mantine/core";
+import { AppShell, LoadingOverlay, MantineProvider } from "@mantine/core";
 import { useHotkeys } from "@mantine/hooks";
 import { ModalsProvider, useModals } from "@mantine/modals";
 import { useDrag } from "@use-gesture/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
+import { usePersistedPanels } from "#client/core/hooks/usePersistedPanels.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
@@ -15,13 +17,13 @@ import Tasks from "#gui/core/components/Tasks.tsx";
 import { useExperiments } from "#gui/core/hooks/useExperiments.tsx";
 import { setHashbangQuery, useHashbang } from "#gui/core/hooks/useHashbang.ts";
 import { usePanelSwipe } from "#gui/core/hooks/usePanelSwipe.ts";
-import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useViewport } from "#gui/core/hooks/useViewport.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import Chat from "#gui/features/chat/components/Chat.tsx";
 import ChatSources from "#gui/features/chat/components/ChatSources.tsx";
 import Find from "#gui/features/find/components/Find.tsx";
+import FindScope from "#gui/features/find/components/FindScope.tsx";
 import Sidebar from "#gui/features/sidebar/components/Sidebar.tsx";
 import mantineTheme, { cssResolver } from "#gui/theme.tsx";
 
@@ -56,8 +58,10 @@ function ProjectShortcut() {
 	return null;
 }
 
+/** The scope of the whole window, searched once nothing narrower is. */
+const FIND_ROOT = "app";
+
 export default function App() {
-	const runtime = useRuntime();
 	const { query } = useHashbang();
 	const { session } = useSession({
 		token: {
@@ -80,12 +84,11 @@ export default function App() {
 	useDefaultProject();
 
 	const isMobile = useAppStore((s) => s.isMobile);
-	const isSidebarOpen = useAppStore((s) => s.isSidebarOpen);
-	const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+	const isSidebarOpen = useLayoutStore((s) => s.panels.chats);
+	const setPanel = useLayoutStore((s) => s.setPanel);
 	const sidebarWidth = useAppStore((s) => s.sidebarWidth);
 	const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
-	const isAsideOpen = useAppStore((s) => s.isAsideOpen);
-	const setAsideOpen = useAppStore((s) => s.setAsideOpen);
+	const isAsideOpen = useLayoutStore((s) => s.panels.files);
 	const asideWidth = useAppStore((s) => s.asideWidth);
 	const setAsideWidth = useAppStore((s) => s.setAsideWidth);
 	const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -97,13 +100,15 @@ export default function App() {
 	const asideRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => AppService.initialize(), []);
+	// Opened over the chat on a phone, rather than beside it, so not reopened.
+	usePersistedPanels({ restore: !AppService.isMobile });
 	usePanelSwipe({ navbarRef, asideRef });
 
 	const dragSidebarResize = useDrag(
 		({ first, last, xy: [pointerX] }) => {
 			if (first) {
 				setIsResizingSidebar(true);
-				setSidebarOpen(true);
+				setPanel("chats", true);
 			}
 			const closedWidth = 60;
 			const width = Math.min(
@@ -150,7 +155,7 @@ export default function App() {
 			if (last) {
 				const staysOpen = width > 300;
 				if (staysOpen) setSidebarWidth(width);
-				setSidebarOpen(staysOpen);
+				setPanel("chats", staysOpen);
 				setIsResizingSidebar(false);
 			}
 		},
@@ -160,7 +165,7 @@ export default function App() {
 		({ first, last, xy: [pointerX] }) => {
 			if (first) {
 				setIsResizingAside(true);
-				setAsideOpen(true);
+				setPanel("files", true);
 			}
 			const width = Math.min(
 				window.innerWidth,
@@ -182,7 +187,7 @@ export default function App() {
 			if (last) {
 				const staysOpen = width > 300;
 				if (staysOpen) setAsideWidth(width);
-				setAsideOpen(staysOpen);
+				setPanel("files", staysOpen);
 				setIsResizingAside(false);
 			}
 		},
@@ -229,7 +234,10 @@ export default function App() {
 			<ModalsProvider>
 				<Tasks />
 				<ProjectShortcut />
-				<Box
+				<FindScope
+					id={FIND_ROOT}
+					label="Window"
+					region
 					pos="relative"
 					ref={containerRef}
 					style={{
@@ -242,12 +250,7 @@ export default function App() {
 						zIndex={1000}
 						overlayProps={{ blur: 2 }}
 					/>
-					{/* A browser has its own find bar; the app's webview does not. */}
-					<Find
-						targetRef={containerRef}
-						global
-						disabled={runtime.platform === "web"}
-					/>
+					<Find root={FIND_ROOT} />
 					<AppShell
 						ref={appShellRef}
 						withBorder={false}
@@ -341,9 +344,9 @@ export default function App() {
 							}}
 							withBorder
 						>
-							<div style={{ height: "100%" }}>
+							<FindScope label="Chats" region pos="relative" h="100%">
 								<Sidebar />
-							</div>
+							</FindScope>
 						</AppShell.Navbar>
 						<AppShell.Main
 							style={{
@@ -378,12 +381,12 @@ export default function App() {
 							}}
 							withBorder
 						>
-							<div style={{ height: "100%" }}>
+							<FindScope label="Sources" region pos="relative" h="100%">
 								<ChatSources />
-							</div>
+							</FindScope>
 						</AppShell.Aside>
 					</AppShell>
-				</Box>
+				</FindScope>
 				<Console />
 			</ModalsProvider>
 		</MantineProvider>

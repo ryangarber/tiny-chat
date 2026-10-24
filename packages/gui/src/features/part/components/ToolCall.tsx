@@ -1,12 +1,17 @@
 import { Box, Collapse, Stack } from "@mantine/core";
 import { WrenchIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
+import FindSegment from "#gui/features/find/components/FindSegment.tsx";
 import Tail from "#gui/features/part/components/Tail.tsx";
 import ToolBlock from "#gui/features/part/components/ToolBlock.tsx";
 import ToolControls from "#gui/features/part/components/ToolControls.tsx";
@@ -15,18 +20,7 @@ import ToolHeader from "#gui/features/part/components/ToolHeader.tsx";
 /** Height the call is held to while it is open on its own. */
 const TAIL_HEIGHT = 400;
 
-/**
- * A tool call: open while it streams in, runs or waits on the user, showing
- * its input, then any controls, then its output as it arrives; folded back to
- * its status line once it settles.
- */
-export default function ToolCall({
-	message,
-	part,
-	answerable,
-	hold,
-	toolsets,
-}: {
+type ToolCallProps = {
 	message?: MessageState;
 	part: Extract<RenderedPart, { type: "toolCall" }>;
 	answerable?: boolean;
@@ -34,15 +28,38 @@ export default function ToolCall({
 	hold?: boolean;
 	/** Where its tool is looked up, for a call made outside of the messages. */
 	toolsets?: Toolset<any>[];
-}) {
+};
+
+/**
+ * A tool call: open while it streams in, runs or waits on the user, showing
+ * its input, then any controls, then its output as it arrives; folded back to
+ * its status line once it settles.
+ */
+export default function ToolCall(props: ToolCallProps) {
+	return (
+		<FindSegment id={props.part.id}>
+			<ToolCallBody {...props} />
+		</FindSegment>
+	);
+}
+
+function ToolCallBody({
+	message,
+	part,
+	answerable,
+	hold,
+	toolsets,
+}: ToolCallProps) {
 	const display = useToolCall({ part, toolsets });
+	const controls = message && display.controls;
+	const empty = !display.input.length && !display.output.length && !controls;
+
 	const { expanded, auto, toggle } = useAutoExpand(
 		part.id,
 		display.active || !!hold,
+		useFindRevealed(),
 	);
-
-	const controls = message && display.controls;
-	const empty = !display.input.length && !display.output.length && !controls;
+	useFindHidden(!expanded && !empty);
 
 	// Brought into view when gone to, such as from a citation of it.
 	const ref = useRef<HTMLDivElement>(null);

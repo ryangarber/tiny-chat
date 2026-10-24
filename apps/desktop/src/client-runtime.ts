@@ -175,6 +175,15 @@ function create(rpc: DesktopView): ClientRuntime {
 					headers,
 				}),
 		},
+		// A call already in the main process finishes; the tool stops between
+		// calls.
+		computer: {
+			call: async ({ method, params, abort }) => {
+				abort?.throwIfAborted();
+				return await rpc.request.computerCall({ method, params });
+			},
+		},
+		quit: () => rpc.request.quit(),
 		update: {
 			check: () => rpc.request.updateCheck(),
 			install: async ({ onProgress }) => {

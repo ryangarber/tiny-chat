@@ -9,6 +9,7 @@ import type {
 } from "#client/features/chat/types/activeChat.ts";
 import { ActiveChatUtils } from "#client/features/chat/utils/ActiveChatUtils.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
+import { AttachmentUtils } from "#client/features/editor/utils/AttachmentUtils.ts";
 import { MessageQueryService } from "#client/features/message/services/MessageQueryService.ts";
 
 export const ChatService = {
@@ -28,6 +29,33 @@ export const ChatService = {
 	},
 
 	/**
+	 * Ask about a passage on the side: a fresh chat, in the same project, with
+	 * the chat it came from attached and the passage quoted, ready for the
+	 * question. The new chat opens at once; the chips follow once the chat has
+	 * been read.
+	 */
+	quoteInNewChat: async ({
+		client,
+		chatId,
+		model,
+		text,
+	}: {
+		client: Client;
+		chatId: string;
+		model: string;
+		text: string;
+	}) => {
+		ChatService.setChat({ id: null });
+
+		const chat = await client.api.chat.getChat.query(chatId);
+		await ComposerService.insertAttachment({
+			client,
+			item: AttachmentUtils.forChat({ chat }),
+		});
+		ComposerService.insertQuote({ client, model, text });
+	},
+
+	/**
 	 * Sets how the next new chat is created, leaving an open chat for one
 	 * outside any project first.
 	 */
@@ -38,15 +66,17 @@ export const ChatService = {
 	},
 
 	/**
-	 * Leaves the current chat (if any) for a new one in the next project. The
-	 * cycle runs none, first, ..., last, none.
+	 * Leaves the current chat (if any) for a new one in the next project, or
+	 * the previous one with `direction` -1. The cycle runs none, first, ...,
+	 * last, none.
 	 */
-	cycleProject: (projects: ProjectRef[]) => {
+	cycleProject: (projects: ProjectRef[], direction: 1 | -1 = 1) => {
 		if (!projects.length) return;
 		const current = useChatStore.getState().active.project;
-		const index = projects.findIndex((other) => other.id === current?.id);
+		const cycle = [null, ...projects];
+		const index = cycle.findIndex((other) => other?.id === current?.id);
 		ChatService.newChat(
-			index + 1 < projects.length ? projects[index + 1] : null,
+			cycle[(index + direction + cycle.length) % cycle.length],
 		);
 	},
 

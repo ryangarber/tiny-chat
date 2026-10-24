@@ -1,7 +1,7 @@
 import type { DOMElement } from "ink";
 import { type RefObject, useEffect, useEffectEvent, useState } from "react";
-import { useFind } from "#client/features/find/hooks/useFind.ts";
-import type { FindMatch } from "#client/features/find/types/find.ts";
+import { useFindInScope } from "#client/features/find/hooks/useFindInScope.ts";
+import type { FindHit } from "#client/features/find/types/find.ts";
 import {
 	type FindHighlight,
 	FindLayoutUtils,
@@ -25,9 +25,11 @@ const isSame = (a: FindHighlight[], b: FindHighlight[]) =>
 	);
 
 /**
- * Find in page over the text Ink draws under `targetRef`. Matches come back
- * as `highlights`: rows of cells to draw over, relative to the target, since
- * a terminal has nothing to paint text in place with.
+ * Find in page over a registered scope, as Ink draws it under `targetRef`.
+ * What is drawn comes back as `highlights`: rows of cells to draw over,
+ * relative to `targetRef`, since a terminal has nothing to paint text in place
+ * with. What the scope does not draw is searched from its data, and drawn as
+ * it is stepped onto.
  *
  * Text under any of `skipRefs` — the bar itself, and the highlights — is
  * never matched.
@@ -39,38 +41,45 @@ export function useFindInElement({
 	targetRef: RefObject<DOMElement | null>;
 	skipRefs?: RefObject<DOMElement | null>[];
 }) {
-	const find = useFind<DOMElement>({
-		blocks: () =>
-			targetRef.current
-				? FindLayoutUtils.blocks(
-						targetRef.current,
-						skipRefs.map((ref) => ref.current),
-					)
-				: [],
+	const find = useFindInScope<DOMElement>({
+		blocksOf: (node) =>
+			FindLayoutUtils.blocks(
+				node,
+				skipRefs.map((ref) => ref.current),
+			),
 		reveal: FindLayoutUtils.reveal,
 	});
-	const { isOpen, matches, index } = find;
+	const { isOpen, hits, index } = find;
 
 	const [highlights, setHighlights] = useState<FindHighlight[]>([]);
 
 	// Read from the layout Ink computed for the last frame, which is only there
 	// once that frame is committed.
 	const measure = useEffectEvent(
-		(isOpen: boolean, matches: FindMatch<DOMElement>[], index: number) => {
+		(isOpen: boolean, hits: FindHit<DOMElement>[], index: number) => {
 			const root = targetRef.current;
+			const drawn = hits.flatMap((hit, i) =>
+				hit.match ? [{ match: hit.match, current: i === index }] : [],
+			);
 			const next =
-				root && isOpen ? FindLayoutUtils.highlights(root, matches, index) : [];
+				root && isOpen
+					? FindLayoutUtils.highlights(
+							root,
+							drawn.map(({ match }) => match),
+							drawn.findIndex(({ current }) => current),
+						)
+					: [];
 			setHighlights((previous) => (isSame(previous, next) ? previous : next));
 		},
 	);
 
 	useEffect(() => {
-		measure(isOpen, matches, index);
-	}, [isOpen, matches, index]);
+		measure(isOpen, hits, index);
+	}, [isOpen, hits, index]);
 
 	const refresh = useEffectEvent(() => find.refresh());
 	const remeasure = useEffectEvent(() =>
-		measure(find.isOpen, find.matches, find.index),
+		measure(find.isOpen, find.hits, find.index),
 	);
 	useEffect(() => {
 		if (!isOpen) return;

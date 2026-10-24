@@ -1,6 +1,10 @@
 import Image from "ink-picture";
 import type { ReactNode } from "react";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { ToolBlock as ToolBlockType } from "#core/features/tool/types/display.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
@@ -29,9 +33,12 @@ function TailLines({
 	value: string;
 	children: (value: string) => ReactNode;
 }) {
-	if (!follow) return children(value);
-	const lines = value.split("\n");
+	// Whole while find shows a match somewhere in it.
+	const revealed = useFindRevealed();
+	const lines = follow && !revealed ? value.split("\n") : [];
 	const hidden = Math.max(0, lines.length - TAIL_LINES);
+	useFindHidden(hidden > 0);
+	if (!lines.length) return children(value);
 	return (
 		<Box flexDirection="column">
 			{hidden > 0 && <Text dimColor>{` ⋮ ${hidden} earlier lines`}</Text>}

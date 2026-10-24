@@ -5,7 +5,6 @@ import {
 	Popover,
 	Text,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import {
 	GearIcon,
 	PaperPlaneTiltIcon,
@@ -35,11 +34,17 @@ export default function RightSection({
 	disabled,
 	usage,
 	categories,
+	hidden,
 }: {
 	width: number;
 	disabled: boolean;
 	usage: Usage<DefaultMantineColor>;
 	categories: Categories;
+	/**
+	 * Drawn but faded out, while the editor shows its twin elsewhere, which is
+	 * the one the config opens from.
+	 */
+	hidden: boolean;
 }) {
 	const { chat } = useChat();
 	const { sendMessage } = useMessaging();
@@ -50,7 +55,9 @@ export default function RightSection({
 		state.chatAgentStreams.get(chat.data?.id ?? ""),
 	);
 
-	const [opened, { toggle, close }] = useDisclosure();
+	const opened = useAppStore((state) => state.isConfigOpen && !hidden);
+	const setConfigOpen = useAppStore((state) => state.setConfigOpen);
+	const toggle = () => setConfigOpen(!opened);
 
 	const isEmpty = useComposerStore((state) => state.isEmpty);
 	const isIncomplete = useEditorStore((state) => state.isIncomplete);
@@ -64,7 +71,7 @@ export default function RightSection({
 			if (event.target instanceof HTMLElement) {
 				const isRightSection = event.target.closest(".right-section");
 				if (!isRightSection) {
-					close();
+					setConfigOpen(false);
 				}
 				event.preventDefault();
 				event.stopPropagation();
@@ -72,7 +79,7 @@ export default function RightSection({
 		};
 		document.body.addEventListener("click", onClickOutside);
 		return () => document.body.removeEventListener("click", onClickOutside);
-	}, [currentModal, opened, close]);
+	}, [currentModal, opened, setConfigOpen]);
 
 	return (
 		<>

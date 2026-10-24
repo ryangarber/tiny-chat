@@ -1,5 +1,6 @@
 import { ActionIcon, Burger, Group, Tooltip } from "@mantine/core";
 import { EyeSlashIcon, GhostIcon, PlusCircleIcon } from "@phosphor-icons/react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -8,8 +9,8 @@ import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 export default function ChatHeader({ fixed }: { fixed: boolean }) {
 	const { chat } = useChat();
 	const isMobile = useAppStore((s) => s.isMobile);
-	const isSidebarOpen = useAppStore((s) => s.isSidebarOpen);
-	const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+	const isSidebarOpen = useLayoutStore((s) => s.panels.chats);
+	const setPanel = useLayoutStore((s) => s.setPanel);
 	const temporary = useChatStore(
 		(s) => s.active.status === "new" && s.active.temporary,
 	);
@@ -41,7 +42,7 @@ export default function ChatHeader({ fixed }: { fixed: boolean }) {
 		>
 			<Burger
 				opened={isSidebarOpen}
-				onClick={() => setSidebarOpen(!isSidebarOpen)}
+				onClick={() => setPanel("chats", !isSidebarOpen)}
 				display={!isMobile || isSidebarOpen ? "none" : undefined}
 				size="sm"
 			/>

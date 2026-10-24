@@ -1,4 +1,4 @@
-import { Box, Pill, Stack, Text, Tooltip } from "@mantine/core";
+import { Pill, Stack, Text, Tooltip } from "@mantine/core";
 import { createContext, useContext } from "react";
 import { type Components, useIsCodeFenceIncomplete } from "streamdown";
 import { ComponentUtils } from "#client/core/utils/ComponentUtils.ts";
@@ -16,7 +16,7 @@ import Attachment from "#gui/features/part/components/Attachment.tsx";
 import Command from "#gui/features/part/components/Command.tsx";
 import Paste from "#gui/features/part/components/Paste.tsx";
 import Quote from "#gui/features/part/components/Quote.tsx";
-import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
+import SourceChip from "#gui/features/part/components/SourceChip.tsx";
 
 const CodeBlockContext = createContext(false);
 
@@ -144,54 +144,49 @@ const MarkComponent: Components["mark"] = ({ children, node }) => {
 							</Pill>
 						</Popup.Target>
 						<Popup.Dropdown c="var(--mantine-color-text)">
-							{source.type === "memory" || source.type === "action" ? (
-								<Box maw={300} c="dimmed">
-									<SourceTag path={`${source.type}:${source.value.id}`}>
+							<Stack gap="xs" maw={300}>
+								{source.type === "memory" || source.type === "action" ? (
+									<SourceChip path={`${source.type}:${source.value.id}`}>
 										<Text flex={1} miw={0} truncate size="xs">
 											{source.title}
 										</Text>
-									</SourceTag>
-								</Box>
-							) : (
-								<Stack gap="xs" maw={300}>
-									<Text size="sm" fw={500} lineClamp={2}>
-										{source.title}
-									</Text>
-									<Box c="dimmed">
-										{source.type !== "web" && source.type !== "file" && (
-											<Text
-												textWrap="pretty"
-												style={{
-													wordBreak: "break-word",
-													whiteSpace: "pre-wrap",
-												}}
-												size="xs"
-											>
-												{source.description}
-											</Text>
-										)}
-										{(source.type === "file" || source.type === "web") && (
-											<SourceTag
-												path={
-													source.type === "web"
-														? `web:${source.value.url}`
-														: source.value.path
-												}
-												directory={
-													source.type === "web" ? false : source.value.directory
-												}
-												web={source.type === "web" ? source.value : undefined}
-											>
-												<Text flex={1} miw={0} truncate size="xs">
-													{source.type === "web"
-														? (source.value.title ?? source.value.url)
-														: source.value.path}
-												</Text>
-											</SourceTag>
-										)}
-									</Box>
-								</Stack>
-							)}
+									</SourceChip>
+								) : source.type === "file" || source.type === "web" ? (
+									<SourceChip
+										path={
+											source.type === "web"
+												? `web:${source.value.url}`
+												: source.value.path
+										}
+										directory={
+											source.type === "web" ? false : source.value.directory
+										}
+										web={source.type === "web" ? source.value : undefined}
+									>
+										<Text flex={1} miw={0} truncate size="xs">
+											{source.type === "web"
+												? (source.value.title ?? source.value.url)
+												: source.value.path}
+										</Text>
+									</SourceChip>
+								) : (
+									<>
+										<Text size="sm" fw={500} lineClamp={2}>
+											{source.title}
+										</Text>
+										<Text
+											textWrap="pretty"
+											style={{
+												wordBreak: "break-word",
+												whiteSpace: "pre-wrap",
+											}}
+											size="xs"
+										>
+											{source.description}
+										</Text>
+									</>
+								)}
+							</Stack>
 						</Popup.Dropdown>
 					</Popup>
 				);

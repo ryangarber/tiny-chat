@@ -1,5 +1,6 @@
 import { type DOMElement, useInput, useWindowSize } from "ink";
 import {
+	createContext,
 	type ReactNode,
 	useEffect,
 	useId,
@@ -13,8 +14,26 @@ import ScrollView, {
 } from "#tui/core/components/ScrollView.tsx";
 import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
+import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
+import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
 import { useContentStore } from "#tui/core/stores/useContentStore.ts";
+import { TextLayoutUtils } from "#tui/core/utils/TextLayoutUtils.ts";
+import Find from "#tui/features/find/components/Find.tsx";
+import FindScope from "#tui/features/find/components/FindScope.tsx";
+import Selectable from "#tui/features/selection/components/Selectable.tsx";
+
+/** The scope, and the find bar's id, of the block opened over the screen. */
+const FULLSCREEN = "fullscreen";
+
+/** Room on either side of the open block, between it and the screen's edge. */
+const FULLSCREEN_PADDING_X = 6;
+
+/**
+ * Columns inside the border of the block opened over the screen, for content
+ * that sizes itself to fill it; unset for a block drawn in its message.
+ */
+export const ContentWidthContext = createContext<number | null>(null);
 
 /** Text is copied as is; bytes are copied as an encoded image. */
 type ContentFormatted = string | Uint8Array;
@@ -47,7 +66,15 @@ function ContentActions({
 	};
 
 	return (
-		<Box position="absolute" top={1} right={2} gap={1}>
+		// Drawn over the block, but never found or selected as part of it.
+		<Box
+			// biome-ignore lint/nursery/useReactCompiler: a ref callback that only marks the node it is handed.
+			ref={TextLayoutUtils.ignore}
+			position="absolute"
+			top={1}
+			right={2}
+			gap={1}
+		>
 			{formatter && !streaming && (
 				<Button label="copy" labelOnClick="copied" onClick={copy} />
 			)}
@@ -67,12 +94,15 @@ function ContentActions({
 export default function Content({
 	formatter,
 	streaming,
+	findLabel = "block",
 	children,
 	...props
 }: BoxProps & {
 	formatter?: ContentFormatter;
 	/** The content is still coming in, so there is nothing whole to copy. */
 	streaming?: boolean;
+	/** What the find bar calls it, while it is what find is scoped to. */
+	findLabel?: string;
 	children?: ReactNode;
 }) {
 	const id = useId();
@@ -83,7 +113,7 @@ export default function Content({
 	const open = () =>
 		useContentStore
 			.getState()
-			.openContent({ id, formatter, streaming, children });
+			.openContent({ id, formatter, streaming, findLabel, children });
 
 	// Kept up with while open, so content still streaming in grows there too.
 	// Unmounted while open — as what it sits in may be, once the page goes
@@ -92,20 +122,21 @@ export default function Content({
 		if (!opened) return;
 		useContentStore
 			.getState()
-			.updateContent({ id, formatter, streaming, children });
+			.updateContent({ id, formatter, streaming, findLabel, children });
 	});
 
 	return (
-		<Box
+		<FindScope
+			label={findLabel}
 			flexDirection="column"
 			width="100%"
 			borderStyle="round"
 			border={true}
 			{...props}
 		>
-			{children}
+			<Selectable>{children}</Selectable>
 			<ContentActions formatter={formatter} streaming={streaming} open={open} />
-		</Box>
+		</FindScope>
 	);
 }
 
@@ -118,6 +149,8 @@ export function ContentFullscreen() {
 	const { rows, columns } = useWindowSize();
 	const content = useContentStore((state) => state.open);
 	const closeContent = useContentStore((state) => state.closeContent);
+	// The keys are the find bar's while it has them, over this page.
+	const active = useAppStore((state) => selectFocus(state) === "fullscreen");
 
 	const ref = useRef<DOMElement>(null);
 	const scrollRef =
@@ -129,21 +162,31 @@ export function ContentFullscreen() {
 	useEffect(() => () => useContentStore.setState({ open: null }), []);
 
 	usePage({
+		active,
 		onBack: () => {
 			closeContent();
 			return false;
 		},
 	});
 
-	useInput((_input, key) => {
-		const page = Math.max(1, (scrollRef.current?.getViewportHeight() ?? 1) - 2);
-		if (key.upArrow) scrollRef.current?.scrollBy(-1);
-		if (key.downArrow) scrollRef.current?.scrollBy(1);
-		if (key.pageUp) scrollRef.current?.scrollBy(-page);
-		if (key.pageDown) scrollRef.current?.scrollBy(page);
-	});
+	useInput(
+		(_input, key) => {
+			const page = Math.max(
+				1,
+				(scrollRef.current?.getViewportHeight() ?? 1) - 2,
+			);
+			if (key.upArrow) scrollRef.current?.scrollBy(-1);
+			if (key.downArrow) scrollRef.current?.scrollBy(1);
+			if (key.pageUp) scrollRef.current?.scrollBy(-page);
+			if (key.pageDown) scrollRef.current?.scrollBy(page);
+		},
+		{ isActive: active },
+	);
 
 	if (!content) return null;
+
+	// Less the padding either side, and the block's border.
+	const width = columns - FULLSCREEN_PADDING_X * 2 - 2;
 
 	return (
 		<Box
@@ -156,7 +199,7 @@ export function ContentFullscreen() {
 			flexDirection="column"
 			// A block shorter than the screen sits in the middle of it.
 			justifyContent="center"
-			paddingX={6}
+			paddingX={FULLSCREEN_PADDING_X}
 			paddingY={2}
 			backgroundColor="surface"
 		>
@@ -167,20 +210,34 @@ export function ContentFullscreen() {
 				borderStyle="round"
 				border={true}
 			>
-				<ScrollView
-					ref={scrollRef}
+				<FindScope
+					id={FULLSCREEN}
+					label={content.findLabel ?? "block"}
+					region
 					flexShrink={1}
 					minHeight={0}
-					overscan={Number.POSITIVE_INFINITY}
 				>
-					{content.children}
-				</ScrollView>
+					{/* What sizes itself to the transcript sizes itself to the block instead. */}
+					<WidthContext.Provider value={width}>
+						<ContentWidthContext.Provider value={width}>
+							<ScrollView
+								ref={scrollRef}
+								flexShrink={1}
+								minHeight={0}
+								overscan={Number.POSITIVE_INFINITY}
+							>
+								<Selectable>{content.children}</Selectable>
+							</ScrollView>
+						</ContentWidthContext.Provider>
+					</WidthContext.Provider>
+				</FindScope>
 				<ContentActions
 					formatter={content.formatter}
 					streaming={content.streaming}
 					close={closeContent}
 				/>
 			</Box>
+			<Find id={FULLSCREEN} targetRef={ref} root={FULLSCREEN} fixed />
 		</Box>
 	);
 }

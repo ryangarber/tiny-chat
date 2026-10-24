@@ -9,9 +9,9 @@ import {
 } from "#client/features/message/hooks/useMarkdown.ts";
 import { useMarkdownBlocks } from "#client/features/message/hooks/useMarkdownBlocks.ts";
 import type { zEditorPart } from "#core/features/data/utils/EditorPartUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
 import type { Color } from "#tui/core/hooks/useColor.ts";
 import { MarkdownComponents } from "#tui/features/message/components/MarkdownComponents.tsx";
+import Selectable from "#tui/features/selection/components/Selectable.tsx";
 
 /**
  * One top-level markdown block.
@@ -58,7 +58,7 @@ export default function Markdown({
 
 	// Only the last block can still be growing; the ones above it are final.
 	return (
-		<Box flexDirection="column" gap={1} color={textColor}>
+		<Selectable flexDirection="column" gap={1} color={textColor}>
 			{blocks.map((block, index) => (
 				<StreamContext
 					// biome-ignore lint/suspicious/noArrayIndexKey: blocks stay in order
@@ -68,6 +68,6 @@ export default function Markdown({
 					<MarkdownBlock source={block} parts={parts} />
 				</StreamContext>
 			))}
-		</Box>
+		</Selectable>
 	);
 }

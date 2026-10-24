@@ -2,6 +2,7 @@ import { AFMService } from "#cli/core/services/AFMService.ts";
 import { StorageService } from "#cli/core/services/StorageService.ts";
 import { TokenService } from "#cli/core/services/TokenService.ts";
 import { createClient } from "#client/client.ts";
+import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
 import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { CodeWorker } from "#core/core/utils/CodeUtils.ts";
@@ -50,5 +51,6 @@ export const client = createClient({
 	},
 	input: EditorInputService,
 	shell: NodeShellService.create(),
+	computer: ComputerHostService.create(),
 	desktop: true,
 });

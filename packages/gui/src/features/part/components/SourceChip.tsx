@@ -1,16 +1,21 @@
 import { Group, type GroupProps, Image } from "@mantine/core";
-import { BrainIcon, BrowserIcon, LightningIcon } from "@phosphor-icons/react";
+import {
+	BrainIcon,
+	BrowserIcon,
+	ChatCircleIcon,
+	LightningIcon,
+} from "@phosphor-icons/react";
 import { type HTMLAttributes, type ReactNode, useMemo } from "react";
+import { ChatService } from "#client/features/chat/services/ChatService.ts";
+import { useChatSourcesStore } from "#client/features/chat/stores/useChatSourcesStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
-import { useAppStore } from "#gui/core/stores/useAppStore.ts";
-import { useChatSourcesStore } from "#gui/features/chat/stores/useChatSourcesStore.ts";
 import { FileIcon } from "#gui/generated/stylicious/index.js";
 import MaterialIconTheme from "#gui/generated/stylicious/material-icon-theme.js";
 
-export default function SourceTag({
+export default function SourceChip({
 	path,
 	web,
 	thumbnail: thumbnailBytes,
@@ -33,7 +38,6 @@ export default function SourceTag({
 	viewable?: boolean;
 }) {
 	const name = PathUtils.name(path);
-	const setAsideOpen = useAppStore((state) => state.setAsideOpen);
 	const viewFile = useChatSourcesStore((state) => state.viewFile);
 	const chatId = useChatStore((state) => state.active.chatId);
 
@@ -61,6 +65,8 @@ export default function SourceTag({
 		icon = <BrainIcon size={size} />;
 	} else if (path.startsWith("action:")) {
 		icon = <LightningIcon size={size} />;
+	} else if (path.startsWith("chat:")) {
+		icon = <ChatCircleIcon size={size} />;
 	} else {
 		icon = (
 			<FileIcon
@@ -76,8 +82,12 @@ export default function SourceTag({
 	const events = useMemo<HTMLAttributes<HTMLElement>>(() => {
 		if (viewable) {
 			const open = () => {
+				// Another chat is read where it lives, not previewed as a file.
+				if (path.startsWith("chat:")) {
+					ChatService.setChat({ id: path.slice(5) });
+					return;
+				}
 				viewFile({ path, directory, chatId, web });
-				setAsideOpen(true);
 			};
 			return {
 				role: "button",
@@ -95,7 +105,7 @@ export default function SourceTag({
 			};
 		}
 		return {};
-	}, [viewable, directory, path, chatId, web, setAsideOpen, viewFile]);
+	}, [viewable, directory, path, chatId, web, viewFile]);
 
 	if (inline) {
 		return (

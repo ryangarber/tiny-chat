@@ -26,6 +26,7 @@ import {
 	useState,
 } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -100,7 +101,7 @@ function Project({
 	onDrop: (event: DragEvent<HTMLElement>) => void;
 }) {
 	const isMobile = useAppStore((state) => state.isMobile);
-	const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	const currentProject = useChatStore((state) => state.active.project);
 	const hasChat = useChatStore((state) => !!state.active.chatId);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
@@ -155,7 +156,7 @@ function Project({
 							onClick={(event) => {
 								event.stopPropagation();
 								ChatService.newChat(project);
-								if (isMobile) setSidebarOpen(false);
+								if (isMobile) setPanel("chats", false);
 							}}
 							data-active={active}
 						>
@@ -264,8 +265,8 @@ function Chat({
 }) {
 	const active = useChatStore((state) => state.active.chatId === chat.id);
 	const isMobile = useAppStore((state) => state.isMobile);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
-	const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
 
 	return (
 		<Indicator
@@ -283,7 +284,7 @@ function Chat({
 				className={`right-section-hover${active || isMobile ? " hover" : ""}`}
 				onClick={() => {
 					ChatService.setChat(chat);
-					if (isMobile) setSidebarOpen(false);
+					if (isMobile) setPanel("chats", false);
 				}}
 				h={40}
 				draggable

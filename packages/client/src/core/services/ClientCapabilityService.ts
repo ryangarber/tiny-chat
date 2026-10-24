@@ -2,6 +2,7 @@ import type { Client } from "#client/client.ts";
 import { createActionsCapability } from "#client/core/capabilities/createActionsCapability.ts";
 import { createBrowserCapability } from "#client/core/capabilities/createBrowserCapability.ts";
 import { createChatShellCapability } from "#client/core/capabilities/createChatShellCapability.ts";
+import { createComputerCapability } from "#client/core/capabilities/createComputerCapability.ts";
 import { createEmbeddingCapability } from "#client/core/capabilities/createEmbeddingCapability.ts";
 import { createGitHubCapability } from "#client/core/capabilities/createGitHubCapability.ts";
 import { createLegiscanCapability } from "#client/core/capabilities/createLegiscanCapability.ts";
@@ -102,6 +103,10 @@ export const ClientCapabilityService = {
 
 		if (enabled.browser) {
 			capabilities.browser = await createBrowserCapability({ client });
+		}
+
+		if (enabled.computer && client.computer) {
+			capabilities.computer = await createComputerCapability({ client });
 		}
 
 		if (enabled.actions) {

@@ -260,6 +260,21 @@ export interface BrowserCapability {
 	}) => Promise<zBrowserRunResult>;
 }
 
+/**
+ * The apps on the user's machine, through xa11y on the host
+ * (`ComputerHostService`): accessibility trees, element actions, input, and
+ * screenshots. The host only carries calls; what they mean is decided in
+ * `ComputerService`.
+ */
+export interface ComputerCapability {
+	/** Resolves with the host's raw `{ ok, result }` or `{ ok, error }`. */
+	call: (_: {
+		method: string;
+		params: unknown;
+		abort?: AbortSignal;
+	}) => Promise<unknown>;
+}
+
 export interface Capabilities {
 	web?: WebCapability;
 	github?: GitHubCapability;
@@ -271,6 +286,7 @@ export interface Capabilities {
 	chatShell?: ShellCapability;
 	shell?: ShellCapability;
 	browser?: BrowserCapability;
+	computer?: ComputerCapability;
 	persistence?: boolean;
 }
 

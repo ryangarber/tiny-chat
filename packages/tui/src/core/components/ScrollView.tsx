@@ -96,17 +96,23 @@ export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 type WheelHandler = (event: MouseEvent) => boolean;
 const ScrollContext = createContext<Set<WheelHandler> | null>(null);
 
-/** Each view's viewport, by which a row anywhere inside it is scrolled to. */
-const revealers = new WeakMap<DOMElement, (y: number) => void>();
+/**
+ * Each view's viewport, by which a row anywhere inside it is scrolled to,
+ * returning the row it is then drawn at.
+ */
+const revealers = new WeakMap<DOMElement, (y: number) => number>();
 
 /**
- * Scrolls the innermost view holding `node` until row `y` of the layout — as
- * `measureElement` places rows — is in sight, centering it if it was not.
+ * Scrolls every view holding `node` until row `y` of the layout — as
+ * `measureElement` places rows — is in sight, centering it in each it was
+ * not: the innermost first, then each around it, which brings the row as the
+ * inner one now draws it into sight.
  */
 export const revealRow = (node: DOMElement, y: number) => {
+	let row = y;
 	for (let parent = node.parentNode; parent; parent = parent.parentNode) {
 		const reveal = revealers.get(parent);
-		if (reveal) return reveal(y);
+		if (reveal) row = reveal(row);
 	}
 };
 
@@ -299,12 +305,16 @@ export default function ScrollView({
 		revealers.set(node, (y) => {
 			const top = measureElement(node).y;
 			const rows = getViewportHeight();
-			if (y < top || y >= top + rows) scrollBy(y - top - Math.floor(rows / 2));
+			if (y >= top && y < top + rows) return y;
+			const before = getScrollOffset();
+			scrollBy(y - top - Math.floor(rows / 2));
+			// Where the scroll left it, which may fall short at either end.
+			return y - (getScrollOffset() - before);
 		});
 		return () => {
 			revealers.delete(node);
 		};
-	}, [getViewportHeight, scrollBy]);
+	}, [getViewportHeight, getScrollOffset, scrollBy]);
 
 	// Views nested in this one, offered the wheel before it.
 	const [nested] = useState(() => new Set<WheelHandler>());

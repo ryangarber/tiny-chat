@@ -18,6 +18,7 @@ import Divider from "#tui/core/components/Divider.tsx";
 import Text, { type TextProps } from "#tui/core/components/Text.tsx";
 import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import { Code } from "#tui/features/code/components/Code.tsx";
+import { Citations } from "#tui/features/message/components/Citation.tsx";
 import {
 	TableComponent,
 	TbodyComponent,
@@ -26,7 +27,6 @@ import {
 	TheadComponent,
 	TrComponent,
 } from "#tui/features/message/components/MarkdownTable.tsx";
-import SourceTag from "#tui/features/message/components/SourceTag.tsx";
 import Image from "#tui/features/part/components/Image.tsx";
 import Paste from "#tui/features/part/components/Paste.tsx";
 import Quote from "#tui/features/part/components/Quote.tsx";
@@ -332,7 +332,7 @@ const DetailsComponent: Components["details"] = ({ node, children }) => {
 const MarkComponent: Components["mark"] = ({ children, node }) => (
 	<BaseComponent gap={1}>
 		{children}
-		<SourceTag
+		<Citations
 			sources={ComponentUtils.props(node, { sources: "" }).sources}
 			cited={children}
 		/>

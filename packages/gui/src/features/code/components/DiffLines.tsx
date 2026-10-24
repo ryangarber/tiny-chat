@@ -3,6 +3,10 @@
 import { Box, Button, Group } from "@mantine/core";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { CodeUtils } from "#core/core/utils/CodeUtils.ts";
 import { DiffUtils } from "#core/features/file/utils/DiffUtils.ts";
 import CodeLines from "#gui/features/code/components/CodeLines.tsx";
@@ -18,12 +22,21 @@ export default function DiffLines({
 	setExpanded: Dispatch<SetStateAction<number[]>>;
 	language: string;
 }) {
+	// Unfolded whole while find shows a match somewhere in it.
+	const revealed = useFindRevealed();
+	const isExpanded = (index: number) => revealed || expanded.includes(index);
+	useFindHidden(
+		diff.some(
+			(change, index) => change.type === "unchanged" && !isExpanded(index),
+		),
+	);
+
 	return (
 		<Box miw="100%" w="max-content">
 			{diff.flatMap((change, index) => (
 				<div key={index}>
 					{change.type === "unchanged" &&
-						expanded.includes(index) &&
+						isExpanded(index) &&
 						change.lines.map((line, lineIndex) => (
 							<Block key={lineIndex} type={change.type} expanded>
 								<div style={{ flex: 1 }}>
@@ -35,7 +48,7 @@ export default function DiffLines({
 								</div>
 							</Block>
 						))}
-					{(change.type !== "unchanged" || !expanded.includes(index)) && (
+					{(change.type !== "unchanged" || !isExpanded(index)) && (
 						<Block key={index} type={change.type}>
 							{change.type === "unchanged" && (
 								<Button

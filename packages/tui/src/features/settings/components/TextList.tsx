@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
 import HelpText from "#tui/core/components/HelpText.tsx";
+import { usePanel } from "#tui/core/components/Panel.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import type { Bindings } from "#tui/core/utils/ListBindingUtils.ts";
 import Completions from "#tui/features/editor/components/Completions.tsx";
@@ -68,6 +69,8 @@ export default function TextList({
 	before?: ReactNode;
 }) {
 	const [selected, setSelected] = useState(0);
+	// In a panel, a draft takes the keys only while the panel has them.
+	const { focused } = usePanel();
 
 	const groups: CompletionGroup<TextItem>[] = [
 		{
@@ -178,7 +181,7 @@ export default function TextList({
 						<>
 							{item.entry?.label && <Text>{item.entry.label}</Text>}
 							<Textarea
-								focus={selected}
+								focus={selected && focused}
 								value={draft.text}
 								onChange={(text) => setDraft({ ...draft, text })}
 								// An entry is committed by Enter, under a modifier or not.

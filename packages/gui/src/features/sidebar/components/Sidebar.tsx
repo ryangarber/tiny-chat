@@ -1,6 +1,7 @@
 import { Spotlight } from "@mantine/spotlight";
 import { type CSSProperties, useCallback, useState } from "react";
 import { useSession } from "#client/core/hooks/useSession.ts";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useEmbedding } from "#client/features/user/hooks/useEmbedding.ts";
@@ -17,8 +18,8 @@ export default function Sidebar() {
 
 	const isMobile = useAppStore((state) => state.isMobile);
 
-	const isSidebarOpen = useAppStore((state) => state.isSidebarOpen);
-	const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
+	const isSidebarOpen = useLayoutStore((state) => state.panels.chats);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	const currentDrawer = useAppStore((state) => state.currentDrawer);
 	const setCurrentDrawer = useAppStore((state) => state.setCurrentDrawer);
 
@@ -34,9 +35,9 @@ export default function Sidebar() {
 	const close = useCallback(
 		(action?: () => void) => {
 			action?.();
-			if (isMobile) setSidebarOpen(false);
+			if (isMobile) setPanel("chats", false);
 		},
-		[isMobile, setSidebarOpen],
+		[isMobile, setPanel],
 	);
 
 	const [query, setQuery] = useState("");

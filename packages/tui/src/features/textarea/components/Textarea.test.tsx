@@ -4,8 +4,8 @@ import { useContext, useEffect, useState } from "react";
 import { vi } from "vitest";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
-import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import { MarkdownUtils } from "#tui/features/editor/utils/MarkdownUtils.ts";
+import { useSelectionStore } from "#tui/features/selection/stores/useSelectionStore.ts";
 import Textarea, {
 	type TextareaProps,
 } from "#tui/features/textarea/components/Textarea.tsx";
@@ -393,7 +393,7 @@ describe("selecting", () => {
 		await screen.press(KEY.down, KEY.shiftLeft, KEY.ctrlC);
 
 		expect(ClipboardService.copy).toHaveBeenCalledWith("c");
-		expect(useAppStore.getState().selecting).toHaveLength(1);
+		expect(useSelectionStore.getState().holder).not.toBeNull();
 		await screen.press("!");
 		expect(screen.state.value).toBe("ab!");
 		screen.done();

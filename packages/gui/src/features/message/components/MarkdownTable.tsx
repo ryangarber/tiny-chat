@@ -83,6 +83,7 @@ export const Table = ({
 			formats={formats}
 			formatter={formatter}
 			streaming={streaming}
+			findLabel="Table"
 			data-streamdown="table-wrapper"
 		>
 			<Box

@@ -47,7 +47,13 @@ export default function Diff({
 	);
 
 	return (
-		<Content formats={formats} formatter={formatter} {...props}>
+		<Content
+			formats={formats}
+			formatter={formatter}
+			findLabel={filename ? `Changes to ${filename}` : "Changes"}
+			findText={() => DiffUtils.lines(diff)}
+			{...props}
+		>
 			<Highlight
 				highlight={baseHighlight}
 				language={language ?? ""}

@@ -1,4 +1,8 @@
-import type { ClientShell, ClientTransports } from "#client/client.ts";
+import type {
+	ClientComputer,
+	ClientShell,
+	ClientTransports,
+} from "#client/client.ts";
 import type { ModelProvider } from "#core/features/provider/types/model.ts";
 
 export type RuntimePlatform =
@@ -57,8 +61,14 @@ export interface ClientRuntime {
 	/** The device's shell and file system; only a desktop has them. */
 	shell?: ClientShell;
 
+	/** The apps on the computer, through xa11y; only a desktop has them. */
+	computer?: ClientComputer;
+
 	/** MCP transports for servers the webview cannot reach itself. */
 	transports?: ClientTransports;
+
+	/** Quits the app, where it is an app of its own rather than a tab. */
+	quit?: () => Promise<void>;
 
 	/** Updates to the app itself, where it updates itself. */
 	update?: {

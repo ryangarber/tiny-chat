@@ -8,7 +8,8 @@ import {
 	Textarea,
 } from "@mantine/core";
 import { TrashIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import {
 	type MemoryDraft,
@@ -17,6 +18,7 @@ import {
 import { Enum } from "#core/core/services/PostgresService.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
 import SaveButton from "#gui/core/components/SaveButton.tsx";
+import VirtualList from "#gui/core/components/VirtualList.tsx";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import scrollable from "#gui/core/styles/scrollable.module.css";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
@@ -31,12 +33,17 @@ const options = (values: readonly string[]) =>
 const CATEGORIES = options(Enum.MemoryCategory.values);
 const STABILITIES = options(Enum.MemoryStability.values);
 
+const getKey = (memory: MemoryState) => memory.id;
+
 /** What the user is remembered by, written and corrected in place. */
 export default function Memories() {
 	const { memories, createMemory } = useMemories();
 
 	const currentModal = useAppStore((state) => state.currentModal);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
+	const currentRecord = useLayoutStore((state) => state.record);
+	const setRecord = useLayoutStore((state) => state.setRecord);
+	const clearRecord = useCallback(() => setRecord(null), [setRecord]);
 
 	const [category, setCategory] =
 		useState<MemoryDraft["category"]>("PREFERENCES");
@@ -62,10 +69,11 @@ export default function Memories() {
 			centered
 			classNames={scrollable}
 		>
-			<Stack>
+			<Stack mih={0} flex="0 1 auto">
 				<Stack gap="xs">
 					<Textarea
 						autosize
+						maxRows={6}
 						label="Memory"
 						styles={{
 							...StyleUtils.input,
@@ -84,7 +92,8 @@ export default function Memories() {
 							/>
 						}
 						disabled={createMemory.isPending}
-						data-autofocus
+						// Not over a memory being jumped to, which the keys go to instead.
+						data-autofocus={!currentRecord || undefined}
 					/>
 					<Group grow>
 						<Select
@@ -112,9 +121,16 @@ export default function Memories() {
 						Nothing remembered yet
 					</Text>
 				)}
-				{memories.data?.map((memory) => (
-					<Memory key={`${memory.id}:${memory.fact}`} memory={memory} />
-				))}
+				<VirtualList
+					items={memories.data ?? []}
+					getKey={getKey}
+					gap={16}
+					renderItem={(memory) => (
+						<Memory key={`${memory.id}:${memory.fact}`} memory={memory} />
+					)}
+					focused={currentRecord}
+					onFocused={clearRecord}
+				/>
 			</Stack>
 		</Modal>
 	);

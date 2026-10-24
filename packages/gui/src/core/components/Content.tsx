@@ -31,6 +31,7 @@ import {
 import type { PromiseOr } from "#core/core/types/common.ts";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
+import FindScope from "#gui/features/find/components/FindScope.tsx";
 
 export type ContentFormats<T extends string = string> = T[];
 
@@ -235,6 +236,8 @@ export default function Content<T extends string>({
 	children,
 	actionsProps,
 	disclosure: controlledDisclosure,
+	findLabel = "Block",
+	findText,
 	...props
 }: HTMLAttributes<HTMLDivElement> &
 	RefAttributes<HTMLDivElement> &
@@ -246,6 +249,10 @@ export default function Content<T extends string>({
 			BoxProps &
 			Record<string, unknown>;
 		disclosure?: UseDisclosureReturnValue;
+		/** What the find bar calls it, while it is what find is scoped to. */
+		findLabel?: string;
+		/** Its text, for content that hides some of what it draws. */
+		findText?: () => string[];
 	}) {
 	const uncontrolledDisclosure = useDisclosure();
 	const [opened, { open, close }] =
@@ -262,7 +269,9 @@ export default function Content<T extends string>({
 					</Card>
 				}
 			>
-				<Box
+				<FindScope
+					label={findLabel}
+					text={findText}
 					className="relative selectable"
 					style={{
 						contentVisibility: "auto",
@@ -279,7 +288,7 @@ export default function Content<T extends string>({
 						/>
 					</Box>
 					{children}
-				</Box>
+				</FindScope>
 			</Suspense>
 			<Modal
 				opened={opened}
@@ -303,7 +312,16 @@ export default function Content<T extends string>({
 						subtleButtons={false}
 					/>
 				</Affix>
-				{opened && <Box className="selectable">{children}</Box>}
+				{opened && (
+					<FindScope
+						label={findLabel}
+						text={findText}
+						region
+						className="selectable"
+					>
+						{children}
+					</FindScope>
+				)}
 			</Modal>
 		</>
 	);

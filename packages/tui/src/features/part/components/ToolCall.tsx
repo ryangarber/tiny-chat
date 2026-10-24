@@ -1,4 +1,8 @@
 import chalk from "chalk";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
@@ -7,6 +11,7 @@ import type { ToolStatusPart } from "#core/features/tool/types/display.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
+import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
 import ToolBlock from "#tui/features/part/components/ToolBlock.tsx";
@@ -18,18 +23,7 @@ export const toStatusParts = (status: ToolStatusPart[]): StatusPart[] =>
 		part.subject ? { text: part.text, style: chalk.bold } : { text: part.text },
 	);
 
-/**
- * A tool call: open while it streams in, runs or waits on the user, showing
- * its input, then any controls, then its output as it arrives; folded back to
- * its status line once it settles.
- */
-export default function ToolCall({
-	message,
-	part,
-	answerable,
-	hold,
-	toolsets,
-}: {
+type ToolCallProps = {
 	message?: MessageState;
 	part: Extract<RenderedPart, { type: "toolCall" }>;
 	/** Waiting on feedback, so its controls can take the focus. */
@@ -38,15 +32,39 @@ export default function ToolCall({
 	hold?: boolean;
 	/** Where its tool is looked up, for a call made outside of the messages. */
 	toolsets?: Toolset<any>[];
-}) {
+};
+
+/**
+ * A tool call: open while it streams in, runs or waits on the user, showing
+ * its input, then any controls, then its output as it arrives; folded back to
+ * its status line once it settles.
+ */
+export default function ToolCall(props: ToolCallProps) {
+	return (
+		<FindSegment id={props.part.id}>
+			<ToolCallBody {...props} />
+		</FindSegment>
+	);
+}
+
+function ToolCallBody({
+	message,
+	part,
+	answerable,
+	hold,
+	toolsets,
+}: ToolCallProps) {
 	const display = useToolCall({ part, toolsets });
+	const controls = message && display.controls;
+	const { interrupt } = display;
+	const empty = !display.input.length && !display.output.length && !controls;
+
 	const { expanded, auto, toggle } = useAutoExpand(
 		part.id,
 		display.active || !!hold,
+		useFindRevealed(),
 	);
-
-	const controls = message && display.controls;
-	const { interrupt } = display;
+	useFindHidden(!expanded && !empty);
 
 	return (
 		<Task expanded={expanded} onToggle={toggle}>
@@ -64,9 +82,7 @@ export default function ToolCall({
 				/>
 				{interrupt && <Button label="stop" onClick={interrupt} />}
 			</Box>
-			{(display.input.length > 0 ||
-				display.output.length > 0 ||
-				!!controls) && (
+			{!empty && (
 				<Task.Details>
 					<Tail follow={auto}>
 						<Box flexDirection="column" gap={1}>

@@ -16,7 +16,7 @@ import {
 } from "#gui/features/editor/components/Completions.tsx";
 import { NodeUtils } from "#gui/features/editor/utils/NodeUtils.ts";
 import AttachmentView from "#gui/features/part/components/Attachment.tsx";
-import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
+import SourceChip from "#gui/features/part/components/SourceChip.tsx";
 
 interface AttachmentGroup extends CompletionGroup<AttachmentItem> {
 	items: AttachmentItem[];
@@ -136,7 +136,7 @@ const Attachment = Node.create({
 					renderEmpty: () => "No matches",
 					renderItem: (item) => {
 						return (
-							<SourceTag
+							<SourceChip
 								path={item.value}
 								directory={item.directory}
 								miw={0}
@@ -151,7 +151,7 @@ const Attachment = Node.create({
 										textOverflow: "ellipsis",
 									}}
 								>{`${item.name}${item.directory ? "/" : ""}`}</Text>
-							</SourceTag>
+							</SourceChip>
 						);
 					},
 					onTab: ({ item, editor, range, query }) => {

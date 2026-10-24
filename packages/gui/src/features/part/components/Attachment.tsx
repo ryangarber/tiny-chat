@@ -1,5 +1,5 @@
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import SourceTag from "#gui/features/upload/components/SourceTag.tsx";
+import SourceChip from "#gui/features/part/components/SourceChip.tsx";
 
 export default function Attachment({
 	source,
@@ -17,10 +17,10 @@ export default function Attachment({
 		<span
 			className={`inline-flex items-center gap-1 text-sm! font-medium rounded-xl px-2 bg-(--mantine-color-default-hover) ${grabbable ? "cursor-grab" : "cursor-default"}`}
 		>
-			<SourceTag path={source} directory={directory} inline className="py-1">
+			<SourceChip path={source} directory={directory} inline className="py-1">
 				{name ?? PathUtils.name(source)}
 				{directory ? "/" : ""}
-			</SourceTag>
+			</SourceChip>
 		</span>
 	);
 }

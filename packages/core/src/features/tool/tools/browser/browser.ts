@@ -57,11 +57,12 @@ const getSummary = (steps: Partial<zBrowserStep>[] = []) =>
 
 const display: ToolDisplay<typeof browser> = {
 	status: ({ input }) => [
-		["Browsing", "Browsed"],
+		["Performing", "Performed"],
 		{
-			count: ["page", "pages"],
+			count: ["action", "actions"],
 			subject: getSummary(input.steps as Partial<zBrowserStep>[]),
 		},
+		"in a browser",
 	],
 	input: ({ input }) => [
 		{

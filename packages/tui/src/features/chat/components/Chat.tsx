@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
+import { useFindMessages } from "#client/features/find/hooks/useFindMessages.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import Box from "#tui/core/components/Box.tsx";
@@ -27,6 +28,13 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 	const focusedMessage = useChatStore((state) =>
 		state.active.status === "open" ? state.active.focusedMessage : null,
 	);
+	// A message find has a match in is scrolled into sight, which draws it;
+	// once it is, find brings the match itself into view.
+	useFindMessages(messageList, (id) => {
+		const index = messageList.findIndex((message) => message.id === id);
+		if (index >= 0) ref.current?.scrollToIndex(index, "auto");
+	});
+
 	useLayoutEffect(() => {
 		if (!focusedMessage || chat.isFetching || messages.isFetching) return;
 		const index = messageList.findIndex((m) => m.id === focusedMessage);

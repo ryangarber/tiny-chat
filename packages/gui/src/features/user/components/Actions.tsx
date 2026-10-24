@@ -10,18 +10,22 @@ import {
 	TextInput,
 } from "@mantine/core";
 import { TrashIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useActions } from "#client/features/user/hooks/useActions.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { ActionState } from "#core/features/data/types/action.ts";
 import SaveButton from "#gui/core/components/SaveButton.tsx";
+import VirtualList from "#gui/core/components/VirtualList.tsx";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import scrollable from "#gui/core/styles/scrollable.module.css";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 
 const SCHEDULE_ERROR = "Couldn't read that schedule";
+
+const getKey = (action: ActionState) => action.id;
 
 /** Prompts sent on a schedule, written and rescheduled in place. */
 export default function Actions() {
@@ -29,6 +33,9 @@ export default function Actions() {
 
 	const currentModal = useAppStore((state) => state.currentModal);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
+	const currentRecord = useLayoutStore((state) => state.record);
+	const setRecord = useLayoutStore((state) => state.setRecord);
+	const clearRecord = useCallback(() => setRecord(null), [setRecord]);
 
 	// An action runs on in the chat it was scheduled from, after its last message.
 	const { messages } = useMessages();
@@ -70,17 +77,19 @@ export default function Actions() {
 			centered
 			classNames={scrollable}
 		>
-			<Stack>
+			<Stack mih={0} flex="0 1 auto">
 				<Stack gap="xs">
 					<Textarea
 						autosize
 						minRows={2}
+						maxRows={6}
 						label="Prompt"
 						placeholder="Summarize the news."
 						value={prompt}
 						onChange={(e) => setPrompt(e.target.value)}
 						disabled={!lastMessageId || createAction.isPending}
-						data-autofocus
+						// Not over an action being jumped to, which the keys go to instead.
+						data-autofocus={!currentRecord || undefined}
 					/>
 					<TextInput
 						label="Schedule"
@@ -114,12 +123,19 @@ export default function Actions() {
 						Nothing scheduled yet
 					</Text>
 				)}
-				{items.map((action) => (
-					<Action
-						key={`${action.id}:${action.schedule}:${ChatSourcesUtils.action({ action }).prompt}`}
-						action={action}
-					/>
-				))}
+				<VirtualList
+					items={items}
+					getKey={getKey}
+					gap={16}
+					renderItem={(action) => (
+						<Action
+							key={`${action.id}:${action.schedule}:${ChatSourcesUtils.action({ action }).prompt}`}
+							action={action}
+						/>
+					)}
+					focused={currentRecord}
+					onFocused={clearRecord}
+				/>
 			</Stack>
 		</Modal>
 	);

@@ -29,7 +29,7 @@ export type McpServer =
  * What the webview (`client-runtime.ts`) asks of the main process (`index.ts`),
  * and what the main process tells it in return. The main process does what a
  * webview cannot: the device's shell and file system, processes and network
- * for MCP servers, Apple Foundation Models, and updates to the app itself.
+ * for MCP servers, Apple Foundation Models, the apps on the computer, and updates to the app itself.
  */
 export type DesktopRPC = {
 	bun: RPCSchema<{
@@ -112,6 +112,14 @@ export type DesktopRPC = {
 				response: number;
 			};
 			afmCancel: { params: { id: number }; response: void };
+
+			/** `ComputerHostService`'s raw `{ ok, result }` or `{ ok, error }`. */
+			computerCall: {
+				params: { method: string; params: unknown };
+				response: unknown;
+			};
+
+			quit: { params: undefined; response: void };
 
 			updateCheck: {
 				params: undefined;

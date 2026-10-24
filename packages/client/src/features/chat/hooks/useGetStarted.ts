@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import type {
@@ -21,6 +22,7 @@ const ago = (timestamp: number) =>
 export const useGetStarted = () => {
 	const { projects } = useChatList();
 	const page = projects.data?.pages[0];
+	const setPanel = useLayoutStore((state) => state.setPanel);
 
 	const widgets = useMemo((): GetStartedWidget[] => {
 		if (!page) return [];
@@ -51,32 +53,51 @@ export const useGetStarted = () => {
 					},
 				],
 			});
-		}
-
-		const recentChats = page.chats.slice(0, LIMIT);
-		if (recentChats.length) {
+		} else {
 			widgets.push({
-				id: "chats",
-				title: "Jump back in...",
+				id: "greeting",
+				title: "Where should we start?",
 				blocks: [
 					{
 						type: "links",
-						links: recentChats.map((chat) => ({
-							label: chat.title || "Untitled",
-							description: ago(ChatUtils.getTimestamp(chat)),
-							target: { type: "chat", id: chat.id },
-						})),
+						links: [
+							{
+								label: "Go to chats",
+								target: { type: "panel", panel: "chats" },
+							},
+						],
 					},
 				],
 			});
 		}
+
+		// const recentChats = [...page.chats]
+		// 	.concat(page.projects.flatMap((project) => project.chats))
+		// 	.slice(0, LIMIT);
+		// if (recentChats.length) {
+		// 	widgets.push({
+		// 		id: "chats",
+		// 		title: "Jump back in...",
+		// 		blocks: [
+		// 			{
+		// 				type: "links",
+		// 				links: recentChats.map((chat) => ({
+		// 					label: chat.title || "Untitled",
+		// 					description: ago(ChatUtils.getTimestamp(chat)),
+		// 					target: { type: "chat", id: chat.id },
+		// 				})),
+		// 			},
+		// 		],
+		// 	});
+		// }
 
 		return widgets;
 	}, [page]);
 
 	const open = (target: GetStartedTarget) => {
 		if (target.type === "chat") ChatService.setChat({ id: target.id });
-		else ChatService.newChat(target.project);
+		else if (target.type === "project") ChatService.newChat(target.project);
+		else if (target.type === "panel") setPanel(target.panel, true);
 	};
 
 	return { widgets, open };

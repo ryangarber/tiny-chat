@@ -8,6 +8,7 @@ import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import Text from "#tui/core/components/Text.tsx";
+import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Thought from "#tui/features/part/components/Thought.tsx";
 import ToolGroup from "#tui/features/part/components/ToolGroup.tsx";
@@ -56,7 +57,7 @@ export default function MessageParts({
 			if (previous && EditorPartUtils.isRun(previous)) return [];
 			const run = EditorPartUtils.toRun(parts.slice(index));
 			return (
-				<Box key={index} flexDirection="column">
+				<FindSegment key={index} id={run[0].id}>
 					{run.map((item) => (
 						<CompactionBadge
 							key={item.id}
@@ -65,30 +66,27 @@ export default function MessageParts({
 						/>
 					))}
 					<Markdown source={[run]} streaming={status === "generating"} />
-				</Box>
+				</FindSegment>
 			);
 		}
 		if (part.type === "interjection")
 			return (
-				<Box
-					key={part.id}
-					backgroundColor="surface"
-					flexDirection="column"
-					paddingX={1}
-				>
-					<Text color="textSubtle">You</Text>
-					<MessageParts data={[part.value]} compaction={compaction} />
-				</Box>
+				<FindSegment key={part.id} id={part.id}>
+					<Box backgroundColor="surface" flexDirection="column" paddingX={1}>
+						<Text color="textSubtle">You</Text>
+						<MessageParts data={[part.value]} compaction={compaction} />
+					</Box>
+				</FindSegment>
 			);
 		if (part.type === "group" && part.of === "thought") {
 			return (
-				<Box key={index} flexDirection="column">
+				<FindSegment key={index} id={part.value[0].id}>
 					<CompactionBadge
 						compaction={compaction}
 						id={part.value.find((thought) => compaction?.has(thought.id))?.id}
 					/>
 					<Thought thoughts={part.value} hold={hold(index)} />
-				</Box>
+				</FindSegment>
 			);
 		}
 		if (part.type === "group" && part.of === "toolCall") {
@@ -103,26 +101,27 @@ export default function MessageParts({
 			);
 		} else if (part.type === "abort") {
 			return (
-				<Box
-					key={index}
-					backgroundColor={part.reason === "error" ? "#872323" : "interior"}
-					color={part.reason === "error" ? "white" : undefined}
-					flexDirection="column"
-					paddingX={2}
-					paddingY={1}
-				>
-					<Text bold>
-						{part.reason === "error" ? "Failed" : "Stopped"}: {part.reason}
-					</Text>
-					<Text>{part.message ?? JSON.stringify(part.details)}</Text>
-					{/* Once the reply carries on past it, it has nothing left to offer. */}
-					{message && status === undefined && index === parts.length - 1 && (
-						<Box justifyContent="flex-end" gap={2}>
-							<Button label="continue" onClick={() => resume(message)} />
-							<Button label="retry" onClick={() => regenerate(message)} />
-						</Box>
-					)}
-				</Box>
+				<FindSegment key={index} id={part.id}>
+					<Box
+						backgroundColor={part.reason === "error" ? "#872323" : "interior"}
+						color={part.reason === "error" ? "white" : undefined}
+						flexDirection="column"
+						paddingX={2}
+						paddingY={1}
+					>
+						<Text bold>
+							{part.reason === "error" ? "Failed" : "Stopped"}: {part.reason}
+						</Text>
+						<Text>{part.message ?? JSON.stringify(part.details)}</Text>
+						{/* Once the reply carries on past it, it has nothing left to offer. */}
+						{message && status === undefined && index === parts.length - 1 && (
+							<Box justifyContent="flex-end" gap={2}>
+								<Button label="continue" onClick={() => resume(message)} />
+								<Button label="retry" onClick={() => regenerate(message)} />
+							</Box>
+						)}
+					</Box>
+				</FindSegment>
 			);
 		}
 		return [];

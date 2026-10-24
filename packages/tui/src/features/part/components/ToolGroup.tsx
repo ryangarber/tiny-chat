@@ -1,3 +1,8 @@
+import {
+	useFindHidden,
+	useFindRevealed,
+	useFindRevealing,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
@@ -45,10 +50,16 @@ export default function ToolGroup({
 	const pendingFeedbackIds = useMessageStore((s) => s.pendingFeedbackIds);
 
 	const group = ToolCallUtils.getGroup({ parts, toolsets });
+	// Open for find showing a match in one of its calls, or in a run of them
+	// inside a segment, such as a subagent's.
+	const revealing = useFindRevealing(parts.map((part) => part.id));
+	const revealed = useFindRevealed();
 	const { expanded, auto, toggle } = useAutoExpand(
 		`group:${parts[0]?.id}`,
 		group.pending || !!hold,
+		revealing || revealed,
 	);
+	useFindHidden(!expanded && parts.length > 1);
 
 	const items = parts.map((part) => (
 		<Box key={part.id} flexDirection="column">

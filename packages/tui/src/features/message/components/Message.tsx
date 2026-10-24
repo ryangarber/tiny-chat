@@ -1,8 +1,9 @@
 import Spinner from "ink-spinner";
-import { useContext, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { useStream } from "#client/features/agent/hooks/useStream.ts";
+import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useMessageBranches } from "#client/features/message/hooks/useMessageBranches.ts";
@@ -17,6 +18,10 @@ import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import MessageParts from "#tui/features/message/components/MessageParts.tsx";
+import {
+	type SelectionAction,
+	SelectionActionsContext,
+} from "#tui/features/selection/components/Selectable.tsx";
 
 export default function Message({
 	message,
@@ -45,6 +50,43 @@ export default function Message({
 	const stream = useStream<AgentStreamEvent>(message.id)?.items.at(-1);
 	const streamed = { ...message, ...stream };
 
+	// A passage of a reply is quoted into the message being written, or into a
+	// new chat with this one attached, as the app offers over a selection.
+	const { author, chatId } = message;
+	const { model } = message.config;
+	const actions = useMemo<SelectionAction[]>(
+		() =>
+			author !== "MODEL"
+				? []
+				: [
+						{
+							label: "quote",
+							onSelect: (text) => {
+								ComposerService.insertQuote({ client, model, text });
+								useAppStore.getState().setFocus("editor");
+							},
+						},
+						{
+							label: "quote in new chat",
+							onSelect: (text) => {
+								useAppStore.getState().setFocus("editor");
+								ChatService.quoteInNewChat({
+									client,
+									chatId,
+									model,
+									text,
+								}).catch((error) =>
+									console.warn(
+										"[Message] failed to quote in a new chat",
+										error,
+									),
+								);
+							},
+						},
+					],
+		[author, chatId, model, client],
+	);
+
 	return (
 		<Box flexDirection="column" paddingX={1} paddingY={1}>
 			<Box
@@ -57,12 +99,14 @@ export default function Message({
 				gap={1}
 				maxWidth={columns - 3}
 			>
-				<MessageParts
-					data={streamed.data}
-					status={streamed.status}
-					compaction={compaction}
-					message={message}
-				/>
+				<SelectionActionsContext value={actions}>
+					<MessageParts
+						data={streamed.data}
+						status={streamed.status}
+						compaction={compaction}
+						message={message}
+					/>
+				</SelectionActionsContext>
 				{!!streamed.status && (
 					<Text>
 						<Spinner type="simpleDotsScrolling" />

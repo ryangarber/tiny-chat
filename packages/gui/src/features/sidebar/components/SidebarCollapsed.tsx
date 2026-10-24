@@ -7,6 +7,7 @@ import {
 	UserCircleIcon,
 } from "@phosphor-icons/react";
 import type { useSession } from "#client/core/hooks/useSession.ts";
+import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import type { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
@@ -24,8 +25,8 @@ export default function SidebarCollapsed({
 	isIncognito: boolean;
 	close: (fn: () => void) => void;
 }) {
-	const isSidebarOpen = useAppStore((state) => state.isSidebarOpen);
-	const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
+	const isSidebarOpen = useLayoutStore((state) => state.panels.chats);
+	const setPanel = useLayoutStore((state) => state.setPanel);
 	const setCurrentDrawer = useAppStore((state) => state.setCurrentDrawer);
 
 	return (
@@ -33,7 +34,7 @@ export default function SidebarCollapsed({
 			<Stack align="center" gap="sm">
 				<Burger
 					opened={isSidebarOpen}
-					onClick={() => setSidebarOpen(!isSidebarOpen)}
+					onClick={() => setPanel("chats", !isSidebarOpen)}
 					size={16}
 				/>
 				<Tooltip label="New Chat" position="right">

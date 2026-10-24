@@ -34,6 +34,13 @@ export const AttachmentService = {
 			web: {
 				view: async ({ url }) => await client.api.web.view.query({ url }),
 			},
+			chat: async (id) => {
+				const [chat, { messages }] = await Promise.all([
+					client.api.chat.getChat.query(id),
+					client.api.message.getMessages.query({ chat: id }),
+				]);
+				return { title: chat.title, messages };
+			},
 		});
 		return EditorNodeUtils.create(attachment);
 	},
