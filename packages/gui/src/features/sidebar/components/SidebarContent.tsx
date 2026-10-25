@@ -12,6 +12,7 @@ import {
 	Text,
 	TextInput,
 } from "@mantine/core";
+import { useMergedRef } from "@mantine/hooks";
 import {
 	CaretRightIcon,
 	DotsThreeIcon,
@@ -35,6 +36,7 @@ import type {
 	ProjectState,
 } from "#core/features/data/types/chat.ts";
 import Sentinel from "#gui/core/components/Sentinel.tsx";
+import { useDragAutoScroll } from "#gui/core/hooks/useDragAutoScroll.ts";
 import { useSentinel } from "#gui/core/hooks/useSentinel.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import scrollable from "#gui/core/styles/scrollable.module.css";
@@ -439,12 +441,16 @@ export default function SidebarContent() {
 		query: projects,
 		queryKey: client.query.chat.getChatList.pathKey(),
 	});
+	const { viewportRef: dragViewportRef } = useDragAutoScroll(
+		draggedChat !== null,
+	);
+	const mergedViewportRef = useMergedRef(viewportRef, dragViewportRef);
 
 	return (
 		<>
 			<ScrollArea
 				flex={1}
-				viewportRef={viewportRef}
+				viewportRef={mergedViewportRef}
 				styles={{
 					content: {
 						display: "flex",

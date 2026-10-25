@@ -11,7 +11,17 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Command } from "@commander-js/extra-typings";
+import {
+	argument,
+	multiple,
+	negatableFlag,
+	object,
+	optional,
+	passThrough,
+	string,
+} from "@optique/core";
+import { defineProgram } from "@optique/core/program";
+import { run } from "@optique/run";
 import { concurrently } from "concurrently";
 import waitOn from "wait-on";
 import { zClientEnv } from "../packages/core/src/core/types/env.ts";
@@ -254,48 +264,61 @@ export async function useServer({
 }
 
 if (import.meta.main) {
-	await new Command()
-		.option("--start", "start a server if one is not already running")
-		.option("--no-start", "wait for an already existing server")
-		.argument("<then...>", "commands with an optional 'name:' prefix")
-		.action(async (then, { start }) => {
-			print({ message: "starting..." });
+	const parser = object({
+		start: optional(
+			negatableFlag({ positive: "--start", negative: "--no-start" }),
+		),
+		commands: multiple(argument(string({ metavar: "COMMAND" }))),
+	});
 
-			const doStart = await isServerNeeded(start);
+	const program = defineProgram({
+		metadata: { name: "use-server.ts" },
+		parser,
+	});
 
-			if (then.length !== 0) {
-				print({
-					message: `running ${then.length} command${then.length !== 1 ? "s" : ""}...`,
-				});
-				try {
-					await concurrently(
-						[
-							...(doStart
-								? [
-										{
-											name: "server",
-											command: "pnpm -w dev:server",
-										},
-									]
-								: []),
-							...then.map((then) => {
-								const [, name, command] =
-									/^(?:\[([^\]]+)])?\s*(.*)$/.exec(then) ?? [];
-								return { name, command: `wait-on ${serverUrl} && ${command}` };
-							}),
-						],
-						{
-							killOthersOn: ["success", "failure"],
-							killTimeout: 5_000,
-							prefixColors: "auto",
-						},
-					).result;
-				} catch (object) {
-					if (object instanceof Error) throw object;
-					// concurrently rejects with exit events when a command fails.
-					process.exitCode = 1;
-				}
-			}
-		})
-		.parseAsync();
+	const { start, commands } = run(program, {
+		args: process.argv.slice(2),
+		help: "both",
+	});
+
+	print({ message: "starting..." });
+
+	const doStart = await isServerNeeded(start);
+
+	if (commands.length !== 0) {
+		print({
+			message: `${commands.length} command${commands.length !== 1 ? "s" : ""} waiting...`,
+		});
+		try {
+			await concurrently(
+				[
+					...(doStart
+						? [
+								{
+									name: "server",
+									command: "pnpm -w dev:server",
+								},
+							]
+						: []),
+					...commands.map((_command) => {
+						const [, name, command] =
+							/^(?:\[([^\]]+)])?\s*(.*)$/.exec(_command) ?? [];
+						return {
+							name,
+							command: `pnpm wait-on ${serverUrl} && ${command}`,
+						};
+					}),
+				],
+				{
+					killOthersOn: ["success", "failure"],
+					killTimeout: 5_000,
+					prefixColors: "auto",
+				},
+			).result;
+		} catch (object) {
+			if (object instanceof Error) throw object;
+			// concurrently rejects with exit events when a command fails.
+			process.exitCode = 1;
+		}
+	}
 }

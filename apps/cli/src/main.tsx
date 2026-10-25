@@ -6,10 +6,11 @@ import { StderrUtils } from "#cli/core/utils/StderrUtils.ts";
 import { ClientContext } from "#client/client.ts";
 import Root from "#tui/core/components/Root.tsx";
 import { StdinUtils } from "#tui/core/utils/StdinUtils.ts";
+import type { AppOptions } from "./cli.ts";
 import { StorageService } from "./core/services/StorageService.ts";
 
-export async function main(keyring: boolean | undefined) {
-	if (keyring === false) TokenService.keyring(false);
+export async function main(options: AppOptions) {
+	if (options.noKeyring) TokenService.keyring(false);
 
 	const truecolor = StorageService.get<boolean>("truecolor");
 

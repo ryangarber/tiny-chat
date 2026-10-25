@@ -27,5 +27,8 @@ export default defineConfig({
 			join(dirname(fileURLToPath(import.meta.url)), "./scripts/setup-test.ts"),
 		],
 		passWithNoTests: true,
+		coverage: {
+			provider: "v8",
+		},
 	},
 });
