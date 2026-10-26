@@ -1,8 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useContext, useEffect } from "react";
-import { ClientContext } from "#client/client.ts";
+import { useContext, useEffect, useRef } from "react";
+import { type Client, ClientContext } from "#client/client.ts";
 
 export const sessionQueryKey = ["useSession"] as const;
+
+/**
+ * Signs in with a token from elsewhere. The session query is cancelled first:
+ * invalidating it alone would leave a first fetch that is still in flight to
+ * finish, and save the token it got (an anonymous user's) over this one.
+ */
+export const setSessionToken = async (client: Client, token: string) => {
+	await client.queryClient.cancelQueries({ queryKey: sessionQueryKey });
+	client.setToken(token);
+	await client.queryClient.invalidateQueries();
+};
 
 export const useSession = ({
 	token,
@@ -15,13 +26,18 @@ export const useSession = ({
 
 	const session = useQuery({
 		queryKey: sessionQueryKey,
-		queryFn: async () => {
+		// Cancelled when a sign-in elsewhere (a native callback, a `token`)
+		// invalidates it mid-flight; it mustn't then save its own token over that
+		// one, as a fresh anonymous user's.
+		queryFn: async ({ signal }) => {
 			let _session = await client.auth.getSession();
 			if (_session.error) throw _session.error;
+			signal.throwIfAborted();
 
 			if (!_session.data) {
 				console.log("[useSession] no session, signing in anonymously...");
 				const signIn = await client.auth.signIn.anonymous();
+				signal.throwIfAborted();
 				if (signIn.data?.token) {
 					client.setToken(signIn.data.token);
 					_session = await client.auth.getSession();
@@ -33,6 +49,7 @@ export const useSession = ({
 				}
 			}
 
+			signal.throwIfAborted();
 			client.setToken(_session.data.session.token);
 
 			console.log("[useSession] session:", _session.data.user.id);
@@ -71,19 +88,24 @@ export const useSession = ({
 
 	useEffect(() => {
 		if (token?.value) {
-			client.setToken(token.value);
-			void client.queryClient.invalidateQueries({ queryKey: sessionQueryKey });
+			void setSessionToken(client, token.value);
 			token.onChange();
 		}
-	}, [token, client.queryClient, client.setToken]);
+	}, [token, client]);
+
+	// A clone waits, in the URL that a sign-in returns to, until the user here
+	// has actually signed in: continuing it anonymously would hand the app a
+	// throwaway user.
+	const signedIn = !!session.data && !session.data.user.isAnonymous;
+
+	const acceptedCloneRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (clone?.value) {
-			acceptClone.mutate(clone.value);
-			void client.queryClient.invalidateQueries({ queryKey: sessionQueryKey });
-			clone.onChange();
-		}
-	}, [clone, client.queryClient, acceptClone.mutate]);
+		if (!clone?.value || !signedIn) return;
+		if (acceptedCloneRef.current === clone.value) return;
+		acceptedCloneRef.current = clone.value;
+		acceptClone.mutate(clone.value, { onSettled: clone.onChange });
+	}, [clone, signedIn, acceptClone.mutate]);
 
 	return {
 		session,

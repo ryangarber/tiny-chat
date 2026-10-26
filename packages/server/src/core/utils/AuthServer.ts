@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { anonymous, bearer } from "better-auth/plugins";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { userFields } from "#core/prisma/better-auth-adapter.ts";
+import { nativeAuth } from "#server/core/utils/NativeAuthPlugin.ts";
 import { db } from "#server/db.ts";
 
 const dev = CommonUtils.isTruthy(process.env.DEV);
@@ -22,8 +23,10 @@ export const AuthServer = userFields.inferClient(
 		},
 		// In dev, the GUI's Vite server: from a host app's webview at DEV_HOST,
 		// which is the LAN's address for a phone, and from a browser on this
-		// machine at localhost.
+		// machine at localhost. A host app's sign-in in the system browser
+		// returns to its URL scheme (`NativeAuthPlugin`).
 		trustedOrigins: [
+			CommonUtils.nativeAuthCallbackUrl,
 			...(dev
 				? [
 						`http://${process.env.DEV_HOST}:${process.env.VITE_WEB_PORT}`,
@@ -126,6 +129,7 @@ export const AuthServer = userFields.inferClient(
 				},
 			}),
 			bearer(),
+			nativeAuth(),
 			{
 				id: "token-storage",
 				async onResponse(res) {
@@ -137,7 +141,7 @@ export const AuthServer = userFields.inferClient(
 							? `${url.hash}&token=${token}`
 							: `#token=${token}`;
 						res.headers.set("location", url.toString());
-						console.log("[AuthService] redirecting:", url.toString());
+						console.log("[AuthService] redirecting with token:", location);
 					}
 					await new Promise<void>((r) => r());
 				},

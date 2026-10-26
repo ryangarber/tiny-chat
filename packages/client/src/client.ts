@@ -95,6 +95,21 @@ export const createClient = ({
 		? `http://${env.DEV_HOST}:${env.VITE_SERVER_PORT}`
 		: env.VITE_SERVER_URL;
 
+	// Every API call needs a session. One made before there is any token, as
+	// a first launch's queries are while `useSession` signs in anonymously,
+	// waits for it rather than failing as unauthorized.
+	const tokenWaiters = new Set<() => void>();
+	const waitForToken = () =>
+		getToken()
+			? Promise.resolve()
+			: new Promise<void>((resolve) => tokenWaiters.add(resolve));
+	const setClientToken = (token: string | null | undefined) => {
+		setToken(token);
+		if (!token) return;
+		for (const resolve of tokenWaiters) resolve();
+		tokenWaiters.clear();
+	};
+
 	const auth = inferAuthClient<typeof userFields>()(
 		createAuthClient({
 			baseURL: serverUrl,
@@ -114,7 +129,8 @@ export const createClient = ({
 			httpLink({
 				url: `${serverUrl}${CommonUtils.endpoints.api}`,
 				transformer: JsonService.transformer,
-				headers: () => {
+				headers: async () => {
+					await waitForToken();
 					const token = getToken();
 					return { Authorization: token ? `Bearer ${token}` : undefined };
 				},
@@ -150,7 +166,7 @@ export const createClient = ({
 		auth,
 		providerEnv,
 		getToken,
-		setToken,
+		setToken: setClientToken,
 		getStorage,
 		setStorage,
 		providers,

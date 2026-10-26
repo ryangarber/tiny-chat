@@ -542,6 +542,19 @@ export class FilesystemService implements IFileSystem {
 	}
 
 	async mv(src: string, dest: string): Promise<void> {
+		// Validate the entire move before copying: a failure to remove the
+		// source must not leave a new destination, and overlapping trees would
+		// have the copy deleted along with the source.
+		src = normalizePath(src);
+		dest = normalizePath(dest);
+		const source = this.checkWritable(src, "mv");
+		const destination = this.checkWritable(dest, "mv");
+		if (
+			PathUtils.equals(source.path, destination.path) ||
+			PathUtils.contains({ parent: source.path, descendent: destination.path })
+		) {
+			throw new Error(`EINVAL: cannot move '${src}' to '${dest}'`);
+		}
 		await this.cp(src, dest, { recursive: true });
 		await this.rm(src, { recursive: true });
 	}

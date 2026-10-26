@@ -1,4 +1,4 @@
-import {
+import Electrobun, {
 	ApplicationMenu,
 	BrowserView,
 	BrowserWindow,
@@ -33,6 +33,9 @@ const send: DesktopSend = new Proxy({} as DesktopSend, {
 
 const computer = ComputerHostService.create();
 
+/** The URL the app was opened with, until the webview takes it. */
+let openUrl: string | null = null;
+
 const rpc = BrowserView.defineRPC<DesktopRPC>({
 	// Commands, model streams and updates run as long as they take; each side
 	// stops them itself.
@@ -59,16 +62,31 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 			quit: async () => {
 				Utils.quit();
 			},
+			takeOpenUrl: async () => {
+				const url = openUrl;
+				openUrl = null;
+				return url;
+			},
 		},
 		messages: {},
 	},
 });
 
-new BrowserWindow({
+const mainWindow = new BrowserWindow({
 	title: "Tiny Chat",
 	url,
 	frame: { width: 1280, height: 720 },
 	rpc,
+});
+
+// `tinychat://`, as a sign-in in the browser returns to the app (macOS only,
+// and only once the app is in /Applications). Kept for a webview that isn't
+// listening yet, as when the URL launched the app.
+Electrobun.events.on("open-url", (event: unknown) => {
+	const { data } = event as ElectrobunEvent<{ url: string }, void>;
+	openUrl = data.url;
+	send.openUrl({ url: data.url });
+	mainWindow.activate();
 });
 
 ApplicationMenu.setApplicationMenu([

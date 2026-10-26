@@ -90,7 +90,7 @@ export const FileUtils = {
 	},
 
 	getBase64FromText: ({ text }: { text: string }) => {
-		const data = new TextEncoder().encode(encodeURIComponent(text));
+		const data = new TextEncoder().encode(text);
 		return FileUtils.getBase64FromBytes({ data });
 	},
 

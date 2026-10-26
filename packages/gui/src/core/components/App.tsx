@@ -16,6 +16,7 @@ import Console from "#gui/core/components/Console.tsx";
 import Tasks from "#gui/core/components/Tasks.tsx";
 import { useExperiments } from "#gui/core/hooks/useExperiments.tsx";
 import { setHashbangQuery, useHashbang } from "#gui/core/hooks/useHashbang.ts";
+import { useNativeAuth } from "#gui/core/hooks/useNativeAuth.ts";
 import { usePanelSwipe } from "#gui/core/hooks/usePanelSwipe.ts";
 import { useViewport } from "#gui/core/hooks/useViewport.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
@@ -73,6 +74,14 @@ export default function App() {
 			onChange: () => setHashbangQuery({ clone: undefined }),
 		},
 	});
+	useNativeAuth();
+	// An app asked to borrow this session, which it can once the user signs in;
+	// the account drawer asks them to, and says when it has.
+	const cloning = !!query.clone;
+	const hasSession = !!session.data;
+	useEffect(() => {
+		if (cloning && hasSession) AppService.openAccount();
+	}, [cloning, hasSession]);
 	useExperiments();
 	const { height: viewportHeight, containerRef } = useViewport();
 	// What the keyboard leaves of the viewport; see `useViewport`.

@@ -26,6 +26,8 @@ const mcpTransports = new Map<string, RpcTransport>();
 const afmListeners = new Map<number, (event: AFMEvent) => void>();
 let nextAfmKey = 1;
 let updateListener: ((fraction: number) => void) | undefined;
+const urlListeners = new Set<(url: string) => void>();
+let launched = false;
 
 /** Connects to the main process; only inside an Electrobun webview. */
 function connect(): DesktopView {
@@ -52,6 +54,9 @@ function connect(): DesktopView {
 					if (event.type === "finish") afmListeners.delete(key);
 				},
 				updateProgress: ({ fraction }) => updateListener?.(fraction),
+				openUrl: ({ url }) => {
+					for (const listener of urlListeners) listener(url);
+				},
 			},
 		},
 	});
@@ -123,6 +128,24 @@ function create(rpc: DesktopView): ClientRuntime {
 	return {
 		platform,
 		open: (url) => rpc.request.open({ url }),
+		// Only macOS registers the app's URL scheme, and only for an app built
+		// into views:// rather than a dev build on the Vite server.
+		auth:
+			platform === "macos" && window.location.protocol === "views:"
+				? {
+						onUrl: (listener) => {
+							urlListeners.add(listener);
+							// The one the app was launched with goes to the first listener.
+							if (!launched) {
+								launched = true;
+								void rpc.request.takeOpenUrl().then((url) => {
+									if (url) listener(url);
+								});
+							}
+							return () => urlListeners.delete(listener);
+						},
+					}
+				: undefined,
 		pickFolder: (params) => rpc.request.pickFolder(params),
 		getModelProviders: async () =>
 			platform === "macos" && (await rpc.request.afmAvailability())

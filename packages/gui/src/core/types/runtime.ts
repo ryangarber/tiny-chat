@@ -19,6 +19,18 @@ export interface RuntimeUpdate {
 	date?: string;
 }
 
+/**
+ * Signing in through the system browser, which returns to the app by the URL
+ * scheme it registers (`CommonUtils.nativeAuthCallbackUrl`).
+ */
+export interface RuntimeAuth {
+	/**
+	 * URLs the app is opened with, including the one it was launched with, if
+	 * the listener is the first. Returns an unsubscribe.
+	 */
+	onUrl: (listener: (url: string) => void) => () => void;
+}
+
 export interface RuntimeKeyboard {
 	/** How far the keyboard reaches up the page, in CSS pixels; 0 once it is away. */
 	height: number;
@@ -37,6 +49,12 @@ export interface ClientRuntime {
 
 	/** Opens a link outside the app. */
 	open: (url: string) => Promise<void>;
+
+	/**
+	 * Signing in directly, where the host receives its URL scheme; otherwise
+	 * the app borrows the web's sign-in by cloning its session.
+	 */
+	auth?: RuntimeAuth;
 
 	/**
 	 * Writes to the system clipboard, where the webview's own clipboard is

@@ -6,6 +6,8 @@ export default {
 		name: "Tiny Chat",
 		identifier: "dev.ryangarber.chat",
 		version: workspace.version,
+		// A sign-in in the browser returns here (`CommonUtils.nativeAuthCallbackUrl`).
+		urlSchemes: ["tinychat"],
 	},
 	build: {
 		// Bun rather than Cottontail: Electrobun 2.0.2's Cottontail main

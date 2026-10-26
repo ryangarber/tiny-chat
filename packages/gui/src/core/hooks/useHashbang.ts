@@ -30,6 +30,8 @@ const setHashbang = (
 	window.location.hash = `#/${hash ?? ""}${queryString ? `?${queryString}` : ""}`;
 };
 
+export const getHashbangQuery = () => getHashbang().query;
+
 export const setHashbangQuery = (query: Record<string, string | undefined>) => {
 	setHashbang(getHashbang().hash, { ...getHashbang().query, ...query });
 };

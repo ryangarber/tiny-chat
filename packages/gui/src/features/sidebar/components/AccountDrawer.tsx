@@ -13,10 +13,12 @@ import {
 	GoogleLogoIcon,
 	SmileyIcon,
 } from "@phosphor-icons/react";
+import { useIsMutating, useMutationState } from "@tanstack/react-query";
 import { type JSX, useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
-import { useAccounts } from "#gui/core/hooks/useAccounts.ts";
+import { linkAccountKey, useAccounts } from "#gui/core/hooks/useAccounts.ts";
+import { getHashbangQuery } from "#gui/core/hooks/useHashbang.ts";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
@@ -80,7 +82,24 @@ export default function AccountDrawer({
 	const runtime = useRuntime();
 
 	const { session, requestClone } = useSession();
-	const { deleteUser } = useAccounts();
+	const { deleteUser, cancelLink } = useAccounts();
+
+	const signedIn = !!session.data?.user && !session.data.user.isAnonymous;
+	// Signing in here: on the web, or in an app that receives its URL scheme;
+	// any other app borrows the web's session (see `CloneService`).
+	const direct = runtime.platform === "web" || !!runtime.auth;
+	const cloneUrl = (id: string) => `${client.webUrl}/#/?clone=${id}`;
+	const linking = useIsMutating({ mutationKey: linkAccountKey }) > 0;
+	const linkError = useMutationState({
+		filters: { mutationKey: linkAccountKey },
+		select: (mutation) => mutation.state.error,
+	}).at(-1);
+	const cloning = !!getHashbangQuery().clone;
+	const cloned =
+		useMutationState({
+			filters: { mutationKey: ["useSession", "acceptClone"] },
+			select: (mutation) => mutation.state.status,
+		}).at(-1) === "success";
 
 	const currentModal = useAppStore((state) => state.currentModal);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
@@ -96,7 +115,80 @@ export default function AccountDrawer({
 			}
 		>
 			<Stack>
-				{runtime.platform !== "web" ? (
+				{cloned ? (
+					<Text size="sm">Your other device is signed in.</Text>
+				) : cloning && !signedIn ? (
+					<Text size="sm">
+						Sign in to finish signing in to Tiny Chat on your other device.
+					</Text>
+				) : null}
+				{direct ? (
+					<>
+						{linking ? (
+							<Group justify="space-between">
+								<Text size="sm">Finish signing in in your browser...</Text>
+								<Button variant="default" onClick={cancelLink}>
+									Cancel
+								</Button>
+							</Group>
+						) : (
+							<Text c="dimmed" size="sm">
+								Link an account to save chats and settings.
+							</Text>
+						)}
+						{linkError && !linking && (
+							<Text c="red" size="sm">
+								{linkError.message}
+							</Text>
+						)}
+						<Account
+							providerId="google"
+							name="Google"
+							icon={<GoogleLogoIcon size={20} />}
+						/>
+						<Account
+							providerId="github"
+							name="GitHub"
+							icon={<GithubLogoIcon size={20} />}
+						/>
+						<Account
+							providerId="huggingface"
+							name="Hugging Face"
+							icon={<SmileyIcon size={20} />}
+						/>
+						{runtime.platform !== "web" &&
+							session.data?.user?.isAnonymous &&
+							(requestClone.isPending ? (
+								<Group justify="space-between">
+									<Text size="sm">
+										Waiting for you to sign in on the web...
+									</Text>
+									<Button
+										variant="default"
+										onClick={() => requestClone.reset()}
+									>
+										Cancel
+									</Button>
+								</Group>
+							) : (
+								<Text size="xs" c="dimmed" m="0 auto">
+									<Button
+										size="compact-xs"
+										variant="transparent"
+										component="a"
+										onClick={(e) => {
+											e.preventDefault();
+											requestClone.mutate(async (id) => {
+												await runtime.open(cloneUrl(id));
+											});
+										}}
+									>
+										or sign in on the web
+									</Button>
+								</Text>
+							))}
+					</>
+				) : (
 					<>
 						{requestClone.isPending ? (
 							<Text size="sm">Waiting for you to sign in...</Text>
@@ -114,9 +206,7 @@ export default function AccountDrawer({
 										requestClone.reset();
 									} else {
 										requestClone.mutate(async (id) => {
-											return await runtime.open(
-												`${client.webUrl}/#?clone=${id}`,
-											);
+											return await runtime.open(cloneUrl(id));
 										});
 									}
 								} else {
@@ -138,7 +228,7 @@ export default function AccountDrawer({
 											requestClone.mutate(async (id) => {
 												await ControlUtils.copy({
 													runtime,
-													data: `${client.webUrl}/#?clone=${id}`,
+													data: cloneUrl(id),
 													mime: "text/plain",
 												});
 											});
@@ -151,27 +241,6 @@ export default function AccountDrawer({
 								or copy the link
 							</Button>
 						</Text>
-					</>
-				) : (
-					<>
-						<Text c="dimmed" size="sm">
-							Link an account to save chats and settings.
-						</Text>
-						<Account
-							providerId="google"
-							name="Google"
-							icon={<GoogleLogoIcon size={20} />}
-						/>
-						<Account
-							providerId="github"
-							name="GitHub"
-							icon={<GithubLogoIcon size={20} />}
-						/>
-						<Account
-							providerId="huggingface"
-							name="Hugging Face"
-							icon={<SmileyIcon size={20} />}
-						/>
 					</>
 				)}
 				{session.data?.user && !session.data.user.isAnonymous && (

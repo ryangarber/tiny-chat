@@ -35,6 +35,14 @@ export const CommonUtils = {
 		antigravity: "/@/antigravity",
 	},
 
+	/**
+	 * Where a sign-in in the system browser returns to a host app, by the URL
+	 * scheme it registers (`tinychat`). The server appends `#token=`.
+	 */
+	nativeAuthCallbackUrl: "tinychat://auth",
+	/** The auth path that opens a native sign-in in the system browser. */
+	nativeAuthorizePath: "/native/authorize",
+
 	isTruthy: (value?: string) => {
 		return value === "true" || value === "1";
 	},

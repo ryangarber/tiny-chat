@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import type { ClientRuntime } from "#gui/core/types/runtime.ts";
 import { RuntimeUtils } from "#gui/core/utils/RuntimeUtils.ts";
+import { AuthService } from "#mobile/core/services/AuthService.ts";
 import { ClipboardService } from "#mobile/core/services/ClipboardService.ts";
 import { KeyboardService } from "#mobile/core/services/KeyboardService.ts";
 import { UpdateService } from "#mobile/core/services/UpdateService.ts";
@@ -20,6 +21,7 @@ export const runtime: ClientRuntime = native
 			platform,
 			// Capacitor hands a new window to the system browser.
 			open: RuntimeUtils.web.open,
+			auth: Capacitor.isPluginAvailable("App") ? AuthService : undefined,
 			copy: Capacitor.isPluginAvailable("Clipboard")
 				? ClipboardService.copy
 				: undefined,

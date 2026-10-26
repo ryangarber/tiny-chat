@@ -29,7 +29,8 @@ export type McpServer =
  * What the webview (`client-runtime.ts`) asks of the main process (`index.ts`),
  * and what the main process tells it in return. The main process does what a
  * webview cannot: the device's shell and file system, processes and network
- * for MCP servers, Apple Foundation Models, the apps on the computer, and updates to the app itself.
+ * for MCP servers, Apple Foundation Models, the apps on the computer, URLs the
+ * app is opened with, and updates to the app itself.
  */
 export type DesktopRPC = {
 	bun: RPCSchema<{
@@ -121,6 +122,12 @@ export type DesktopRPC = {
 
 			quit: { params: undefined; response: void };
 
+			/**
+			 * The URL the app was last opened with (`tinychat://`), once; later
+			 * ones arrive as `openUrl`.
+			 */
+			takeOpenUrl: { params: undefined; response: string | null };
+
 			updateCheck: {
 				params: undefined;
 				response: { version: string } | null;
@@ -140,6 +147,7 @@ export type DesktopRPC = {
 			mcpClose: { id: string };
 			afmEvent: { key: number; event: AFMEvent };
 			updateProgress: { fraction: number };
+			openUrl: { url: string };
 		};
 	}>;
 };
