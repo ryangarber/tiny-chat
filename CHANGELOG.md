@@ -1,3 +1,11 @@
+## 0.10.5 (2026-10-28)
+
+### Features
+
+- sign in without leaving apps ([f71dc29](https://github.com/ryangarber/tiny-chat/commit/f71dc29bc589b17b7fa5b72e54cc26423d078891))
+- **cli:** completions and manpage ([3bf795b](https://github.com/ryangarber/tiny-chat/commit/3bf795b26108a5fc2613c1341af672dfc6ef4588))
+- **gui:** scroll while dragging chats ([3bf795b](https://github.com/ryangarber/tiny-chat/commit/3bf795b26108a5fc2613c1341af672dfc6ef4588))
+
 ## 0.10.4 (2026-10-24)
 
 ### Features
