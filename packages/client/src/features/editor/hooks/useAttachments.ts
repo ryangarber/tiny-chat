@@ -1,5 +1,6 @@
 import { useCallback, useContext, useMemo, useRef } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useLatestCallback } from "#client/core/hooks/useLatestCallback.ts";
 import { useChatFiles } from "#client/features/chat/hooks/useChatFiles.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -41,8 +42,6 @@ export const useAttachments = () => {
 	const client = useContext(ClientContext);
 
 	const { filesystem } = useChatFiles();
-	const filesystemRef = useRef(filesystem);
-	filesystemRef.current = filesystem;
 
 	const { attachmentUploads, githubUploads } = useUploads();
 
@@ -76,9 +75,6 @@ export const useAttachments = () => {
 		];
 	}, [attachmentUploads.data, githubUploads.data]);
 
-	const uploadGroupsRef = useRef(uploadGroups);
-	uploadGroupsRef.current = uploadGroups;
-
 	// The chats on the sidebar's first page, newest first, to ask about from
 	// this one. The chat being written in is already all there.
 	const { projects: chatList } = useChatList();
@@ -102,9 +98,6 @@ export const useAttachments = () => {
 				]
 			: [];
 	}, [chatList.data, chatId]);
-
-	const chatGroupsRef = useRef(chatGroups);
-	chatGroupsRef.current = chatGroups;
 
 	// Walking a large tree is the slow part of a search and its answer barely
 	// changes between keystrokes, so each directory is walked once and kept for
@@ -140,7 +133,9 @@ export const useAttachments = () => {
 		[client],
 	);
 
-	const getAttachables = useCallback(
+	// Stable for an editor that takes it in once, while searching what is on
+	// hand now.
+	const getAttachables = useLatestCallback(
 		async (query: string, signal?: AbortSignal): Promise<AttachmentGroup[]> => {
 			const parts = query.replace(/^\//, "").split("/");
 			const directory = parts.slice(0, -1);
@@ -150,7 +145,7 @@ export const useAttachments = () => {
 			const getMounted = async (): Promise<AttachmentGroup[]> => {
 				const [tree, id] = directory;
 				const mounted = FileUtils.mount({
-					filesystem: filesystemRef.current,
+					filesystem,
 					mount: PathUtils.mounts.find((name) => name === tree),
 					id,
 				});
@@ -269,12 +264,11 @@ export const useAttachments = () => {
 				// Uploads stand outside the mount until something points into them,
 				// so they are only offered while the query is still a bare name
 				// rather than a path being walked down.
-				...(directory.length ? [] : uploadGroupsRef.current),
-				...(directory.length ? [] : chatGroupsRef.current),
+				...(directory.length ? [] : uploadGroups),
+				...(directory.length ? [] : chatGroups),
 				...local,
 			];
 		},
-		[client, getTree],
 	);
 
 	return { getAttachables };

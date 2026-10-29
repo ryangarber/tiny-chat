@@ -17,6 +17,7 @@ allowBuilds:
   tree-sitter-bash: true
   unrs-resolver: true
   workerd: true
+  ink@git+https://github.com/vadimdemedes/ink.git: true
 minimumReleaseAgeExclude:
   - "@ryangarber/*"
   - "@prisma/*"
@@ -39,17 +40,23 @@ peerDependencyRules:
     "@better-auth/prisma-adapter>prisma": "*"
 overrides:
   effect: "^4.0.5"
+  ink: "github:vadimdemedes/ink#1f40c53b151e2accaa5c32fd8c8e07651c1eb6bb"
 catalogs:
   typescript:
     "typescript": "^7.0.2"
+  react:
+    "react": "^19.3.1"
+    "react-dom": "^19.3.1"
+    "@types/react": "^19.3.0"
+    "@types/react-dom": "^19.3.0"
+    "react-devtools-core": "^8.0.0"
+    "babel-plugin-react-compiler": "^1.0.0"
   prisma:
-    "prisma": "8.0.0-rc.27"
-    "@prisma/orm-postgres": "8.0.0-rc.20"
-    "@prisma/orm-extension-paradedb": "8.0.0-rc.20"
-    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.20"
-    "@ryangarber/prisma-orm-extension-zod": "0.2.12"
-    "@ryangarber/better-auth-adapter-prisma": "0.1.12"
+    "prisma": "8.0.0-rc.28"
+    "@prisma/orm-postgres": "8.0.0-rc.21"
+    "@prisma/orm-extension-paradedb": "8.0.0-rc.21"
+    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.21"
+    "@ryangarber/prisma-orm-extension-zod": "0.2.13"
+    "@ryangarber/better-auth-adapter-prisma": "0.1.13"
 patchedDependencies:
-  "@alcalzone/ansi-tokenize@0.3.1": patches/@alcalzone__ansi-tokenize@0.3.1.patch
-  ink@8.0.0: patches/ink@8.0.0.patch
   native-run: patches/native-run.patch

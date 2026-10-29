@@ -35,11 +35,8 @@ export default function LogView({
 
 	useInput(
 		(_input, key) => {
-			const page = Math.max(1, (ref.current?.getViewportHeight() ?? 1) - 2);
 			if (key.upArrow) ref.current?.scrollBy(-1);
 			if (key.downArrow) ref.current?.scrollBy(1);
-			if (key.pageUp) ref.current?.scrollBy(-page);
-			if (key.pageDown) ref.current?.scrollBy(page);
 			if (key.home) ref.current?.scrollToTop();
 			if (key.end) ref.current?.scrollToBottom();
 		},
@@ -51,6 +48,7 @@ export default function LogView({
 	return (
 		<ScrollView
 			ref={ref}
+			paging={active}
 			stickToBottom
 			flexGrow={1}
 			flexShrink={1}

@@ -1,5 +1,6 @@
-import { useCallback, useContext, useRef } from "react";
+import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useLatestCallback } from "#client/core/hooks/useLatestCallback.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { useProviders } from "#client/features/agent/hooks/useProviders.ts";
@@ -21,10 +22,6 @@ import { usePresets } from "#client/features/settings/hooks/usePresets.ts";
 import { useProviderSettings } from "#client/features/settings/hooks/useProviderSettings.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import { ThemeUtils } from "#core/core/utils/ThemeUtils.ts";
-import type {
-	ChatState,
-	ProjectState,
-} from "#core/features/data/types/chat.ts";
 import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 import type { ModelProviderStatus } from "#core/features/provider/types/model.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
@@ -106,146 +103,30 @@ export const useCommands = ({
 		useEmbeddingSettings();
 	const { memoryBudget, setMemoryBudget } = useInstructions({ project });
 
-	const clientRef = useRef(client);
-	clientRef.current = client;
-
-	const chatRef = useRef(chat.data);
-	chatRef.current = chat.data;
-
-	const commandsRef = useRef(commands);
-	commandsRef.current = commands;
-
-	// What the host does for a command, read when the command runs.
-	const hostRef = useRef({
-		onOpenSettings,
-		onOpenChats,
-		onOpenFiles,
-		onOpenProjects,
-		onOpenConfig,
-		onOpenUploads,
-		onOpenGitHub,
-		onOpenMemories,
-		onOpenActions,
-		onOpenConsole,
-		onQuit,
-		onLogin,
-		onLogout,
-		update,
-	});
-	hostRef.current = {
-		onOpenSettings,
-		onOpenChats,
-		onOpenFiles,
-		onOpenProjects,
-		onOpenConfig,
-		onOpenUploads,
-		onOpenGitHub,
-		onOpenMemories,
-		onOpenActions,
-		onOpenConsole,
-		onQuit,
-		onLogin,
-		onLogout,
-		update,
-	};
-
 	const { session } = useSession();
-	const isAnonymousRef = useRef(true);
-	isAnonymousRef.current =
+	const isAnonymous =
 		!session.data?.user || session.data.user.isAnonymous === true;
 
 	// The chats most recently written in, across projects, and the newest
 	// projects, as far as the list has been loaded.
 	const { projects: chatList } = useChatList();
-	const recentsRef = useRef({
-		chats: [] as ChatState[],
-		projects: [] as ProjectState[],
-	});
-	const pages = chatList.data?.pages;
-	recentsRef.current = {
-		chats: (pages ?? [])
-			.flatMap((page) => [
-				...page.chats,
-				...page.projects.flatMap((project) => project.chats),
-			])
-			.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
-			.slice(0, RECENTS),
-		projects: (pages ?? []).flatMap((page) => page.projects).slice(0, RECENTS),
-	};
+	const pages = chatList.data?.pages ?? [];
+	const recentChats = pages
+		.flatMap((page) => [
+			...page.chats,
+			...page.projects.flatMap((project) => project.chats),
+		])
+		.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
+		.slice(0, RECENTS);
+	const recentProjects = pages
+		.flatMap((page) => page.projects)
+		.slice(0, RECENTS);
 
-	const providersRef = useRef(providers.data);
-	providersRef.current = providers.data;
-	const updateProvidersRef = useRef(updateProviders);
-	updateProvidersRef.current = updateProviders;
-
-	const configRef = useRef(config);
-	configRef.current = config;
-	const setConfigRef = useRef(setConfig);
-	setConfigRef.current = setConfig;
-	const setModelRef = useRef(setModel);
-	setModelRef.current = setModel;
-
-	const modelArgsRef = useRef(modelArgs);
-	modelArgsRef.current = modelArgs;
-	const setModelArgRef = useRef(setModelArg);
-	setModelArgRef.current = setModelArg;
-
-	const presetsRef = useRef(presets);
-	presetsRef.current = presets;
-	const setPresetRef = useRef(setPreset);
-	setPresetRef.current = setPreset;
-	const unsetPresetRef = useRef(unsetPreset);
-	unsetPresetRef.current = unsetPreset;
-
-	const skillsRef = useRef(skills);
-	skillsRef.current = skills;
-	const localSkillsRef = useRef(localSkills);
-	localSkillsRef.current = localSkills;
-
-	const refreshMcpServersRef = useRef(refreshMcpServers);
-	refreshMcpServersRef.current = refreshMcpServers;
-
-	// The settings that are a choice between a few plain values.
-	const settingsRef = useRef({
-		project,
-		theme,
-		setTheme,
-		codeTheme,
-		setCodeTheme,
-		useProviderCache,
-		setUseProviderCache,
-		useBrowserModels,
-		setUseBrowserModels,
-		preferredWebProvider,
-		setPreferredWebProvider,
-		embeddingConfig,
-		useEmbeddingSearch,
-		setUseEmbeddingSearch,
-		memoryBudget,
-		setMemoryBudget,
-	});
-	settingsRef.current = {
-		project,
-		theme,
-		setTheme,
-		codeTheme,
-		setCodeTheme,
-		useProviderCache,
-		setUseProviderCache,
-		useBrowserModels,
-		setUseBrowserModels,
-		preferredWebProvider,
-		setPreferredWebProvider,
-		embeddingConfig,
-		useEmbeddingSearch,
-		setUseEmbeddingSearch,
-		memoryBudget,
-		setMemoryBudget,
-	};
-
-	const getCommands = useCallback((): CommandGroup[] => {
+	// Built from what this render holds, so a host rendering the list shows
+	// what is in effect now; the compiler rebuilds it only when that changes.
+	const groups = ((): CommandGroup[] => {
 		const models: CommandChoiceGroup[] =
-			providersRef.current
+			providers.data
 				?.filter(
 					(provider): provider is ProviderState<ModelProviderStatus> =>
 						provider.type === "model",
@@ -256,17 +137,16 @@ export const useCommands = ({
 						name: model.name,
 						value: model.name,
 						active:
-							configRef.current.provider === provider.name &&
-							configRef.current.model === model.name,
+							config.provider === provider.name && config.model === model.name,
 						run: () =>
-							setModelRef.current({
+							setModel({
 								provider: provider.name,
 								model: model.name,
 							}),
 					})),
 				})) ?? [];
 
-		const modelArgs: CommandItem[] = modelArgsRef.current.flatMap((arg) => {
+		const argItems: CommandItem[] = modelArgs.flatMap((arg) => {
 			if (arg.type === "list") {
 				return {
 					name: arg.name,
@@ -277,10 +157,9 @@ export const useCommands = ({
 								name: value,
 								value,
 								active:
-									configRef.current.args?.[arg.name] === value ||
-									(!configRef.current.args?.[arg.name] &&
-										arg.default === value),
-								run: () => setModelArgRef.current(arg.name, value),
+									config.args?.[arg.name] === value ||
+									(!config.args?.[arg.name] && arg.default === value),
+								run: () => setModelArg(arg.name, value),
 							})),
 						},
 					],
@@ -295,39 +174,35 @@ export const useCommands = ({
 						const int = Number(value);
 						if (!Number.isInteger(int)) return;
 						if (int < arg.min || int > arg.max) return;
-						setModelArgRef.current(arg.name, int);
+						setModelArg(arg.name, int);
 					},
 				};
 			}
 			return [];
 		});
 
-		const presets: CommandChoiceGroup[] = [
+		const presetChoices: CommandChoiceGroup[] = [
 			{
-				items: Object.entries(presetsRef.current ?? {}).map(
-					([name, preset]) => ({
-						name,
-						value: name,
-						run: (command) => {
-							if (command.name === "preset") {
-								setConfigRef.current(preset);
-							} else if (command.name === "unset-preset") {
-								unsetPresetRef.current.mutate({
-									name,
-								});
-							}
-						},
-					}),
-				),
+				items: Object.entries(presets ?? {}).map(([name, preset]) => ({
+					name,
+					value: name,
+					run: (command) => {
+						if (command.name === "preset") {
+							setConfig(preset);
+						} else if (command.name === "unset-preset") {
+							unsetPreset.mutate({
+								name,
+							});
+						}
+					},
+				})),
 			},
 		];
 
-		const skills: CommandItem[] = skillsRef.current.map((skill) => ({
+		const skillItems: CommandItem[] = skills.map((skill) => ({
 			name: skill.name,
 			value: `skill:${skill.path}`,
 		}));
-
-		const host = hostRef.current;
 
 		/** A command the host runs, offered only where it has one. */
 		const hosted = (name: string, run?: () => void): CommandItem[] =>
@@ -335,28 +210,28 @@ export const useCommands = ({
 
 		// Only offered where the host has somewhere to open them.
 		const uploads: CommandItem[] = [
-			...hosted("uploads", host.onOpenUploads),
-			...hosted("github", host.onOpenGitHub),
+			...hosted("uploads", onOpenUploads),
+			...hosted("github", onOpenGitHub),
 		];
 
 		// What the user is remembered by and has scheduled, across their chats.
 		const userData: CommandItem[] = [
-			...hosted("memories", host.onOpenMemories),
-			...hosted("actions", host.onOpenActions),
+			...hosted("memories", onOpenMemories),
+			...hosted("actions", onOpenActions),
 		];
 
 		const app: CommandItem[] = [
-			...(host.update ? hosted("update", host.update.install) : []),
-			...(isAnonymousRef.current
-				? hosted("login", host.onLogin)
+			...(update ? hosted("update", update.install) : []),
+			...(isAnonymous
+				? hosted("login", onLogin)
 				: hosted("logout", async () => {
-						await clientRef.current.auth.signOut();
-						hostRef.current.onLogout?.();
+						await client.auth.signOut();
+						onLogout?.();
 					})),
-			...hosted("quit", host.onQuit),
+			...hosted("quit", onQuit),
 		];
 
-		const shell: CommandItem[] = clientRef.current.shell?.chdir
+		const shell: CommandItem[] = client.shell?.chdir
 			? [
 					{
 						name: "cd",
@@ -364,13 +239,11 @@ export const useCommands = ({
 						dynamic: true,
 						run: async (value) => {
 							if (!value) return;
-							await clientRef.current.shell?.chdir?.({ path: value });
+							await client.shell?.chdir?.({ path: value });
 						},
 					},
 				]
 			: [];
-
-		const settings = settingsRef.current;
 
 		/** A command choosing between plain values, the one in effect marked. */
 		const choice = (
@@ -394,49 +267,49 @@ export const useCommands = ({
 		});
 
 		const webProviders =
-			providersRef.current
+			providers.data
 				?.filter((provider) => provider.type === "web" && provider.status.valid)
 				.map((provider) => provider.name) ?? [];
 
 		const simpleSettings: CommandItem[] = [
-			choice("theme", ThemeUtils.themes, settings.theme, (value) =>
-				settings.setTheme.mutate({ theme: value as typeof settings.theme }),
+			choice("theme", ThemeUtils.themes, theme, (value) =>
+				setTheme.mutate({ theme: value as typeof theme }),
 			),
 			choice(
 				"code-theme",
-				ThemeUtils.codeThemesByTheme[settings.theme],
-				settings.codeTheme,
+				ThemeUtils.codeThemesByTheme[theme],
+				codeTheme,
 				(value) =>
-					settings.setCodeTheme.mutate({
-						codeTheme: value as typeof settings.codeTheme,
+					setCodeTheme.mutate({
+						codeTheme: value as typeof codeTheme,
 					}),
 			),
 			choice(
 				"provider-cache",
 				["on", "off"],
-				onOff(settings.useProviderCache),
+				onOff(useProviderCache),
 				(value) =>
-					settings.setUseProviderCache.mutate({
+					setUseProviderCache.mutate({
 						useProviderCache: value === "on",
 					}),
 			),
 			choice(
 				"browser-models",
 				["on", "off"],
-				onOff(settings.useBrowserModels),
+				onOff(useBrowserModels),
 				(value) =>
-					settings.setUseBrowserModels.mutate({
+					setUseBrowserModels.mutate({
 						useBrowserModels: value === "on",
 					}),
 			),
 			choice(
 				"smart-search",
 				["on", "off"],
-				onOff(settings.useEmbeddingSearch),
+				onOff(useEmbeddingSearch),
 				(value) => {
 					// Search runs on embeddings, so there is nothing to turn on without a model.
-					if (!settings.embeddingConfig) return;
-					settings.setUseEmbeddingSearch.mutate({
+					if (!embeddingConfig) return;
+					setUseEmbeddingSearch.mutate({
 						useEmbeddingSearch: value === "on",
 					});
 				},
@@ -444,25 +317,23 @@ export const useCommands = ({
 			choice(
 				"memory-budget",
 				MEMORY_BUDGETS.map(String),
-				String(settings.memoryBudget),
+				String(memoryBudget),
 				(value) =>
-					settings.setMemoryBudget.mutate({
-						project: settings.project,
+					setMemoryBudget.mutate({
+						project: project,
 						tokens: Number(value),
 					}),
 			),
 			choice(
 				"web-provider",
 				webProviders,
-				settings.preferredWebProvider ?? undefined,
+				preferredWebProvider ?? undefined,
 				(value) =>
-					settings.setPreferredWebProvider.mutate({
+					setPreferredWebProvider.mutate({
 						preferredWebProvider: value,
 					}),
 			),
 		];
-
-		const recents = recentsRef.current;
 
 		/**
 		 * The full list, after the recents and ranked among them, so typing it
@@ -485,16 +356,16 @@ export const useCommands = ({
 							{
 								name: "(none)",
 								value: "(none)",
-								active: settings.project === null,
+								active: project === null,
 								run: () => ChatService.newChat(null),
 							},
-							...recents.projects.map((project) => ({
-								name: project.title || "Untitled",
-								value: project.id,
-								active: settings.project?.id === project.id,
-								run: () => ChatService.newChat(project),
+							...recentProjects.map((recent) => ({
+								name: recent.title || "Untitled",
+								value: recent.id,
+								active: project?.id === recent.id,
+								run: () => ChatService.newChat(recent),
 							})),
-							more(() => hostRef.current.onOpenProjects()),
+							more(() => onOpenProjects()),
 						],
 					},
 				],
@@ -506,28 +377,28 @@ export const useCommands = ({
 					{
 						name: "Recent",
 						items: [
-							...recents.chats.map((chat) => ({
-								name: chat.title || "Untitled",
-								value: chat.id,
-								active: chatRef.current?.id === chat.id,
-								run: () => ChatService.setChat(chat),
+							...recentChats.map((recent) => ({
+								name: recent.title || "Untitled",
+								value: recent.id,
+								active: chat.data?.id === recent.id,
+								run: () => ChatService.setChat(recent),
 							})),
-							more(() => hostRef.current.onOpenChats()),
+							more(() => onOpenChats()),
 						],
 					},
 				],
 			},
-			...hosted("files", host.onOpenFiles),
-			...hosted("settings", host.onOpenSettings),
-			...hosted("config", host.onOpenConfig),
-			...hosted("console", host.onOpenConsole),
+			...hosted("files", onOpenFiles),
+			...hosted("settings", onOpenSettings),
+			...hosted("config", onOpenConfig),
+			...hosted("console", onOpenConsole),
 		];
 
 		return [
 			{
 				name: "Commands",
 				items: [
-					...commandsRef.current,
+					...commands,
 					...navigation,
 					...simpleSettings,
 					{
@@ -538,14 +409,14 @@ export const useCommands = ({
 						},
 					},
 					{ name: "model", value: "model", choices: models },
-					...modelArgs,
+					...argItems,
 					{
 						name: "reload",
 						value: "reload",
 						run: () => {
-							updateProvidersRef.current.mutate({});
-							void localSkillsRef.current.refetch();
-							refreshMcpServersRef.current.mutate({});
+							updateProviders.mutate({});
+							void localSkills.refetch();
+							refreshMcpServers.mutate({});
 						},
 					},
 					{
@@ -554,21 +425,21 @@ export const useCommands = ({
 						dynamic: true,
 						run: (value) => {
 							if (!value) return;
-							setPresetRef.current.mutate({
+							setPreset.mutate({
 								name: value,
-								config: configRef.current,
+								config: config,
 							});
 						},
 					},
 					{
 						name: "unset-preset",
 						value: "unset-preset",
-						choices: presets,
+						choices: presetChoices,
 					},
 					{
 						name: "preset",
 						value: "preset",
-						choices: presets,
+						choices: presetChoices,
 					},
 					{ name: "system-prompt", value: "system-prompt", dynamic: true },
 					...userData,
@@ -579,10 +450,13 @@ export const useCommands = ({
 			},
 			{
 				name: "Skills",
-				items: skills,
+				items: skillItems,
 			},
 		];
-	}, []);
+	})();
 
-	return { getCommands };
+	// For a host that takes the list in once and asks for it when it is needed.
+	const getCommands = useLatestCallback(() => groups);
+
+	return { commands: groups, getCommands };
 };

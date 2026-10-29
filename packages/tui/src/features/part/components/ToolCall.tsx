@@ -77,7 +77,7 @@ function ToolCallBody({
 								? "error"
 								: "success"
 					}
-					emoji="⚙️ "
+					emoji="🔧"
 					parts={toStatusParts(display.status)}
 				/>
 				{interrupt && <Button label="stop" onClick={interrupt} />}

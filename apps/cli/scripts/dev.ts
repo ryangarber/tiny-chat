@@ -98,7 +98,6 @@ async function reload(inputs: string[] | null) {
 	}
 }
 
-// biome-ignore lint/correctness/useHookAtTopLevel: not a hook
 const cleanup = await useServer({ execPath: "node", quiet: true });
 
 setExitHandler((isCtrlD) => {

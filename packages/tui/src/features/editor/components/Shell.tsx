@@ -1,5 +1,5 @@
 import { useInput, useWindowSize } from "ink";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useShellCommand } from "#client/features/shell/hooks/useShellCommand.ts";
@@ -8,9 +8,7 @@ import type { Toolset } from "#core/features/tool/types/tool.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
+import ScrollView from "#tui/core/components/ScrollView.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
 import ToolBlock from "#tui/features/part/components/ToolBlock.tsx";
@@ -30,14 +28,10 @@ function ShellRunView({
 	onDismiss: () => void;
 }) {
 	const { rows } = useWindowSize();
-	const ref = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
 	const display = useToolCall({ part: run, toolsets });
 	const { interrupt } = display;
 
 	useInput((_input, key) => {
-		const page = Math.max(1, (ref.current?.getViewportHeight() ?? 1) - 2);
-		if (key.pageUp) ref.current?.scrollBy(-page);
-		if (key.pageDown) ref.current?.scrollBy(page);
 		if (key.escape) {
 			if (interrupt) interrupt();
 			else onDismiss();
@@ -62,7 +56,7 @@ function ShellRunView({
 				{interrupt && <Button label="stop" onClick={interrupt} />}
 			</Box>
 			<ScrollView
-				ref={ref}
+				paging
 				stickToBottom
 				resetKey={run.id}
 				maxHeight={Math.floor(rows / 2)}

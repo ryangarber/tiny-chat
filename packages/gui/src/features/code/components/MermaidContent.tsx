@@ -2,19 +2,12 @@
 
 import { Loader, UnstyledButton } from "@mantine/core";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Code from "#gui/features/code/components/Code.tsx";
-import PanZoom from "#gui/features/code/components/PanZoom.tsx";
 import { useDeferredRender } from "#gui/features/code/hooks/useDeferredRenderer.ts";
 import { useMermaid } from "#gui/features/code/hooks/useMermaid.ts";
 
-export default function MermaidContent({
-	chart,
-	fullscreen,
-}: {
-	chart: string;
-	fullscreen?: boolean;
-}) {
+export default function MermaidContent({ chart }: { chart: string }) {
 	const { mermaid } = useMermaid();
 
 	const [error, setError] = useState<string | null>(null);
@@ -23,14 +16,8 @@ export default function MermaidContent({
 	const [lastValidSvg, setLastValidSvg] = useState<string>("");
 	const [retryCount, setRetryCount] = useState(0);
 
-	const className = useMemo(() => {
-		return fullscreen ? " size-full [&_svg]:h-auto [&_svg]:w-auto" : "";
-	}, [fullscreen]);
-
 	// Use deferred render hook for optimal performance
-	const { shouldRender, containerRef } = useDeferredRender({
-		immediate: fullscreen,
-	});
+	const { shouldRender, containerRef } = useDeferredRender();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: "Required for Mermaid"
 	useEffect(() => {
@@ -77,15 +64,12 @@ export default function MermaidContent({
 
 	// Show placeholder when not scheduled to render
 	if (!(shouldRender || svgContent || lastValidSvg)) {
-		return <div className={`my-4 min-h-50${className}`} ref={containerRef} />;
+		return <div className="my-4 min-h-50" ref={containerRef} />;
 	}
 
 	if (isLoading && !svgContent && !lastValidSvg) {
 		return (
-			<div
-				className={`my-4 flex justify-center p-4${className}`}
-				ref={containerRef}
-			>
+			<div className="my-4 flex justify-center p-4" ref={containerRef}>
 				<div className="flex items-center space-x-2 text-muted-foreground">
 					<div className="h-4 w-4 animate-spin rounded-full border-current border-b-2" />
 					<Loader size="sm" />
@@ -97,7 +81,7 @@ export default function MermaidContent({
 	// Only show error if we have no valid SVG to display
 	if (error && !svgContent && !lastValidSvg) {
 		return (
-			<div className={`rounded-md p-4${className}`} ref={containerRef}>
+			<div className="rounded-md p-4" ref={containerRef}>
 				<p className="font-mono text-red-700 text-sm">Mermaid Error: {error}</p>
 				<UnstyledButton
 					mt={5}
@@ -122,26 +106,14 @@ export default function MermaidContent({
 	const displaySvg = svgContent || lastValidSvg;
 
 	return (
-		<div
-			className={`size-full${className}`}
-			data-streamdown="mermaid"
-			ref={containerRef}
-		>
-			<PanZoom
-				className={`overflow-hidden${className}`}
-				fullscreen={fullscreen}
-				maxZoom={3}
-				minZoom={0.5}
-				zoomStep={0.1}
-			>
-				<div
-					aria-label="Mermaid chart"
-					className={`flex justify-center${fullscreen ? " size-full items-center" : ""}`}
-					// biome-ignore lint/security/noDangerouslySetInnerHtml: "Required for Mermaid"
-					dangerouslySetInnerHTML={{ __html: displaySvg }}
-					role="img"
-				/>
-			</PanZoom>
+		<div className="size-full" data-streamdown="mermaid" ref={containerRef}>
+			<div
+				aria-label="Mermaid chart"
+				className="flex justify-center"
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: "Required for Mermaid"
+				dangerouslySetInnerHTML={{ __html: displaySvg }}
+				role="img"
+			/>
 		</div>
 	);
 }

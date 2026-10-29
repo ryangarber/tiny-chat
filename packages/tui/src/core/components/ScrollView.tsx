@@ -2,6 +2,7 @@ import {
 	type DOMElement,
 	measureElement,
 	useBoxMetrics,
+	useInput,
 	useWindowSize,
 } from "ink";
 import {
@@ -71,6 +72,12 @@ export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 	wheel?: boolean;
 	/** Rows a single turn of the wheel moves. @default 3 */
 	wheelStep?: number;
+	/**
+	 * Takes PageUp and PageDown (Fn+↑↓ on a Mac), each moving a viewport less
+	 * the two rows kept for context. For the one view that has the keys.
+	 * @default false
+	 */
+	paging?: boolean;
 
 	onScroll?: (offset: number) => void;
 	/** Called while the viewport rests within {@link edgeThreshold} of the top. */
@@ -132,6 +139,9 @@ const held = (heights: ReadonlyMap<string, number>, keys: string[]) => {
 	};
 };
 
+/** Rows a page moves through a viewport: all of it but two kept for context. */
+export const pageRows = (viewport: number) => Math.max(1, viewport - 2);
+
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(Math.max(value, min), Math.max(min, max));
 
@@ -164,6 +174,7 @@ export default function ScrollView({
 	resetKey,
 	wheel = true,
 	wheelStep = 3,
+	paging = false,
 	onScroll,
 	onReachTop,
 	onReachBottom,
@@ -358,6 +369,15 @@ export default function ScrollView({
 		},
 		isActive: wheel && !parent,
 	});
+
+	useInput(
+		(_input, key) => {
+			if (!key.pageUp && !key.pageDown) return;
+			const page = pageRows(getViewportHeight());
+			scrollBy(key.pageUp ? -page : page);
+		},
+		{ isActive: paging },
+	);
 
 	const items = useMemo(() => Children.toArray(children), [children]);
 

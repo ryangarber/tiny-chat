@@ -9,6 +9,7 @@ import {
 	Loader,
 	Menu,
 	Modal,
+	Text,
 } from "@mantine/core";
 import { type UseDisclosureReturnValue, useDisclosure } from "@mantine/hooks";
 import {
@@ -16,6 +17,8 @@ import {
 	CopyIcon,
 	DownloadIcon,
 	FrameCornersIcon,
+	MagnifyingGlassMinusIcon,
+	MagnifyingGlassPlusIcon,
 	XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -30,6 +33,7 @@ import {
 } from "react";
 import type { PromiseOr } from "#core/core/types/common.ts";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
+import { useZoom, type ZoomControls } from "#gui/core/hooks/useZoom.ts";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 import FindScope from "#gui/features/find/components/FindScope.tsx";
 
@@ -138,6 +142,7 @@ function ContentActions<T extends string>({
 	streaming,
 	open,
 	close,
+	zoom,
 	withinPortal,
 	subtleButtons = true,
 }: {
@@ -146,6 +151,7 @@ function ContentActions<T extends string>({
 	streaming?: boolean;
 	open?: () => void;
 	close?: () => void;
+	zoom?: ZoomControls;
 	withinPortal?: boolean;
 	subtleButtons?: boolean;
 }) {
@@ -165,6 +171,37 @@ function ContentActions<T extends string>({
 
 	return (
 		<ActionIcon.Group>
+			{zoom && (
+				<>
+					<ActionIcon
+						aria-label="Zoom out"
+						disabled={!zoom.canZoomOut}
+						onClick={zoom.zoomOut}
+						{...actionProps}
+					>
+						<MagnifyingGlassMinusIcon size={20} />
+					</ActionIcon>
+					<ActionIcon
+						aria-label="Reset zoom"
+						onClick={zoom.reset}
+						{...actionProps}
+						w="auto"
+						px={6}
+					>
+						<Text size="xs" miw="4ch" ta="center">
+							{Math.round(zoom.zoom * 100)}%
+						</Text>
+					</ActionIcon>
+					<ActionIcon
+						aria-label="Zoom in"
+						disabled={!zoom.canZoomIn}
+						onClick={zoom.zoomIn}
+						{...actionProps}
+					>
+						<MagnifyingGlassPlusIcon size={20} />
+					</ActionIcon>
+				</>
+			)}
 			{formats && (
 				<>
 					<Menu
@@ -257,6 +294,15 @@ export default function Content<T extends string>({
 	const uncontrolledDisclosure = useDisclosure();
 	const [opened, { open, close }] =
 		controlledDisclosure ?? uncontrolledDisclosure;
+	const {
+		setScroller,
+		setFrame,
+		setContent,
+		scrollerStyle,
+		frameStyle,
+		contentStyle,
+		...zoom
+	} = useZoom();
 
 	return (
 		<>
@@ -297,6 +343,14 @@ export default function Content<T extends string>({
 				size="100%"
 				centered
 				overlayProps={{ blur: 3 }}
+				styles={{
+					content: {
+						display: "flex",
+						flexDirection: "column",
+						overflow: "hidden",
+					},
+					body: { display: "flex", flex: 1, minHeight: 0, padding: 0 },
+				}}
 			>
 				<Affix
 					position={{
@@ -309,6 +363,7 @@ export default function Content<T extends string>({
 						formatter={formatter}
 						streaming={streaming}
 						close={close}
+						zoom={zoom}
 						subtleButtons={false}
 					/>
 				</Affix>
@@ -318,8 +373,24 @@ export default function Content<T extends string>({
 						text={findText}
 						region
 						className="selectable"
+						display="flex"
+						flex={1}
+						miw={0}
+						pos="relative"
 					>
-						{children}
+						<Box
+							ref={setScroller}
+							flex={1}
+							miw={0}
+							style={scrollerStyle}
+							data-no-swipe
+						>
+							<div ref={setFrame} style={frameStyle}>
+								<Box ref={setContent} p="md" style={contentStyle}>
+									{children}
+								</Box>
+							</div>
+						</Box>
 					</FindScope>
 				)}
 			</Modal>

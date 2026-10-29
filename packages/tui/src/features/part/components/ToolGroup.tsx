@@ -82,7 +82,7 @@ export default function ToolGroup({
 				<Task expanded={expanded} onToggle={toggle}>
 					<Task.Status
 						status={group.pending ? "pending" : "success"}
-						emoji="🧰"
+						emoji="🔧"
 						parts={toStatusParts(group.status)}
 					/>
 					<Task.Details

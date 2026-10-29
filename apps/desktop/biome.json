@@ -1,15 +1,8 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
 	"root": false,
 	"extends": "//",
 	"files": {
 		"includes": ["**", "!assets", "!.hutch", "!build", "!.cottontail-tmp"]
-	},
-	"linter": {
-		"rules": {
-			"nursery": {
-				"useReactCompiler": "error"
-			}
-		}
 	}
 }

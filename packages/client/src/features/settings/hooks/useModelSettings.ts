@@ -24,17 +24,16 @@ export const useModelSettings = () => {
 	});
 
 	/** Saves the subagent config, shown at once so quick edits each build on the last. */
+	const { data: settingsData, refetch: refetchSettings } = settings;
+	const { mutate: saveSubagentConfig } = setSubagentConfig;
 	const updateSubagentConfig = useCallback(
 		(config: zConfig | null) => {
-			if (settings.data) {
-				applySettings({ ...settings.data, subagentConfig: config });
+			if (settingsData) {
+				applySettings({ ...settingsData, subagentConfig: config });
 			}
-			setSubagentConfig.mutate(
-				{ config },
-				{ onError: () => void settings.refetch() },
-			);
+			saveSubagentConfig({ config }, { onError: () => void refetchSettings() });
 		},
-		[settings, applySettings, setSubagentConfig.mutate],
+		[settingsData, refetchSettings, applySettings, saveSubagentConfig],
 	);
 
 	const dreamConfig = useMemo(() => {

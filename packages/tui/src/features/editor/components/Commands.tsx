@@ -42,7 +42,7 @@ export default function Commands({
 
 	const version = update.data;
 
-	const { getCommands } = useCommands({
+	const { commands } = useCommands({
 		onOpenSettings: () => setFocus("settings"),
 		onOpenChats: () => openPanel("chats"),
 		onOpenFiles: () => togglePanel("files"),
@@ -72,7 +72,6 @@ export default function Commands({
 			: undefined,
 	});
 
-	const commands = getCommands();
 	const query = CommandUtils.query({ content, cursor, groups: commands });
 
 	const commandGroups =

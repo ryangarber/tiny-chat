@@ -1,5 +1,15 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
 	"root": false,
-	"extends": "//"
+	"extends": "//",
+	"linter": {
+		"rules": {
+			"nursery": {
+				"useReactCompiler": "error"
+			}
+		},
+		"domains": {
+			"react": "recommended"
+		}
+	}
 }

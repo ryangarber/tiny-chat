@@ -135,6 +135,23 @@ export const ChatService = {
 	 * including when it is moved to another.
 	 */
 	watch: ({ client }: { client: Client }) => {
+		// Entering an existing chat adopts its last config once its messages load.
+		const syncConfig = () => {
+			const { syncChatId, setOverrideConfig, setSyncChatId } =
+				useConfigStore.getState();
+			if (!syncChatId || syncChatId !== useChatStore.getState().active.chatId)
+				return;
+			const history = MessageQueryService.getCurrent(client, syncChatId);
+			if (!history) return;
+			const config = MessageQueryService.getLastConfig(history.messages);
+			if (config) {
+				setOverrideConfig(config);
+				client.setStorage("config", config);
+			} else {
+				setSyncChatId(null);
+			}
+		};
+
 		const load = () => {
 			const { active, load } = useChatStore.getState();
 			if (!active.chatId) return;
@@ -155,19 +172,25 @@ export const ChatService = {
 			},
 		);
 
+		const unsubscribeConfig = useConfigStore.subscribe((state, previous) => {
+			if (state.syncChatId !== previous.syncChatId) syncConfig();
+		});
+
 		const chatKey = { queryKey: client.query.chat.getChat.pathKey() };
+		const messagesKey = {
+			queryKey: client.query.message.getMessages.pathKey(),
+		};
 		const unsubscribeCache = client.queryClient
 			.getQueryCache()
 			.subscribe((event) => {
-				if (
-					(event.type === "added" || event.type === "updated") &&
-					matchQuery(chatKey, event.query)
-				)
-					load();
+				if (event.type !== "added" && event.type !== "updated") return;
+				if (matchQuery(chatKey, event.query)) load();
+				if (matchQuery(messagesKey, event.query)) syncConfig();
 			});
 
 		return () => {
 			unsubscribeChat();
+			unsubscribeConfig();
 			unsubscribeCache();
 		};
 	},

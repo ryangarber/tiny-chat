@@ -1,21 +1,68 @@
-/// <reference types="../../../vitest.context.d.ts" />
-
 import "./db.ts";
+
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { inferPrismaClient } from "@ryangarber/better-auth-adapter-prisma/client";
 import { createTRPCClient, httpLink } from "@trpc/client";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createAuthClient } from "better-auth/client";
 import {
 	anonymousClient,
 	inferAdditionalFields,
 } from "better-auth/client/plugins";
-import { beforeAll, inject } from "vitest";
+import { beforeAll } from "vitest";
 import { JsonService } from "#core/core/services/JsonService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
 import type { userFields } from "#core/prisma/better-auth-adapter.ts";
-import type { ApiRouter } from "#server/core/utils/ApiRouter.ts";
-import type { AuthServer } from "#server/core/utils/AuthServer.ts";
+import { ApiContext } from "#server/core/utils/ApiContext.ts";
+import { ApiRouter } from "#server/core/utils/ApiRouter.ts";
+import { AuthServer } from "#server/core/utils/AuthServer.ts";
+
+const serverUrl = "http://tests.local";
+
+/**
+ * A `fetch` that hands the request straight to a handler in this process
+ * instead of the network, so coverage sees the server code it runs. Like a real
+ * fetch, it rejects as soon as the request is aborted.
+ */
+function inProcessFetch(
+	handler: (request: Request) => Promise<Response>,
+): typeof fetch {
+	return async (input, init) => {
+		const request = new Request(input, init);
+		request.signal.throwIfAborted();
+		return await Promise.race([
+			handler(request),
+			new Promise<never>((_, reject) => {
+				request.signal.addEventListener(
+					"abort",
+					() => reject(request.signal.reason),
+					{ once: true },
+				);
+			}),
+		]);
+	};
+}
+
+const apiFetch = inProcessFetch((request) =>
+	fetchRequestHandler({
+		router: ApiRouter,
+		endpoint: CommonUtils.endpoints.api,
+		req: request,
+		allowMethodOverride: true,
+		// Routes only read the request's headers, as the Node handler gives them.
+		createContext: () =>
+			ApiContext({
+				req: {
+					headers: Object.fromEntries(request.headers),
+				} as IncomingMessage,
+				res: undefined as unknown as ServerResponse,
+			}),
+	}),
+);
+
+const authFetch = inProcessFetch((request) => AuthServer.handler(request));
 
 const nextId = () => crypto.getRandomValues(new Uint8Array(24)).join("");
 
@@ -77,7 +124,8 @@ export function testUser(overrides: Partial<zUser> = {}): zUser {
 
 /**
  * Crates a temporary user and session and returns an authenticated API client.
- * Best for more complicated, real-world integration tests.
+ * Best for more complicated, real-world integration tests. Requests run the
+ * server's handlers in this process rather than going over HTTP.
  */
 export function testClient(user = testUser()) {
 	const session = {
@@ -103,7 +151,8 @@ export function testClient(user = testUser()) {
 		api: createTRPCClient<ApiRouter>({
 			links: [
 				httpLink({
-					url: `${inject("serverUrl")}${CommonUtils.endpoints.api}/`,
+					url: `${serverUrl}${CommonUtils.endpoints.api}/`,
+					fetch: apiFetch,
 					transformer: JsonService.transformer,
 					headers: () => ({ Authorization: `Bearer ${session.token}` }),
 					methodOverride: "POST",
@@ -112,9 +161,10 @@ export function testClient(user = testUser()) {
 		}),
 		auth: inferPrismaClient<typeof userFields>()(
 			createAuthClient({
-				baseURL: inject("serverUrl"),
+				baseURL: serverUrl,
 				basePath: CommonUtils.endpoints.auth,
 				fetchOptions: {
+					customFetchImpl: authFetch,
 					auth: {
 						type: "Bearer",
 						token: () => session.token,

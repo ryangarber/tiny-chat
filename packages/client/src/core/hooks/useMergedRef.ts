@@ -1,6 +1,7 @@
 /** @author https://github.com/mantinedev/mantine/blob/master/packages/@mantine/hooks/src/use-merged-ref/use-merged-ref.ts */
 
-import { type Ref, type RefCallback, useCallback } from "react";
+import { type Ref, type RefCallback, useMemo } from "react";
+import { useStableValue } from "#client/core/hooks/useStableValue.ts";
 
 type PossibleRef<T> = Ref<T> | undefined;
 
@@ -41,7 +42,11 @@ function mergeRefs<T>(...refs: PossibleRef<T>[]): RefCallback<T> {
 	};
 }
 
+const isSameRefs = <T>(a: PossibleRef<T>[], b: PossibleRef<T>[]) =>
+	a.length === b.length && a.every((ref, index) => ref === b[index]);
+
 export function useMergedRef<T>(...refs: PossibleRef<T>[]) {
-	// biome-ignore lint/correctness/useExhaustiveDependencies: blame mantine
-	return useCallback(mergeRefs(...refs), refs);
+	// The rest array is new each render; the merged ref changes only with a ref.
+	const stableRefs = useStableValue(refs, isSameRefs);
+	return useMemo(() => mergeRefs(...stableRefs), [stableRefs]);
 }

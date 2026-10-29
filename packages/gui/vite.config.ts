@@ -100,7 +100,6 @@ export function defineRuntimeConfig({
 			cacheDir: "../../node_modules/.vite",
 			test: {
 				setupFiles: ["./src/tests.ts"],
-				include: ["**/*.test.tsx"],
 				browser: {
 					enabled: true,
 					provider: playwright({ launchOptions: { channel: "chromium" } }),

@@ -6,7 +6,7 @@ import type {
 	Parent,
 	RootContent,
 } from "mdast";
-import { type JSX, useMemo, useRef } from "react";
+import { type JSX, useMemo } from "react";
 import RehypeKatex from "rehype-katex";
 import RehypeRaw from "rehype-raw";
 import RehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -18,6 +18,7 @@ import RemarkParse from "remark-parse";
 import RemarkRehype from "remark-rehype";
 import { type PluggableList, type Processor, unified } from "unified";
 import { visit } from "unist-util-visit";
+import { useStableValue } from "#client/core/hooks/useStableValue.ts";
 import { MarkdownUtils } from "#client/features/message/utils/MarkdownUtils.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 import {
@@ -421,11 +422,7 @@ export const useMarkdown = ({
 	// are the same parts: a source is rebuilt by whatever renders it, and parts
 	// joined anew from it would miss every block's memo and parse the whole
 	// message again with each render — each token, while it streams.
-	const previousParts = useRef(NO_PARTS);
-	const parts = isSameParts(previousParts.current, joined.parts)
-		? previousParts.current
-		: joined.parts;
-	previousParts.current = parts;
+	const parts = useStableValue(joined.parts, isSameParts);
 
 	const content = useMemo(() => {
 		const normalized = MarkdownUtils.normalize(

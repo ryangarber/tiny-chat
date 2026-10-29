@@ -5,6 +5,7 @@ import {
 	useCallback,
 	useEffect,
 	useId,
+	useRef,
 	useState,
 } from "react";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
@@ -16,6 +17,7 @@ import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import HelpText, { type Action } from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
 import ScrollView, {
+	pageRows,
 	type ScrollViewProps,
 } from "#tui/core/components/ScrollView.tsx";
 import Text from "#tui/core/components/Text.tsx";
@@ -90,6 +92,7 @@ export default function Completions<
 	selectFirstOnChange = true,
 	stickToBottom,
 	fill = false,
+	ref: _ref,
 	...props
 }: CompletionsProps<T1, T2>) {
 	const { rows } = useWindowSize();
@@ -123,6 +126,34 @@ export default function Completions<
 			});
 		};
 	}, [isEmpty, active]);
+
+	const ownRef = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const ref = _ref ?? ownRef;
+
+	/**
+	 * Moves the selection a page — the rows the view would scroll — and the
+	 * view with it, stopping at either end rather than wrapping around.
+	 */
+	const pickPage = (direction: -1 | 1) => {
+		const view = ref.current;
+		const from = view?.getItemPosition(selected);
+		if (!view || !from || !items.length) return;
+		const page = pageRows(view.getViewportHeight());
+		let next = selected;
+		for (
+			let index = selected + direction;
+			index >= 0 && index < items.length;
+			index += direction
+		) {
+			const position = view.getItemPosition(index);
+			if (!position || Math.abs(position.top - from.top) > page) break;
+			next = index;
+		}
+		// A row taller than a page is still a step.
+		if (next === selected)
+			next = Math.min(Math.max(selected + direction, 0), items.length - 1);
+		setSelected(() => next);
+	};
 
 	const pick = useCallback(
 		(offset: number) => {
@@ -186,6 +217,8 @@ export default function Completions<
 		if (key.shift) return;
 		if (key.upArrow) pick(-1);
 		if (key.downArrow) pick(1);
+		if (key.pageUp) pickPage(-1);
+		if (key.pageDown) pickPage(1);
 	};
 
 	useInput((input, key) => dispatch(input, key), { isActive: active });
@@ -236,6 +269,7 @@ export default function Completions<
 		>
 			{before}
 			<ScrollView
+				ref={ref}
 				selectedIndex={selected}
 				{...(fill
 					? { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 }

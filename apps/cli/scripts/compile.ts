@@ -6,7 +6,6 @@ import { buildAfmize } from "../../../scripts/build-afmize.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 import { create, print } from "../../../scripts/use-stdout.ts";
 
-// biome-ignore lint/correctness/useHookAtTopLevel: not a hook
 const env = useEnv({ type: zClientEnv });
 export const environment = Object.fromEntries(
 	Object.entries(env).map(([key, value]) => [

@@ -271,11 +271,8 @@ function PreviewPane({
 				openRecord("memories", preview.memory.id);
 			if (input === "e" && preview.type === "action")
 				openRecord("actions", preview.action.id);
-			const page = Math.max(1, (ref.current?.getViewportHeight() ?? 1) - 2);
 			if (key.upArrow) ref.current?.scrollBy(-1);
 			if (key.downArrow) ref.current?.scrollBy(1);
-			if (key.pageUp) ref.current?.scrollBy(-page);
-			if (key.pageDown) ref.current?.scrollBy(page);
 		},
 		{ isActive: focused },
 	);
@@ -323,6 +320,7 @@ function PreviewPane({
 			<WidthContext.Provider value={width ?? null}>
 				<ScrollView
 					ref={ref}
+					paging={focused}
 					resetKey={
 						preview.type === "file"
 							? preview.file.path

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 import remend from "remend";
 import {
 	type MarkdownBlocks,
@@ -24,10 +24,12 @@ export const useMarkdownBlocks = ({
 	streaming?: boolean;
 }) => {
 	// Kept across renders so an append only costs a parse of the block it lands
-	// in, rather than one of the whole document.
-	const previous = useRef<MarkdownBlocks>(undefined);
-	const split = MarkdownUtils.split({ content, previous: previous.current });
-	previous.current = split;
+	// in, rather than one of the whole document. A new split is adopted during
+	// render, which React restarts at once with it; the split of unchanged
+	// content is the previous one, so that restart parses nothing.
+	const [previous, setPrevious] = useState<MarkdownBlocks>();
+	const split = MarkdownUtils.split({ content, previous });
+	if (split !== previous) setPrevious(split);
 
 	return useMemo(() => {
 		const last = split.blocks.length - 1;

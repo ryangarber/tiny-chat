@@ -67,7 +67,13 @@ export const useEstimatedTokens = <T>({
 		};
 	}, [baseConfig, modelArgs]);
 
-	const [debouncedDraft, setDebouncedDraft] = useState(draft);
+	// Stamped once per draft, as it is taken in: a new time on every config
+	// change would key a new estimate each render that hands this a fresh config
+	// object.
+	const [debounced, setDebounced] = useState(() => ({
+		draft,
+		createdAt: Temporal.Now.plainDateTimeISO("UTC"),
+	}));
 	const debouncedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
@@ -75,7 +81,7 @@ export const useEstimatedTokens = <T>({
 			clearTimeout(debouncedTimeout.current);
 		}
 		debouncedTimeout.current = setTimeout(() => {
-			setDebouncedDraft(draft);
+			setDebounced({ draft, createdAt: Temporal.Now.plainDateTimeISO("UTC") });
 		}, 1000);
 		return () => {
 			if (debouncedTimeout.current) {
@@ -83,14 +89,6 @@ export const useEstimatedTokens = <T>({
 			}
 		};
 	}, [draft]);
-
-	// Stamped once per draft: a new time on every config change would key a new
-	// estimate each render that hands this a fresh config object.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: restamped per draft
-	const draftCreatedAt = useMemo(
-		() => Temporal.Now.plainDateTimeISO("UTC"),
-		[debouncedDraft],
-	);
 
 	/**
 	 * The message being written, counted as a message. Its attachments are read
@@ -103,11 +101,11 @@ export const useEstimatedTokens = <T>({
 				id: null,
 				author: "USER",
 				config,
-				data: debouncedDraft,
-				createdAt: draftCreatedAt,
+				data: debounced.draft,
+				createdAt: debounced.createdAt,
 			},
 		],
-		[config, debouncedDraft, draftCreatedAt],
+		[config, debounced],
 	);
 
 	const { capabilities, sourceMessages } = useCapabilities({
@@ -214,53 +212,29 @@ export const useEstimatedTokens = <T>({
 		chatTokens.data,
 		chatTokens.isFetching,
 		dependenciesLoading,
-		config.args["tokens-in"],
+		config,
 		colors,
 	]);
 
+	const before = chatTokens.data?.before;
+	const categoriesLoading = dependenciesLoading || chatTokens.isFetching;
 	const categories = useMemo<Categories>(
-		() => [
-			{
-				name: "Instructions",
-				tokens: chatTokens.data?.before.instructions ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-			{
-				name: "Memories",
-				tokens: chatTokens.data?.before.memories ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-			{
-				name: "Thoughts",
-				tokens: chatTokens.data?.before.thoughts ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-			{
-				name: "Tools",
-				tokens: chatTokens.data?.before.tools ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-			{
-				name: "Text",
-				tokens: chatTokens.data?.before.text ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-			{
-				name: "Files",
-				tokens: chatTokens.data?.before.files ?? 0,
-				loading: dependenciesLoading || chatTokens.isFetching,
-			},
-		],
-		[
-			chatTokens.data?.before.files,
-			chatTokens.data?.before.instructions,
-			chatTokens.data?.before.memories,
-			chatTokens.data?.before.text,
-			chatTokens.data?.before.thoughts,
-			chatTokens.data?.before.tools,
-			chatTokens.isFetching,
-			dependenciesLoading,
-		],
+		() =>
+			(
+				[
+					["Instructions", before?.instructions],
+					["Memories", before?.memories],
+					["Thoughts", before?.thoughts],
+					["Tools", before?.tools],
+					["Text", before?.text],
+					["Files", before?.files],
+				] as const
+			).map(([name, tokens]) => ({
+				name,
+				tokens: tokens ?? 0,
+				loading: categoriesLoading,
+			})),
+		[before, categoriesLoading],
 	);
 
 	return { chatTokens, draftTokens, totalTokens, usage, categories };

@@ -1,14 +1,17 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
+import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
 import { useFindMessages } from "#client/features/find/hooks/useFindMessages.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
+import { useShellCommand } from "#client/features/shell/hooks/useShellCommand.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import Box from "#tui/core/components/Box.tsx";
 import ScrollView, {
 	type ScrollViewProps,
 } from "#tui/core/components/ScrollView.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
+import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
 import GetStarted from "#tui/features/chat/components/GetStarted.tsx";
 import Message from "#tui/features/message/components/Message.tsx";
 
@@ -35,6 +38,18 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 		if (index >= 0) ref.current?.scrollToIndex(index, "auto");
 	});
 
+	// The page keys are the transcript's while the chat has the focus, but for
+	// a list or shell output drawn over the editor, which scrolls itself.
+	const focus = useAppStore(selectFocus);
+	const isCompletionsOpen = useCompletionStore(
+		(state) => state.isCompletionsOpen,
+	);
+	const shell = useShellCommand();
+	const paging =
+		(focus === "editor" || focus.startsWith("tool:")) &&
+		!isCompletionsOpen &&
+		!(shell.isOpen && shell.run);
+
 	useLayoutEffect(() => {
 		if (!focusedMessage || chat.isFetching || messages.isFetching) return;
 		const index = messageList.findIndex((m) => m.id === focusedMessage);
@@ -54,7 +69,7 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 				justifyContent="center"
 			>
 				{/* Centered while it fits, and scrolled once it does not. */}
-				<ScrollView flexShrink={1} minHeight={0}>
+				<ScrollView paging={paging} flexShrink={1} minHeight={0}>
 					<Box flexDirection="column" alignItems="center">
 						<GetStarted />
 					</Box>
@@ -66,6 +81,7 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 	return (
 		<ScrollView
 			ref={ref}
+			paging={paging}
 			flexGrow={1}
 			flexShrink={1}
 			flexBasis={0}

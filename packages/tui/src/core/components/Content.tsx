@@ -171,14 +171,8 @@ export function ContentFullscreen() {
 
 	useInput(
 		(_input, key) => {
-			const page = Math.max(
-				1,
-				(scrollRef.current?.getViewportHeight() ?? 1) - 2,
-			);
 			if (key.upArrow) scrollRef.current?.scrollBy(-1);
 			if (key.downArrow) scrollRef.current?.scrollBy(1);
-			if (key.pageUp) scrollRef.current?.scrollBy(-page);
-			if (key.pageDown) scrollRef.current?.scrollBy(page);
 		},
 		{ isActive: active },
 	);
@@ -222,6 +216,7 @@ export function ContentFullscreen() {
 						<ContentWidthContext.Provider value={width}>
 							<ScrollView
 								ref={scrollRef}
+								paging={active}
 								flexShrink={1}
 								minHeight={0}
 								overscan={Number.POSITIVE_INFINITY}

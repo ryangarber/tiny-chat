@@ -2,10 +2,10 @@ import {
 	command,
 	constant,
 	type InferValue,
+	longestMatch,
 	message,
 	object,
 	option,
-	or,
 } from "@optique/core";
 import { defineProgram } from "@optique/core/program";
 import { generateManPage } from "@optique/man";
@@ -25,7 +25,7 @@ createLogger({
 	silent: true,
 });
 
-const parser = or(
+const parser = longestMatch(
 	object({
 		noKeyring: option("--no-keyring", {
 			description: message`Use alternative session.`,

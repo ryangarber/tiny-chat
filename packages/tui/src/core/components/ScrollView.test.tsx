@@ -8,6 +8,10 @@ import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 const wheel = (direction: "up" | "down", row: number) =>
 	`\x1b[<${direction === "up" ? 64 : 65};5;${row}M`;
 
+/** PageUp and PageDown, as a terminal sends them — and Fn+↑↓ on a Mac. */
+const PAGE_UP = "\x1b[5~";
+const PAGE_DOWN = "\x1b[6~";
+
 const lines = (prefix: string, count: number) =>
 	Array.from({ length: count }, (_, index) => `${prefix}${index}`).map(
 		(line) => <Text key={line}>{line}</Text>,
@@ -74,6 +78,42 @@ describe("nested scroll views", () => {
 			"short1",
 			"after",
 		]);
+		screen.cleanup();
+	});
+});
+
+describe("paging", () => {
+	it("moves a page at a time, keeping two rows of context", async () => {
+		const screen = render(
+			<Box height={10} flexDirection="column">
+				<ScrollView flexGrow={1} paging>
+					{lines("row", 40)}
+				</ScrollView>
+			</Box>,
+		);
+		await screen.idle();
+		expect(screen.lastFrame()?.split("\n")[0]).toBe("row0");
+
+		screen.stdin.write(PAGE_DOWN);
+		await screen.idle();
+		expect(screen.lastFrame()?.split("\n")[0]).toBe("row8");
+
+		screen.stdin.write(PAGE_UP);
+		await screen.idle();
+		expect(screen.lastFrame()?.split("\n")[0]).toBe("row0");
+		screen.cleanup();
+	});
+
+	it("leaves a view without it where it is", async () => {
+		const screen = render(
+			<Box height={10} flexDirection="column">
+				<ScrollView flexGrow={1}>{lines("row", 40)}</ScrollView>
+			</Box>,
+		);
+		await screen.idle();
+		screen.stdin.write(PAGE_DOWN);
+		await screen.idle();
+		expect(screen.lastFrame()?.split("\n")[0]).toBe("row0");
 		screen.cleanup();
 	});
 });

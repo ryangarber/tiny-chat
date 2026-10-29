@@ -63,6 +63,19 @@ export const MessageQueryService = {
 		);
 	},
 
+	/** The config of the last sent of `messages`, whatever their order. */
+	getLastConfig: (messages: History["messages"]) => {
+		const last = messages.reduce(
+			(current, candidate) =>
+				Temporal.PlainDateTime.compare(candidate.createdAt, current.createdAt) >
+				0
+					? candidate
+					: current,
+			messages[0],
+		);
+		return last?.config ?? null;
+	},
+
 	/** A selected history, from the cache unless it has gone stale. */
 	ensure: (client: Client, chat: string, branches: Record<string, string>) =>
 		client.queryClient.fetchQuery(

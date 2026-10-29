@@ -1,10 +1,11 @@
-import { useCallback, useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useConfigEditor } from "#client/features/agent/hooks/useConfigEditor.ts";
 import { useProviders } from "#client/features/agent/hooks/useProviders.ts";
 import { useConfigStore } from "#client/features/agent/stores/useConfigStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
+import { MessageQueryService } from "#client/features/message/services/MessageQueryService.ts";
 import { useHiddenModels } from "#client/features/settings/hooks/useHiddenModels.ts";
 import { zConfig } from "#core/features/data/types/message.ts";
 import { ModelProviderUtils } from "#core/features/provider/utils/ModelProviderUtils.ts";
@@ -20,7 +21,6 @@ export const useConfig = () => {
 	const overrideConfig = useConfigStore((s) => s.overrideConfig);
 	const setOverrideConfig = useConfigStore((s) => s.setOverrideConfig);
 	const syncChatId = useConfigStore((s) => s.syncChatId);
-	const setSyncChatId = useConfigStore((s) => s.setSyncChatId);
 
 	const lastConfig = useMemo(() => {
 		try {
@@ -29,41 +29,18 @@ export const useConfig = () => {
 		} catch {
 			return null;
 		}
-	}, [client.getStorage]);
+	}, [client]);
 
 	// Last sent of the visible messages, whatever their order in the branch.
 	const { messages } = useMessages();
-	const lastMessageConfig = useMemo(() => {
-		const messageList = messages.data?.messages ?? [];
-		const lastMessage = messageList.reduce((current, candidate) => {
-			return Temporal.PlainDateTime.compare(
-				candidate.createdAt,
-				current.createdAt,
-			) > 0
-				? candidate
-				: current;
-		}, messageList[0]);
-		return lastMessage?.config ?? null;
-	}, [messages.data]);
+	const lastMessageConfig = useMemo(
+		() => MessageQueryService.getLastConfig(messages.data?.messages ?? []),
+		[messages.data],
+	);
 
-	// Entering an existing chat adopts its last config once its messages load.
+	// Entering an existing chat shows its config at once, from whatever of its
+	// messages are on hand; `ChatService.watch` adopts it once they all load.
 	const syncing = !!syncChatId && syncChatId === chatId;
-	const synced = syncing && messages.isSuccess && !messages.isPlaceholderData;
-	useEffect(() => {
-		if (!synced) return;
-		if (lastMessageConfig) {
-			setOverrideConfig(lastMessageConfig);
-			client.setStorage("config", lastMessageConfig);
-		} else {
-			setSyncChatId(null);
-		}
-	}, [
-		synced,
-		lastMessageConfig,
-		setOverrideConfig,
-		setSyncChatId,
-		client.setStorage,
-	]);
 
 	const { providers } = useProviders();
 	const { hiddenModels } = useHiddenModels();
@@ -114,7 +91,7 @@ export const useConfig = () => {
 			setOverrideConfig(value);
 			client.setStorage("config", value);
 		},
-		[setOverrideConfig, client.setStorage],
+		[setOverrideConfig, client],
 	);
 
 	const { model, modelArgs, setModel, setModelArg } = useConfigEditor({

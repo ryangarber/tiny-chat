@@ -81,13 +81,13 @@ export const useMcp = () => {
 		},
 	});
 
-	// drop connections and cached state for servers that no longer exist
+	// Drop connections and cached state for servers that no longer exist. The
+	// connections are outside React; the store only keeps track of them.
 	const namesKey = names.join(",");
 	useEffect(() => {
 		const current = new Set(namesKey ? namesKey.split(",") : []);
-		for (const [name, mcpClient] of Object.entries(
-			useMcpStore.getState().connectedServers,
-		)) {
+		const { connectedServers, setConnectedServer } = useMcpStore.getState();
+		for (const [name, mcpClient] of Object.entries(connectedServers)) {
 			if (current.has(name)) continue;
 			setConnectedServer(name, null);
 			void ClientMcpService.disconnect({ client: mcpClient });
@@ -100,7 +100,7 @@ export const useMcp = () => {
 		for (const name of Object.keys(logs)) {
 			if (!current.has(name)) clearLogs(name);
 		}
-	}, [namesKey, setConnectedServer, client.queryClient]);
+	}, [namesKey, client.queryClient]);
 
 	return { mcpServers, refreshMcpServers, disconnectMcpServers };
 };
