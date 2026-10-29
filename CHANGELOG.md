@@ -1,3 +1,24 @@
+## 0.10.6 (2026-10-29)
+
+### Features
+
+- **tui:** scroll with page/fn keys ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+- **gui:** pan + zoom any content ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+
+### Bug Fixes
+
+- token storage race condition ([b4ad514](https://github.com/ryangarber/tiny-chat/commit/b4ad514aa171da8e371edaf46243d5caf7fcf416))
+
+### Performance Improvements
+
+- **tui:** use ink version with fixes merged ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+- **client:** use react compiler lints ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+
+### Other
+
+- bump dependencies ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+- set up coverage ([a6c87f6](https://github.com/ryangarber/tiny-chat/commit/a6c87f6da5d3ef5416c7ddabdc957d345be0d032))
+
 ## 0.10.5 (2026-10-28)
 
 ### Features
