@@ -53,7 +53,9 @@ export const AuthServer = userFields.inferClient(
 			anonymous({
 				generateName: () => CommonUtils.getRandomName(),
 				onLinkAccount: async ({ anonymousUser, newUser }) => {
-					const updates = globalThis.db.transaction(async (tx) => {
+					// Awaited: Better Auth deletes the anonymous user (cascading to its
+					// records) as soon as this returns.
+					const transferred = await db.transaction(async (tx) => {
 						// merge user fields that better auth may not know about
 						// (made gross thanks to prisma's new readonly return types)
 						const fields = ["settings", "cache"] as const;
@@ -88,44 +90,56 @@ export const AuthServer = userFields.inferClient(
 						);
 
 						// merge all other user tables
-						await db.orm.public.Project.where({
+						const project = await tx.orm.public.Project.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Chat.where({
+						const chat = await tx.orm.public.Chat.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Message.where({
+						const message = await tx.orm.public.Message.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Action.where({
+						const action = await tx.orm.public.Action.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Memory.where({
+						const memory = await tx.orm.public.Memory.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Upload.where({
+						const upload = await tx.orm.public.Upload.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.File.where({
+						const file = await tx.orm.public.File.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Subagent.where({
+						const subagent = await tx.orm.public.Subagent.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
 
-						await db.orm.public.Dream.where({
+						const dream = await tx.orm.public.Dream.where({
 							userId: anonymousUser.user.id,
 						}).updateAndCount({ userId: newUser.user.id });
+
+						return {
+							project,
+							chat,
+							message,
+							action,
+							memory,
+							upload,
+							file,
+							subagent,
+							dream,
+						};
 					});
 
-					console.log("[AuthService] transferred user records:", updates);
+					console.log("[AuthService] transferred user records:", transferred);
 				},
 			}),
 			bearer(),
@@ -136,10 +150,11 @@ export const AuthServer = userFields.inferClient(
 					const token = res.headers.get("set-auth-token");
 					const location = res.headers.get("location");
 					if (token && location) {
+						// Encoded: the signed token is base64, and the clients read it with
+						// `URLSearchParams`, which would turn a `+` into a space.
 						const url = new URL(location);
-						url.hash = url.hash
-							? `${url.hash}&token=${token}`
-							: `#token=${token}`;
+						const param = `token=${encodeURIComponent(token)}`;
+						url.hash = url.hash ? `${url.hash}&${param}` : `#${param}`;
 						res.headers.set("location", url.toString());
 						console.log("[AuthService] redirecting with token:", location);
 					}

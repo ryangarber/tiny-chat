@@ -5,13 +5,17 @@ import { type Client, ClientContext } from "#client/client.ts";
 export const sessionQueryKey = ["useSession"] as const;
 
 /**
- * Signs in with a token from elsewhere. The session query is cancelled first:
+ * Signs in with a token from elsewhere. The session query is cancelled too:
  * invalidating it alone would leave a first fetch that is still in flight to
  * finish, and save the token it got (an anonymous user's) over this one.
+ *
+ * The token is set before that: the query refetches as soon as it is
+ * cancelled, while it has no data yet, and that fetch must already send this
+ * token — invalidating joins it rather than starting another.
  */
 export const setSessionToken = async (client: Client, token: string) => {
-	await client.queryClient.cancelQueries({ queryKey: sessionQueryKey });
 	client.setToken(token);
+	await client.queryClient.cancelQueries({ queryKey: sessionQueryKey });
 	await client.queryClient.invalidateQueries();
 };
 
