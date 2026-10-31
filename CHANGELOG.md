@@ -1,3 +1,14 @@
+## 0.10.7 (2026-10-31)
+
+### Features
+
+- use claude code subscriptions ([311d79e](https://github.com/ryangarber/tiny-chat/commit/311d79e39ba3484fce5d14dbd470f0c802cdfb48))
+
+### Other
+
+- stage using diffs ([7af6775](https://github.com/ryangarber/tiny-chat/commit/7af6775fd480ae45ec60636ad5b66d9ccda318be))
+- drop github runner from deployment ([311d79e](https://github.com/ryangarber/tiny-chat/commit/311d79e39ba3484fce5d14dbd470f0c802cdfb48))
+
 ## 0.10.6 (2026-10-29)
 
 ### Features

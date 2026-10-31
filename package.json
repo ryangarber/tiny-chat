@@ -2,7 +2,7 @@
 	"name": "tiny-chat",
 	"type": "module",
 	"private": true,
-	"version": "0.10.6",
+	"version": "0.10.7",
 	"scripts": {
 		"dev:server": "pnpm --filter server run dev",
 		"start:server": "pnpm --filter server run start",
