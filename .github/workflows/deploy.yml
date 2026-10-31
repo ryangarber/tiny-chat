@@ -100,14 +100,13 @@ jobs:
       - name: Pick target
         run: |
           if [ "$DRY_RUN" = "true" ]; then
-            TARGET="$(ssh target mktemp -d)"
+            TARGET="chat-staging"
           else
             TARGET="chat"
           fi
           echo "TARGET=$TARGET" >> "$GITHUB_ENV"
 
-      # The live checkout is kept between deploys, so the dist sync below
-      # diffs against what is being served, and node_modules is reused.
+      # Stage dist using diff, falling back to copying from live.
       - name: Checkout on host
         run: |
           # shellcheck disable=SC2029 # Quoted with %q for the remote shell.
@@ -120,6 +119,9 @@ jobs:
           git fetch --quiet --depth 1 https://github.com/ryangarber/tiny-chat.git "$REF"
           git checkout --quiet --force FETCH_HEAD
           git clean -ffdxq -e .env -e node_modules -e /apps/web/dist
+          if [ "$TARGET" != chat ] && [ ! -d apps/web/dist ] && [ -d ~/chat/apps/web/dist ]; then
+            cp -a ~/chat/apps/web/dist apps/web/dist
+          fi
           EOF
 
       - name: Diff deployment
@@ -135,9 +137,8 @@ jobs:
             echo
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # Checksums so only changed files go over and the summary shows real
-      # changes; deletes after the transfer so stale files never outlive a
-      # deploy but the live dist is never missing files mid-sync.
+      # Checksums so only changed files go over and the summary shows real changes.
+      # --delete-after to clean up old files only after they're no longer served.
       - name: Sync deployment
         run: |
           rsync --recursive --links --compress --checksum \
@@ -193,9 +194,9 @@ jobs:
           test -d "$1/apps/web/dist"
           EOF
 
-      # It holds the production .env.
+      # Staging is kept for the next dry run, but not the production .env.
       - name: Clean up
         if: always() && env.DRY_RUN == 'true' && env.TARGET
         run: |
           # shellcheck disable=SC2029 # Quoted with %q for the remote shell.
-          ssh target "rm -rf $(printf '%q' "$TARGET")"
+          ssh target "rm -f $(printf '%q' "$TARGET/.env")"
