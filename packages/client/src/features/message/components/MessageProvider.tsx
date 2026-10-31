@@ -35,6 +35,7 @@ import {
 	type Source,
 	SourceUtils,
 } from "#core/features/data/utils/SourceUtils.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 
 /**
@@ -163,11 +164,13 @@ function MessageSync({ store }: { store: StoreApi<MessageStore> }) {
 				.filter(
 					(part) =>
 						part.type === "toolCall" &&
-						!part.partial &&
-						!part.result &&
 						!answered.has(part.id) &&
-						(part.validation?.approval ||
-							ToolUtils.find({ toolsets, part }).tool?.feedback),
+						// As the call shows itself, so a call asking the user
+						// something without a tool of Tiny Chat's behind it counts.
+						ToolCallUtils.getState({
+							part,
+							tool: ToolUtils.find({ toolsets, part }).tool,
+						}) === "feedback",
 				)
 				.map((part) => part.id),
 		[answered, toolsets],

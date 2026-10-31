@@ -100,11 +100,25 @@ export type ToolField = {
 	type: "choice";
 	/** Key the value is sent under in the tool's feedback. */
 	name: string;
-	options: string[];
+	/** What the field asks, where a call has more than one. */
+	label?: string;
+	/** A short tag for the field, shown beside its label. */
+	header?: string;
+	options: ToolFieldOption[];
+	/**
+	 * Whether several options can be picked. They are sent together, with
+	 * anything written in, joined by commas.
+	 */
+	multiple?: boolean;
 	/** Whether something other than the options can be written in. */
 	custom?: boolean;
 	placeholder?: string;
 };
+
+export interface ToolFieldOption {
+	label: string;
+	description?: string;
+}
 
 export interface ToolControls {
 	/** Approve / deny, rather than just continue. */

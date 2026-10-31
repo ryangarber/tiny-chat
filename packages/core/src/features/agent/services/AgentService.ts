@@ -50,20 +50,26 @@ export const AgentService = {
 		toolsets,
 		skills,
 		skipInstructions,
+		provider,
 	}: {
 		context: zAgentContext;
 		capabilities: Capabilities;
 		toolsets: Toolset<any>[];
 		skills: zSkill[];
 		skipInstructions?: boolean;
+		/** Leaves Tiny Chat's tools out where it brings its own. */
+		provider?: ModelProvider<any>;
 	}) => {
 		const { prompt } = AgentUtils.getLastPrompt({
 			messages: context.messages,
 			withText: false,
 		});
 
+		const ownTools =
+			!!prompt?.config && !!provider?.hasOwnTools?.({ config: prompt.config });
 		const enabledToolsets = toolsets.filter(
 			(toolset) =>
+				!ownTools &&
 				toolset.status.valid &&
 				prompt?.config?.toolsets?.includes(ToolUtils.name({ toolset })),
 		);
@@ -108,6 +114,19 @@ export const AgentService = {
 			messages,
 			instructions,
 		};
+	},
+
+	/** The chat's first local folder, where a local agent should run. */
+	getLocalFolder: async (
+		capabilities: Capabilities,
+	): Promise<string | undefined> => {
+		try {
+			const shell = capabilities.shell;
+			if (!shell) return undefined;
+			return (await shell.folders?.())?.[0] ?? (await shell.cwd?.());
+		} catch {
+			return undefined;
+		}
 	},
 
 	estimate: async ({
@@ -204,7 +223,13 @@ export const AgentService = {
 			enabledTools,
 			messages,
 			instructions: builtInstructions,
-		} = await AgentService.build({ context, capabilities, toolsets, skills });
+		} = await AgentService.build({
+			context,
+			capabilities,
+			toolsets,
+			skills,
+			provider,
+		});
 		const instructions =
 			[builtInstructions, extraInstructions].filter(Boolean).join("\n\n") ||
 			undefined;
@@ -613,6 +638,73 @@ export const AgentService = {
 			return interrupted || waiting.size > 0;
 		};
 
+		/**
+		 * Waits on the user's answer to a call while the generation is still
+		 * running, for an agent that is itself blocked on it. No answer — the
+		 * generation stopped, or no one can give one — rejects the call.
+		 */
+		const answerLive = async (
+			toolCall: zToolCallPart,
+		): Promise<ToolFeedback | undefined> => {
+			if (!toolFeedback || !context.interactive) return undefined;
+			const signal = options?.abortSignal ?? new AbortController().signal;
+			return toolFeedback({ part: toolCall, signal }).catch(() => undefined);
+		};
+
+		/** Runs one of Tiny Chat's calls for an agent with its own loop. */
+		const executeTool = async (
+			toolCall: zToolCallPart,
+		): Promise<zToolResultPart> => {
+			const { tool } = ToolUtils.find({
+				toolsets: enabledToolsets,
+				part: toolCall,
+			});
+			const fail = (value: string): zToolResultPart => ({
+				type: "toolResult",
+				id: toolCall.id,
+				name: toolCall.name,
+				error: true,
+				output: [{ id: CommonUtils.getRandomId(), type: "text", value }],
+			});
+			if (!tool) return fail(`Tool "${toolCall.name}" not found`);
+			if (toolValidationErrors.has(toolCall.id))
+				return fail(
+					CommonUtils.formatError({
+						error: toolValidationErrors.get(toolCall.id),
+						details: true,
+					}),
+				);
+
+			let feedback: unknown;
+			if (tool.feedback || toolCall.validation?.approval) {
+				const answer = await answerLive(toolCall);
+				if (!answer || (toolCall.validation?.approval && !answer.approved))
+					return {
+						type: "toolResult",
+						id: toolCall.id,
+						name: toolCall.name,
+						error: true,
+						output: ToolCallUtils.getRejection(),
+					};
+				feedback = answer.feedback;
+			}
+			return (await run({ toolCall, tool, feedback })).result;
+		};
+
+		/** Waits on the user's answer to one of an agent's own questions. */
+		const answer = async (toolCall: zToolCallPart) => {
+			const feedback = (await answerLive(toolCall))?.feedback;
+			return feedback && typeof feedback === "object"
+				? (feedback as Record<string, string>)
+				: undefined;
+		};
+
+		/** Asks the user to approve one of an agent's own calls. */
+		const approve = async (toolCall: zToolCallPart): Promise<boolean> => {
+			toolCall.validation = { ...toolCall.validation, approval: true };
+			return !!(await answerLive(toolCall))?.approved;
+		};
+
 		// A generation resumed with calls still to settle settles them before the
 		// model goes on: the user has answered at least one of them.
 		const unsettled =
@@ -649,24 +741,42 @@ export const AgentService = {
 					...((await interjections?.()) ?? []),
 				])
 					yield push(part);
-				const compacted = await AgentTokensService.compactMessages({
-					instructions,
-					messages,
-					config,
-					tools: supportsTools ? enabledTools : [],
-				});
-				const stream = ModelProviderService.runLanguageModel({
-					user: context.user,
-					provider,
-					messages: compacted.messages,
-					config,
-					tools: enabledTools,
-					env,
-					options: {
+				let stream: AsyncGenerator<zAgentEvent>;
+				if (provider.runAgent) {
+					// The agent keeps its own context, so the chat is not compacted.
+					stream = provider.runAgent({
+						user: context.user,
+						config,
+						messages,
 						system: instructions,
-						...options,
-					},
-				});
+						tools: enabledTools,
+						cwd: await AgentService.getLocalFolder(capabilities),
+						executeTool,
+						approve,
+						answer,
+						interjections,
+						abortSignal: options?.abortSignal,
+					});
+				} else {
+					const compacted = await AgentTokensService.compactMessages({
+						instructions,
+						messages,
+						config,
+						tools: supportsTools ? enabledTools : [],
+					});
+					stream = ModelProviderService.runLanguageModel({
+						user: context.user,
+						provider,
+						messages: compacted.messages,
+						config,
+						tools: enabledTools,
+						env,
+						options: {
+							system: instructions,
+							...options,
+						},
+					});
+				}
 
 				for await (const event of stream) {
 					if (event.type === "start") {
@@ -804,6 +914,9 @@ export const AgentService = {
 				});
 				break;
 			}
+
+			// An agent with its own loop settled its calls itself, and is done.
+			if (provider.runAgent) break;
 
 			const toolCalls = parts.filter((p) => p.type === "toolCall");
 			if (VERBOSE)

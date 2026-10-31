@@ -2,12 +2,17 @@ import { AFMService } from "#cli/core/services/AFMService.ts";
 import { StorageService } from "#cli/core/services/StorageService.ts";
 import { TokenService } from "#cli/core/services/TokenService.ts";
 import { createClient } from "#client/client.ts";
+import { ClaudeCodeRunService } from "#client/features/agent/services/ClaudeCodeRunService.ts";
 import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
 import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { CodeWorker } from "#core/core/utils/CodeUtils.ts";
+import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
 import { EditorInputService } from "#tui/features/editor/services/EditorInputService.ts";
+
+/** Claude Code on the user's own sign-in, run in this process. */
+const claudeCode = createClaudeCodeProvider(ClaudeCodeRunService);
 
 export const client = createClient({
 	env: {
@@ -39,14 +44,16 @@ export const client = createClient({
 	providers: {
 		getModelProviders: async () => {
 			const afm = await AFMService.getProvider();
-			return afm ? [afm] : [];
+			return [...(afm ? [afm] : []), claudeCode];
 		},
 		getProviderStates: async ({ user }) => {
 			const afm = await AFMService.getProvider();
-			if (!afm) return [];
-			return [
-				{ ...afm, status: await afm.getStatus({ user }) },
-			] satisfies ProviderState<any>[];
+			return (await Promise.all(
+				[...(afm ? [afm] : []), claudeCode].map(async (provider) => ({
+					...provider,
+					status: await provider.getStatus({ user }),
+				})),
+			)) satisfies ProviderState<any>[];
 		},
 	},
 	input: EditorInputService,

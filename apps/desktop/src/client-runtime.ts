@@ -7,7 +7,12 @@ import { Electroview } from "electrobun/view";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createAFMProvider } from "#core/features/provider/providers/model/AFMProvider.ts";
+import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
 import type { AFMEvent } from "#core/features/provider/types/afm.ts";
+import type {
+	ClaudeCodeEvent,
+	ClaudeCodeHandlers,
+} from "#core/features/provider/types/claudeCode.ts";
 import type { DesktopRPC, McpServer } from "#desktop/core/types/rpc.ts";
 import type {
 	ClientRuntime,
@@ -25,6 +30,9 @@ const spawnListeners = new Map<
 const mcpTransports = new Map<string, RpcTransport>();
 const afmListeners = new Map<number, (event: AFMEvent) => void>();
 let nextAfmKey = 1;
+/** Claude Code runs' handlers, by the key their events and questions come under. */
+const claudeCodeRuns = new Map<number, ClaudeCodeHandlers>();
+let nextClaudeCodeKey = 1;
 let updateListener: ((fraction: number) => void) | undefined;
 const urlListeners = new Set<(url: string) => void>();
 let launched = false;
@@ -52,6 +60,32 @@ function connect(): DesktopView {
 				afmEvent: ({ key, event }) => {
 					afmListeners.get(key)?.(event);
 					if (event.type === "finish") afmListeners.delete(key);
+				},
+				claudeCodeEvent: ({ key, event }) => {
+					claudeCodeRuns.get(key)?.onEvent(event as ClaudeCodeEvent);
+					if (event.type === "end") claudeCodeRuns.delete(key);
+				},
+				claudeCodeQuestion: ({ key, id, ...question }) => {
+					const handlers = claudeCodeRuns.get(key);
+					const answer = (
+						answer: Parameters<
+							typeof rpc.request.claudeCodeAnswer
+						>[0]["answer"],
+					) => void rpc.request.claudeCodeAnswer({ id, answer });
+					if (!handlers) return answer({ type: "none" });
+					if (question.type === "tool") {
+						const { type: _, ...call } = question;
+						handlers.callTool(call).then(
+							(result) => answer({ type: "tool", result }),
+							() => answer({ type: "none" }),
+						);
+					} else {
+						const { type: _, ...call } = question;
+						handlers.canUseTool(call).then(
+							(result) => answer({ type: "permission", result }),
+							() => answer({ type: "none" }),
+						);
+					}
 				},
 				updateProgress: ({ fraction }) => updateListener?.(fraction),
 				openUrl: ({ url }) => {
@@ -123,6 +157,29 @@ function create(rpc: DesktopView): ClientRuntime {
 		},
 	});
 
+	const ClaudeCodeProvider = createClaudeCodeProvider({
+		status: () => rpc.request.claudeCodeStatus(),
+		run: async (request, handlers) => {
+			const key = nextClaudeCodeKey++;
+			claudeCodeRuns.set(key, handlers);
+			try {
+				return await rpc.request.claudeCodeRun({ key, request });
+			} catch (error) {
+				claudeCodeRuns.delete(key);
+				throw error;
+			}
+		},
+		cancel: async (id) => {
+			await rpc.request.claudeCodeCancel({ id });
+		},
+		send: async (id, prompt) => {
+			await rpc.request.claudeCodeSend({ id, prompt });
+		},
+		close: async (id) => {
+			await rpc.request.claudeCodeClose({ id });
+		},
+	});
+
 	const platform = window.__electrobunPlatform as RuntimePlatform;
 
 	return {
@@ -147,10 +204,12 @@ function create(rpc: DesktopView): ClientRuntime {
 					}
 				: undefined,
 		pickFolder: (params) => rpc.request.pickFolder(params),
-		getModelProviders: async () =>
-			platform === "macos" && (await rpc.request.afmAvailability())
+		getModelProviders: async () => [
+			...(platform === "macos" && (await rpc.request.afmAvailability())
 				? [AFMProvider]
-				: [],
+				: []),
+			ClaudeCodeProvider,
+		],
 		shell: {
 			os: platform === "windows" || platform === "linux" ? platform : "macos",
 			cwd: () => rpc.request.cwd(),

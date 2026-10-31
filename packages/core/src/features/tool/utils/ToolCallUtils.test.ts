@@ -172,8 +172,14 @@ describe("ToolCallUtils", () => {
 		it("asks for feedback with the tool's fields", () => {
 			const display = ToolCallUtils.getDisplay({
 				part: call("ask_question", {
-					question: "Which?",
-					suggestions: ["a", "b"],
+					questions: [
+						{
+							question: "Which?",
+							header: "Pick",
+							options: [{ label: "a", description: "first" }, { label: "b" }],
+							multiSelect: true,
+						},
+					],
 				}),
 				toolsets,
 			});
@@ -184,13 +190,59 @@ describe("ToolCallUtils", () => {
 				fields: [
 					{
 						type: "choice",
-						name: "answer",
-						options: ["a", "b"],
+						name: "q0",
+						label: undefined,
+						header: "Pick",
+						options: [
+							{ label: "a", description: "first" },
+							{ label: "b", description: undefined },
+						],
+						multiple: true,
 						custom: true,
 						placeholder: "Something else…",
 					},
 				],
 			});
+		});
+
+		it("heads each field with its question when there are several", () => {
+			const display = ToolCallUtils.getDisplay({
+				part: call("ask_question", {
+					questions: [
+						{ question: "One?", options: [] },
+						{ question: "Two?", options: [] },
+					],
+				}),
+				toolsets,
+			});
+			expect(display.input).toEqual([]);
+			expect(display.controls?.fields.map((field) => field.label)).toEqual([
+				"One?",
+				"Two?",
+			]);
+		});
+
+		it("still shows a call asked as one question with suggestions", () => {
+			const display = ToolCallUtils.getDisplay({
+				part: call("ask_question", { question: "Which?", suggestions: ["a"] }),
+				toolsets,
+			});
+			expect(display.input).toEqual([{ type: "markdown", value: "Which?" }]);
+			expect(display.controls?.fields[0].options).toEqual([
+				{ label: "a", description: undefined },
+			]);
+		});
+
+		it("asks for answers to Claude Code's own questions", () => {
+			const display = ToolCallUtils.getDisplay({
+				part: call("AskUserQuestion", {
+					questions: [{ question: "Which?", header: "Pick", options: [] }],
+				}),
+				toolsets,
+			});
+			expect(display.state).toBe("feedback");
+			expect(display.controls?.approval).toBe(false);
+			expect(display.controls?.fields).toHaveLength(1);
 		});
 
 		it("asks for approval, and is running once it streams", () => {

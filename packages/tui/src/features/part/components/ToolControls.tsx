@@ -14,15 +14,19 @@ interface Item {
 	name?: string;
 	value: string;
 	field?: string;
+	/** An option's label, which picking it sends. */
+	option?: string;
+	description?: string;
+	multiple?: boolean;
 	custom?: boolean;
 	approved?: boolean;
 	submit?: boolean;
 }
 
 /**
- * Write-in fields precede the approval/continue choices; suggestions fill a
- * field. Any call waiting on feedback, and not yet answered, can take the
- * focus.
+ * Each field's options, then its write-in, precede the approval/continue
+ * choices; a field asking one of several questions is headed by it. Any call
+ * waiting on feedback, and not yet answered, can take the focus.
  */
 export default function ToolControls({
 	message,
@@ -37,12 +41,21 @@ export default function ToolControls({
 }) {
 	const id = `tool:${part.id}` as const;
 	const setFocus = useAppStore((state) => state.setFocus);
-	const { values, setValue, submit, locked, complete, mutation } =
-		useToolFeedback({
-			message,
-			part,
-			controls,
-		});
+	const {
+		values,
+		setValue,
+		toggle,
+		isPicked,
+		answers,
+		submit,
+		locked,
+		complete,
+		mutation,
+	} = useToolFeedback({
+		message,
+		part,
+		controls,
+	});
 	useWorkingStatus(mutation);
 	const disabled = locked || !answerable;
 	const focused = useFocused(id) && !disabled;
@@ -54,12 +67,20 @@ export default function ToolControls({
 			setSelected((previous) => update(previous)),
 		[],
 	);
-	const [suggestionIndex, setSuggestionIndex] = useState<
-		Record<string, number>
-	>({});
 	const groups = useMemo(() => {
 		const fields = controls.fields.map((field) => ({
+			name: [field.header, field.label].filter(Boolean).join(": ") || undefined,
 			items: [
+				...field.options.map(
+					(option): Item => ({
+						name: option.label,
+						value: `option:${field.name}:${option.label}`,
+						field: field.name,
+						option: option.label,
+						description: option.description,
+						multiple: field.multiple,
+					}),
+				),
 				...(field.custom
 					? [
 							{
@@ -68,13 +89,7 @@ export default function ToolControls({
 								custom: true,
 							} satisfies Item,
 						]
-					: field.options.map(
-							(option): Item => ({
-								name: option,
-								value: option,
-								field: field.name,
-							}),
-						)),
+					: []),
 			],
 		}));
 		const actions: Item[] = controls.approval
@@ -83,7 +98,7 @@ export default function ToolControls({
 					{ name: "deny", value: "deny", submit: true, approved: false },
 				]
 			: [{ name: "continue", value: "continue", submit: true }];
-		return [...fields, { items: actions }];
+		return [...fields, { name: undefined, items: actions }];
 	}, [controls]);
 
 	return (
@@ -112,6 +127,24 @@ export default function ToolControls({
 							/>
 						);
 					}
+					if (item.field && item.option !== undefined) {
+						const picked = isPicked(item.field, item.option);
+						const mark = item.multiple
+							? picked
+								? "[x]"
+								: "[ ]"
+							: picked
+								? "(•)"
+								: "( )";
+						return (
+							<Text color={!focused ? "textSubtle" : undefined}>
+								{mark} {item.option}
+								{item.description && (
+									<Text color="textSubtle"> — {item.description}</Text>
+								)}
+							</Text>
+						);
+					}
 					// Deny can be sent without filling the fields; approve and continue cannot.
 					const unavailable =
 						item.submit && item.approved !== false && !complete;
@@ -122,30 +155,6 @@ export default function ToolControls({
 					);
 				}}
 				onInput={({ item, key, pointer }) => {
-					if (key.shift && key.tab) {
-						const field =
-							controls.fields.find(
-								(entry) => entry.name === item?.field && entry.options.length,
-							) ??
-							controls.fields.find(
-								(entry) => entry.custom && entry.options.length,
-							);
-						if (field) {
-							const index = (suggestionIndex[field.name] ?? -1) + 1;
-							setValue(field.name, field.options[index % field.options.length]);
-							setSuggestionIndex((previous) => ({
-								...previous,
-								[field.name]: index,
-							}));
-							const position = groups
-								.flatMap((group) => group.items)
-								.findIndex(
-									(entry) => entry.custom && entry.field === field.name,
-								);
-							if (position >= 0) setSelected(position);
-						}
-						return false;
-					}
 					// Shift and the arrows belong to the textarea's text selection.
 					if (key.shift) return false;
 					// Clicking a textarea positions its cursor, not the submit action.
@@ -161,7 +170,9 @@ export default function ToolControls({
 								);
 								return false;
 							}
-							setValue(item.field, item.value);
+							if (item.option === undefined) return false;
+							if (item.multiple) toggle(item.field, item.option);
+							else setValue(item.field, item.option);
 							return false;
 						}
 						if (!item.submit) return false;
@@ -171,7 +182,7 @@ export default function ToolControls({
 								.findIndex((entry) =>
 									controls.fields.some(
 										(field) =>
-											field.name === entry.field && !values[field.name],
+											field.name === entry.field && !answers[field.name],
 									),
 								);
 							if (position >= 0) setSelected(position);
@@ -182,14 +193,7 @@ export default function ToolControls({
 						return false;
 					}
 				}}
-				actions={[
-					"select",
-					...(controls.fields.some(
-						(field) => field.custom && field.options.length,
-					)
-						? [{ key: "shift+tab", name: "suggestion" }]
-						: []),
-				]}
+				actions={["select"]}
 			/>
 		</Panel>
 	);

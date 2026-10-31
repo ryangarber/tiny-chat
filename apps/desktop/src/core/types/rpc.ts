@@ -6,9 +6,33 @@ import type {
 	AFMEvent,
 	AFMRequest,
 } from "#core/features/provider/types/afm.ts";
+import type {
+	ClaudeCodeBlock,
+	ClaudeCodeEvent,
+	ClaudeCodeHandlers,
+	ClaudeCodeRequest,
+	ClaudeCodeStatus,
+} from "#core/features/provider/types/claudeCode.ts";
 
 /** A file's bytes, base64 encoded, since RPC carries JSON. */
 type Bytes = string;
+
+/** What a Claude Code run asks of the webview while it goes. */
+export type ClaudeCodeQuestion =
+	| ({ type: "tool" } & Parameters<ClaudeCodeHandlers["callTool"]>[0])
+	| ({ type: "permission" } & Parameters<ClaudeCodeHandlers["canUseTool"]>[0]);
+
+/** The webview's answer to a {@link ClaudeCodeQuestion}; `none` once it can't give one. */
+export type ClaudeCodeAnswer =
+	| {
+			type: "tool";
+			result: Awaited<ReturnType<ClaudeCodeHandlers["callTool"]>>;
+	  }
+	| {
+			type: "permission";
+			result: Awaited<ReturnType<ClaudeCodeHandlers["canUseTool"]>>;
+	  }
+	| { type: "none" };
 
 /** An MCP server for the main process to connect to. */
 export type McpServer =
@@ -114,6 +138,26 @@ export type DesktopRPC = {
 			};
 			afmCancel: { params: { id: number }; response: void };
 
+			claudeCodeStatus: { params: undefined; response: ClaudeCodeStatus };
+			/**
+			 * Events arrive as `claudeCodeEvent` and questions as
+			 * `claudeCodeQuestion`, under `key`; returns the run's id.
+			 */
+			claudeCodeRun: {
+				params: { key: number; request: ClaudeCodeRequest };
+				response: string;
+			};
+			claudeCodeCancel: { params: { id: string }; response: void };
+			claudeCodeSend: {
+				params: { id: string; prompt: ClaudeCodeBlock[] };
+				response: void;
+			};
+			claudeCodeClose: { params: { id: string }; response: void };
+			claudeCodeAnswer: {
+				params: { id: string; answer: ClaudeCodeAnswer };
+				response: void;
+			};
+
 			/** `ComputerHostService`'s raw `{ ok, result }` or `{ ok, error }`. */
 			computerCall: {
 				params: { method: string; params: unknown };
@@ -146,6 +190,8 @@ export type DesktopRPC = {
 			mcpError: { id: string; message: string };
 			mcpClose: { id: string };
 			afmEvent: { key: number; event: AFMEvent };
+			claudeCodeEvent: { key: number; event: ClaudeCodeEvent };
+			claudeCodeQuestion: { key: number; id: string } & ClaudeCodeQuestion;
 			updateProgress: { fraction: number };
 			openUrl: { url: string };
 		};

@@ -1,6 +1,8 @@
 import {
+	Badge,
 	Box,
 	Button,
+	Checkbox,
 	Grid,
 	Group,
 	Radio,
@@ -26,8 +28,16 @@ export default function ToolControls({
 	/** Only calls waiting on the user can be answered, in any order. */
 	answerable?: boolean;
 }) {
-	const { values, setValue, submit, locked, complete, sending } =
-		useToolFeedback({ message, part, controls });
+	const {
+		values,
+		setValue,
+		toggle,
+		isPicked,
+		submit,
+		locked,
+		complete,
+		sending,
+	} = useToolFeedback({ message, part, controls });
 
 	const disabled = locked || !answerable;
 
@@ -35,26 +45,61 @@ export default function ToolControls({
 		<Stack gap="xs">
 			{controls.fields.map((field) => (
 				<Stack key={field.name} gap="xs">
+					{(field.label || field.header) && (
+						<Group gap="xs" wrap="nowrap" align="baseline">
+							{field.header && (
+								<Badge size="sm" variant="light" style={{ flexShrink: 0 }}>
+									{field.header}
+								</Badge>
+							)}
+							{field.label && <Text fw={500}>{field.label}</Text>}
+						</Group>
+					)}
 					{field.options.length > 0 && (
 						<Grid grow>
-							{field.options.map((option) => (
-								<Grid.Col key={option} span={4} align="stretch">
-									<Radio.Card
-										p="md"
-										h="100%"
-										checked={values[field.name] === option}
-										disabled={disabled}
-										onClick={() => setValue(field.name, option)}
-									>
-										<Group wrap="nowrap" align="flex-start" h="100%">
-											<Radio.Indicator />
-											<Box>
-												<Text>{option}</Text>
-											</Box>
-										</Group>
-									</Radio.Card>
-								</Grid.Col>
-							))}
+							{field.options.map((option) => {
+								const content = (
+									<Box>
+										<Text>{option.label}</Text>
+										{option.description && (
+											<Text size="sm" c="dimmed">
+												{option.description}
+											</Text>
+										)}
+									</Box>
+								);
+								return (
+									<Grid.Col key={option.label} span={4} align="stretch">
+										{field.multiple ? (
+											<Checkbox.Card
+												p="md"
+												h="100%"
+												checked={isPicked(field.name, option.label)}
+												disabled={disabled}
+												onClick={() => toggle(field.name, option.label)}
+											>
+												<Group wrap="nowrap" align="flex-start" h="100%">
+													<Checkbox.Indicator />
+													{content}
+												</Group>
+											</Checkbox.Card>
+										) : (
+											<Radio.Card
+												p="md"
+												h="100%"
+												checked={values[field.name] === option.label}
+												disabled={disabled}
+												onClick={() => setValue(field.name, option.label)}
+											>
+												<Group wrap="nowrap" align="flex-start" h="100%">
+													<Radio.Indicator />
+													{content}
+												</Group>
+											</Radio.Card>
+										)}
+									</Grid.Col>
+								);
+							})}
 						</Grid>
 					)}
 					{field.custom && (

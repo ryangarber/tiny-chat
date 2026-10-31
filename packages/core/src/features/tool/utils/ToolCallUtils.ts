@@ -20,6 +20,7 @@ import type {
 	ToolDefinition,
 	Toolset,
 } from "#core/features/tool/types/tool.ts";
+import { ClaudeCodeToolUtils } from "#core/features/tool/utils/ClaudeCodeToolUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 
@@ -192,8 +193,12 @@ export const ToolCallUtils = {
 			if (ToolCallUtils.isRejection(part.result.output)) return "rejected";
 			return "success";
 		}
-		if ((tool?.feedback || part.validation?.approval) && !running)
-			return "feedback";
+		// A call with fields to fill in waits on them, even without a tool of
+		// Tiny Chat's behind it, as with Claude Code's own questions.
+		const asks =
+			tool?.feedback ||
+			(!tool && !!ClaudeCodeToolUtils.getDisplay(part.name)?.fields);
+		if ((asks || part.validation?.approval) && !running) return "feedback";
 		return "running";
 	},
 
@@ -241,7 +246,10 @@ export const ToolCallUtils = {
 		}
 
 		const { tool } = ToolUtils.find({ toolsets, part });
-		const display = tool?.display ?? fallback(part.name);
+		const display =
+			tool?.display ??
+			ClaudeCodeToolUtils.getDisplay(part.name) ??
+			fallback(part.name);
 		const state = ToolCallUtils.getState({ part, tool });
 		const status: ToolCallStatus = {
 			pieces: display.status(ToolCallUtils.getContext({ part, state })),
@@ -269,7 +277,10 @@ export const ToolCallUtils = {
 		stream?: unknown[];
 	}): ToolCallDisplay => {
 		const { tool } = ToolUtils.find({ toolsets, part });
-		const display = tool?.display ?? fallback(part.name);
+		const display =
+			tool?.display ??
+			ClaudeCodeToolUtils.getDisplay(part.name) ??
+			fallback(part.name);
 		const state = ToolCallUtils.getState({
 			part,
 			tool,

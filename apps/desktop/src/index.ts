@@ -8,6 +8,7 @@ import Electrobun, {
 } from "electrobun/main";
 import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
 import { AfmHostService } from "#desktop/core/services/AfmHostService.ts";
+import { ClaudeCodeHostService } from "#desktop/core/services/ClaudeCodeHostService.ts";
 import { McpHostService } from "#desktop/core/services/McpHostService.ts";
 import { ShellHostService } from "#desktop/core/services/ShellHostService.ts";
 import { UpdateHostService } from "#desktop/core/services/UpdateHostService.ts";
@@ -57,6 +58,7 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 			...ShellHostService.create({ send }),
 			...McpHostService.create({ send }),
 			...AfmHostService.create({ send }),
+			...ClaudeCodeHostService.create({ send }),
 			...UpdateHostService.create({ send }),
 			computerCall: (request) => computer.call(request),
 			quit: async () => {
