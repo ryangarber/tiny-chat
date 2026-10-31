@@ -3,11 +3,12 @@ import { useToolFeedback } from "#client/features/part/hooks/useToolFeedback.ts"
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zToolCallPart } from "#core/features/data/types/part.ts";
 import type { ToolControls as ToolControlsType } from "#core/features/tool/types/display.ts";
+import Box from "#tui/core/components/Box.tsx";
+import Completions from "#tui/core/components/Completions.tsx";
 import Panel, { useFocused } from "#tui/core/components/Panel.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 import Textarea from "#tui/features/textarea/components/Textarea.tsx";
 
 interface Item {
@@ -19,6 +20,8 @@ interface Item {
 	description?: string;
 	multiple?: boolean;
 	custom?: boolean;
+	/** Its place among the field's choices, as it is numbered. */
+	number?: number;
 	approved?: boolean;
 	submit?: boolean;
 }
@@ -67,7 +70,15 @@ export default function ToolControls({
 			setSelected((previous) => update(previous)),
 		[],
 	);
+	// One question with one answer to pick: choosing it is sending it, as in
+	// Claude Code, so there is no separate action to move on to.
+	const quick =
+		!controls.approval &&
+		controls.fields.length === 1 &&
+		!controls.fields[0]?.multiple;
 	const groups = useMemo(() => {
+		// Numbered through every field, as the digit keys count them.
+		let count = 0;
 		const fields = controls.fields.map((field) => ({
 			name: [field.header, field.label].filter(Boolean).join(": ") || undefined,
 			items: [
@@ -79,6 +90,7 @@ export default function ToolControls({
 						option: option.label,
 						description: option.description,
 						multiple: field.multiple,
+						number: ++count,
 					}),
 				),
 				...(field.custom
@@ -87,11 +99,13 @@ export default function ToolControls({
 								value: `custom:${field.name}`,
 								field: field.name,
 								custom: true,
+								number: ++count,
 							} satisfies Item,
 						]
 					: []),
 			],
 		}));
+		if (quick) return fields;
 		const actions: Item[] = controls.approval
 			? [
 					{ name: "approve", value: "approve", submit: true, approved: true },
@@ -99,50 +113,52 @@ export default function ToolControls({
 				]
 			: [{ name: "continue", value: "continue", submit: true }];
 		return [...fields, { name: undefined, items: actions }];
-	}, [controls]);
+	}, [controls, quick]);
 
 	return (
 		<Panel id={id} disabled={disabled}>
 			<Completions<{ items: Item[] }, Item>
 				groups={groups}
+				numbered
 				selected={selected}
 				setSelected={updateSelected}
 				renderItem={({ item, selected: isSelected }) => {
 					if (item.custom && item.field) {
 						const field = item.field;
 						return (
-							<Textarea
-								focus={focused && isSelected}
-								styles={
-									!focused ? { text: { color: "textSubtle" } } : undefined
-								}
-								value={values[field] ?? ""}
-								onChange={(value) => setValue(field, value)}
-								// Enter moves on to the submit action rather than breaking the line.
-								onEnter={() => {}}
-								placeholder={
-									controls.fields.find((entry) => entry.name === field)
-										?.placeholder ?? "something else..."
-								}
-							/>
+							<Box gap={1}>
+								<Text color="textSubtle">{item.number}.</Text>
+								<Textarea
+									focus={focused && isSelected}
+									styles={
+										!focused ? { text: { color: "textSubtle" } } : undefined
+									}
+									value={values[field] ?? ""}
+									onChange={(value) => setValue(field, value)}
+									// Enter moves on to the submit action rather than breaking the line.
+									onEnter={() => {}}
+									placeholder={
+										controls.fields.find((entry) => entry.name === field)
+											?.placeholder ?? "Something else..."
+									}
+								/>
+							</Box>
 						);
 					}
 					if (item.field && item.option !== undefined) {
 						const picked = isPicked(item.field, item.option);
-						const mark = item.multiple
-							? picked
-								? "[x]"
-								: "[ ]"
-							: picked
-								? "(•)"
-								: "( )";
+						const mark = item.multiple ? (picked ? "[x] " : "[ ] ") : "";
 						return (
-							<Text color={!focused ? "textSubtle" : undefined}>
-								{mark} {item.option}
+							<Box flexDirection="column">
+								<Text color={!focused ? "textSubtle" : undefined}>
+									{item.number}. {mark}
+									{item.option}
+									{picked && !item.multiple && !quick ? " ✓" : ""}
+								</Text>
 								{item.description && (
-									<Text color="textSubtle"> — {item.description}</Text>
+									<Text color="textSubtle">{item.description}</Text>
 								)}
-							</Text>
+							</Box>
 						);
 					}
 					// Deny can be sent without filling the fields; approve and continue cannot.
@@ -154,7 +170,9 @@ export default function ToolControls({
 						</Text>
 					);
 				}}
-				onInput={({ item, key, pointer }) => {
+				onInput={({ item, input, key, pointer }) => {
+					// Digits are typed into a write-in, not jumped to.
+					if (item?.custom && /^\d$/.test(input)) return false;
 					// Shift and the arrows belong to the textarea's text selection.
 					if (key.shift) return false;
 					// Clicking a textarea positions its cursor, not the submit action.
@@ -162,6 +180,15 @@ export default function ToolControls({
 
 					if (key.return && item) {
 						if (item.field) {
+							if (quick) {
+								const answer = item.custom
+									? (values[item.field] ?? "").trim()
+									: item.option;
+								if (!answer) return false;
+								setFocus("editor");
+								submit(undefined, { [item.field]: answer });
+								return false;
+							}
 							if (item.custom) {
 								setSelected(
 									groups

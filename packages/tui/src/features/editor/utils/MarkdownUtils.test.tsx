@@ -405,3 +405,29 @@ describe("MarkdownUtils.toggled", () => {
 		expect(italic("a _word|_ b")).toBe("a _word_| b");
 	});
 });
+
+describe("MarkdownUtils.isInCode", () => {
+	/** Whether the character `|` marks (and is taken out of) is code. */
+	const inCode = (marked: string) => {
+		const offset = marked.indexOf("|");
+		const value = marked.slice(0, offset) + marked.slice(offset + 1);
+		return MarkdownUtils.isInCode(value, offset);
+	};
+
+	it("is code between the backticks of inline code", () => {
+		expect(inCode("a `|/help` b")).toBe(true);
+		expect(inCode("a ``x |/help`` b")).toBe(true);
+	});
+
+	it("is not code on or past the backticks", () => {
+		expect(inCode("a |`x` /help")).toBe(false);
+		expect(inCode("a `x` |/help")).toBe(false);
+		expect(inCode("a `|/help")).toBe(false);
+	});
+
+	it("is code in a fenced block", () => {
+		expect(inCode("```\n|/help\n```")).toBe(true);
+		expect(inCode("```\n|/help")).toBe(true);
+		expect(inCode("```\nx\n```\n|/help")).toBe(false);
+	});
+});

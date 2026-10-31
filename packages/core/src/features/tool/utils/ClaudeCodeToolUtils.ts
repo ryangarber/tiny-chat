@@ -1,3 +1,4 @@
+import type { zData } from "#core/features/data/types/part.ts";
 import { askQuestionDisplay } from "#core/features/tool/tools/questions/ask_question.ts";
 import type {
 	ToolBlock,
@@ -5,27 +6,34 @@ import type {
 	ToolStatusPiece,
 } from "#core/features/tool/types/display.ts";
 import type { ToolDefinition } from "#core/features/tool/types/tool.ts";
+import { ShellUtils } from "#core/features/tool/utils/ShellUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
 type Input = Record<string, any>;
-type Display = ToolDisplay<ToolDefinition>;
+type Display = ToolDisplay<ToolDefinition> & {
+	/**
+	 * How the text of its result is shown: as `prose` (a subagent's answer) or
+	 * as code, under `title` when given. Beside files, it is a notice.
+	 */
+	text?: { prose?: boolean; title?: string };
+};
 
 /** A display read from the call's input alone, which is all these need. */
 const make = ({
 	status,
 	input,
+	text,
 }: {
 	status: (input: Input) => ToolStatusPiece[];
 	input?: (input: Input) => ToolBlock[];
+	text?: Display["text"];
 }): Display => ({
 	status: (call) => status((call.input ?? {}) as Input),
 	input: input && ((call) => input((call.input ?? {}) as Input)),
+	text,
 });
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
-
-/** The command's first word, enough to tell commands apart in a status line. */
-const program = (command: string) => command.trim().split(/\s+/)[0] ?? "";
 
 const diff = (input: Input, before: string, after: string) => ({
 	type: "diff" as const,
@@ -37,25 +45,46 @@ const diff = (input: Input, before: string, after: string) => ({
 
 /**
  * How Claude Code's own tools are shown, in the look of their Tiny Chat
- * counterparts. Their results are text, which every call shows as is.
+ * counterparts. Their results are mostly text, which every call shows as is;
+ * the images and documents `Read` takes in are shown as files.
  */
 const displays: Record<string, Display> = {
 	Bash: make({
 		status: (input: Input) => [
 			["Running", "Ran"],
-			{ count: ["command", "commands"], subject: program(str(input.command)) },
+			{
+				count: ["command", "commands"],
+				subject: ShellUtils.programs(str(input.command)),
+			},
 		],
 		input: (input: Input) => [
-			{ type: "code", value: str(input.command), language: "bash" },
+			{
+				type: "code",
+				value: str(input.command),
+				language: "bash",
+				title: "input",
+			},
 		],
+		text: { title: "output" },
 	}),
-	Read: make({
-		status: (input: Input) => [
-			["Reading", "Read"],
-			{ count: ["file", "files"] },
-			{ subject: ToolDisplayUtils.name(str(input.file_path)) },
-		],
-	}),
+	Read: {
+		...make({
+			status: (input: Input) => [
+				["Reading", "Read"],
+				{ count: ["file", "files"] },
+				{ subject: ToolDisplayUtils.name(str(input.file_path)) },
+			],
+		}),
+		// Images, PDFs and notebooks' figures; text comes back as text.
+		output: ({ input, files }) =>
+			files.flatMap(
+				(file) =>
+					ToolDisplayUtils.file({
+						path: str((input as Input).file_path),
+						file,
+					}) ?? [],
+			),
+	},
 	Write: make({
 		status: (input: Input) => [
 			["Writing", "Wrote"],
@@ -134,17 +163,71 @@ const displays: Record<string, Display> = {
 			},
 		],
 	}),
-	Task: make({
+	Task: {
+		...make({
+			status: (input: Input) => [
+				["Using", "Used"],
+				{ count: ["subagent", "subagents"], subject: str(input.description) },
+			],
+			input: (input: Input) => [
+				{ type: "markdown", value: str(input.prompt), quote: true },
+			],
+		}),
+		// Its conversation while it runs, as Tiny Chat's own subagents show
+		// theirs; the answer it gave once it is done.
+		output: ({ state, stream }) => {
+			const data = state === "running" ? stream.at(-1) : undefined;
+			return data ? [{ type: "messages", data: data as zData }] : [];
+		},
+		text: { prose: true },
+	},
+	NotebookEdit: make({
 		status: (input: Input) => [
-			["Running", "Ran"],
-			{ count: ["subagent", "subagents"], subject: str(input.description) },
+			["Editing", "Edited"],
+			{ count: ["notebook", "notebooks"] },
+			{ subject: ToolDisplayUtils.name(str(input.notebook_path)) },
 		],
 		input: (input: Input) => [
-			{ type: "markdown", value: str(input.prompt), quote: true },
+			{
+				type: "code",
+				value: str(input.new_source),
+				language: input.cell_type === "markdown" ? "markdown" : "python",
+			},
+		],
+	}),
+	ExitPlanMode: make({
+		status: () => [["Proposing", "Proposed"], { count: ["plan", "plans"] }],
+		input: (input: Input) => [{ type: "markdown", value: str(input.plan) }],
+	}),
+	EnterPlanMode: make({
+		status: () => [["Planning", "Planned"]],
+	}),
+	Skill: make({
+		status: (input: Input) => [
+			["Using", "Used"],
+			{ count: ["skill", "skills"], subject: str(input.skill) },
+		],
+	}),
+	BashOutput: make({
+		status: () => [
+			["Reading", "Read"],
+			{ count: ["command output", "command outputs"] },
+		],
+	}),
+	KillShell: make({
+		status: () => [["Stopping", "Stopped"], { count: ["command", "commands"] }],
+	}),
+	ToolSearch: make({
+		status: (input: Input) => [
+			["Finding", "Found"],
+			{ count: ["tools", "tools"], subject: str(input.query) },
 		],
 	}),
 };
 displays.Agent = displays.Task;
+displays.TaskOutput = displays.BashOutput;
+displays.TaskStop = displays.KillShell;
+displays.KillBash = displays.KillShell;
 // Answered through the user's feedback, as Tiny Chat's own questions are.
 displays.AskUserQuestion = askQuestionDisplay;
 

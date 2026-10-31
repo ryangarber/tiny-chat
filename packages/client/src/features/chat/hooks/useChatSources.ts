@@ -39,6 +39,16 @@ export const useChatSources = () => {
 	const { toolsets } = useTools();
 	const draftData = useComposerStore((state) => state.data);
 	const chatId = useChatStore((state) => state.active.chatId);
+	const projectId = useChatStore((state) => state.active.project?.id ?? null);
+
+	// The project folders the chat works in, those that are on this machine.
+	const folders = useQuery({
+		queryKey: ["useChatSources", "folders", chatId, projectId],
+		queryFn: () => client.workingDirectory.folders(),
+		enabled: !!shell,
+		staleTime: GIT_INTERVAL,
+		placeholderData: (previous) => previous,
+	});
 
 	const [loaded, setLoaded] = useState<{
 		chatId: string | null;
@@ -56,12 +66,21 @@ export const useChatSources = () => {
 		() =>
 			ChatSourcesUtils.files({
 				mounted: chatFiles.data ?? [],
+				folders: folders.data,
 				messages: messageList,
 				draft: { data: draftData },
 				loaded: loaded.chatId === chatId ? loaded.files : [],
 				toolsets,
 			}),
-		[chatFiles.data, messageList, draftData, loaded, chatId, toolsets],
+		[
+			chatFiles.data,
+			folders.data,
+			messageList,
+			draftData,
+			loaded,
+			chatId,
+			toolsets,
+		],
 	);
 
 	const webSources = useMemo(

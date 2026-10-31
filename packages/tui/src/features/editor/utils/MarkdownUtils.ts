@@ -564,6 +564,31 @@ export const MarkdownUtils = {
 		return ranges;
 	},
 
+	/**
+	 * Whether the character at an offset is code — in a block of code, or
+	 * between the backticks of inline code — where nothing typed means more
+	 * than the text it is.
+	 */
+	isInCode: (value: string, offset: number) => {
+		if (isInCode(value, offset)) return true;
+
+		const { tree, span } = parse(value);
+		for (const node of walk(tree)) {
+			if (node.type !== "inlineCode") continue;
+
+			const spanned = span(node);
+			if (!spanned) continue;
+
+			const [start, end] = spanned;
+			const text = value.slice(start, end);
+			const opening = text.match(/^`+/)?.[0].length ?? 0;
+			const closing = text.match(/`+$/)?.[0].length ?? 0;
+			if (offset >= start + opening && offset < end - closing) return true;
+		}
+
+		return false;
+	},
+
 	/** Every fenced block of code in the value whose code can be highlighted where it stands. */
 	codeBlocks: (value: string): MarkdownCodeBlock[] => {
 		const { tree, span } = parse(value);

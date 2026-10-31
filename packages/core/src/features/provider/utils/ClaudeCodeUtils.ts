@@ -1,6 +1,7 @@
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
 import type {
+	zData,
 	zDataPart,
 	zDataSimplePart,
 	zSignature,
@@ -13,9 +14,10 @@ import {
 	type ClaudeCodeBlock,
 	type ClaudeCodeMessage,
 	type ClaudeCodeToolContent,
-} from "#core/features/provider/types/claudeCode.ts";
+} from "#core/features/provider/types/claude.ts";
 import type { zModelMessage } from "#core/features/provider/types/model.ts";
 import { ModelProviderUtils } from "#core/features/provider/utils/ModelProviderUtils.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 
 /** What a part's signature names as its model, to find Claude Code's sessions by. */
 export const CLAUDE_CODE_SIGNATURE = "claude-code";
@@ -187,6 +189,17 @@ export const ClaudeCodeUtils = {
 						data: block.source.data ?? "",
 					},
 				];
+			// A PDF its `Read` tool took in whole.
+			if (block.type === "document" && block.source?.type === "base64")
+				return [
+					{
+						id: CommonUtils.getRandomId(),
+						type: "file",
+						...(typeof block.title === "string" && { name: block.title }),
+						mime: block.source.media_type ?? "application/pdf",
+						data: block.source.data ?? "",
+					},
+				];
 			return [];
 		});
 	},
@@ -196,7 +209,12 @@ export const ClaudeCodeUtils = {
 	 * has seen: which blocks are text, thinking or calls, and the calls
 	 * Tiny Chat answered itself, whose echoed results it skips.
 	 */
-	createReader: () => {
+	createReader: ({
+		onSubagent,
+	}: {
+		/** A subagent's conversation so far, by the call that started it. */
+		onSubagent?: (id: string, data: zData) => void;
+	} = {}) => {
 		let session: string | undefined;
 		let message = "";
 		/** A step's blocks, by index: what they are and, for calls, their id. */
@@ -205,20 +223,127 @@ export const ClaudeCodeUtils = {
 		const answered = new Set<string>();
 		/** The kind of block last read, and the text block that came last. */
 		let last: { type?: string; text?: string } = {};
+		/** Subagents' conversations, and the step each is on, by their call. */
+		const subagents = new Map<string, { data: zData; message?: string }>();
+		/** The subagent each of their own calls belongs to. */
+		const parents = new Map<string, string>();
+		/** Calls whose subagents run on after the call returns. */
+		const background = new Set<string>();
 
 		const signature = (): zSignature | undefined =>
 			session ? { model: CLAUDE_CODE_SIGNATURE, item: session } : undefined;
+
+		const emit = (id: string) => {
+			const subagent = subagents.get(id);
+			// Copied, so whatever holds the last one sees a change.
+			if (subagent)
+				onSubagent?.(
+					id,
+					subagent.data.map((step) => [...step]),
+				);
+		};
+
+		/** A subagent's own message, added to its conversation. */
+		const readSubagent = (parent: string, event: ClaudeCodeMessage) => {
+			let subagent = subagents.get(parent);
+			if (!subagent) {
+				subagent = { data: [] };
+				subagents.set(parent, subagent);
+			}
+			if (event.type === "assistant") {
+				const { message } = event as Extract<
+					ClaudeCodeMessage,
+					{ type: "assistant" }
+				>;
+				// A step's blocks may come in messages of their own.
+				if (subagent.message !== message.id || !subagent.data.length) {
+					subagent.message = message.id;
+					subagent.data.push([]);
+				}
+				const step = subagent.data[subagent.data.length - 1];
+				for (const block of message.content as Block[]) {
+					const id = CommonUtils.getRandomId();
+					if (block.type === "text" && block.text)
+						step.push({ id, type: "text", value: block.text });
+					else if (block.type === "thinking" && block.thinking)
+						step.push({ id, type: "thought", value: block.thinking });
+					else if (block.type === "tool_use" && block.id && block.name) {
+						const part: zToolCallPart = {
+							type: "toolCall",
+							id: block.id,
+							name: ClaudeCodeUtils.getToolName(block.name),
+							input: block.input ?? {},
+						};
+						calls.set(part.id, part);
+						parents.set(part.id, parent);
+						step.push(part);
+					}
+				}
+			} else if (event.type === "user") {
+				const { message } = event as Extract<
+					ClaudeCodeMessage,
+					{ type: "user" }
+				>;
+				if (typeof message.content === "string") return;
+				const step = subagent.data[subagent.data.length - 1];
+				for (const block of message.content) {
+					const id = block.tool_use_id;
+					if (block.type !== "tool_result" || !id || !step) continue;
+					step.push({
+						type: "toolResult",
+						id,
+						name: calls.get(id)?.name ?? "tool",
+						output: ClaudeCodeUtils.fromToolContent(block.content),
+						error: block.is_error || undefined,
+					});
+				}
+			} else return;
+			emit(parent);
+		};
 
 		const read = (event: ClaudeCodeMessage): zAgentEvent[] => {
 			if (event.type === "system") {
 				const system = event as Extract<ClaudeCodeMessage, { type: "system" }>;
 				if (system.subtype === "init" && system.session_id)
 					session = system.session_id;
+				const call = system.tool_use_id;
+				if (system.subtype === "task_started" && call && system.is_backgrounded)
+					background.add(call);
+				// A subagent in the background reports its answer as it ends,
+				// as Tiny Chat's own background calls do.
+				if (
+					system.subtype === "task_notification" &&
+					call &&
+					background.delete(call)
+				) {
+					const texts = (subagents.get(call)?.data.at(-1) ?? []).flatMap(
+						(part) => (part.type === "text" ? [part.value] : []),
+					);
+					const value = texts.join("\n\n") || system.summary || "";
+					return [
+						{
+							type: "data",
+							value: {
+								id: CommonUtils.getRandomId(),
+								type: "interjection",
+								task: {
+									id: call,
+									name: calls.get(call)?.name ?? "Agent",
+									error: system.status !== "completed" || undefined,
+								},
+								value: [{ id: CommonUtils.getRandomId(), type: "text", value }],
+							},
+						},
+					];
+				}
 				return [];
 			}
 
-			// A subagent's own work shows only as its call and result.
-			if ("parent_tool_use_id" in event && event.parent_tool_use_id) return [];
+			// A subagent's own work shows inside its call.
+			if ("parent_tool_use_id" in event && event.parent_tool_use_id) {
+				readSubagent(event.parent_tool_use_id as string, event);
+				return [];
+			}
 
 			if (event.type === "stream_event") {
 				const { event: stream } = event as Extract<
@@ -319,7 +444,10 @@ export const ClaudeCodeUtils = {
 								type: "toolResult",
 								id,
 								name: calls.get(id)?.name ?? "tool",
-								output: ClaudeCodeUtils.fromToolContent(block.content),
+								// Still running: its answer comes once the subagent ends.
+								output: background.has(id)
+									? ToolCallUtils.getBackground({ id })
+									: ClaudeCodeUtils.fromToolContent(block.content),
 								error: block.is_error || undefined,
 								signature: signature(),
 							},
@@ -340,6 +468,15 @@ export const ClaudeCodeUtils = {
 							reason: "error",
 							message: result.errors?.join("\n") || result.subtype,
 							details: "",
+						},
+					});
+				if (result.structured_output !== undefined)
+					events.push({
+						type: "data",
+						value: {
+							id: CommonUtils.getRandomId(),
+							type: "json",
+							value: result.structured_output,
 						},
 					});
 				events.push({
@@ -366,6 +503,15 @@ export const ClaudeCodeUtils = {
 			getCall: (id: string) => calls.get(id),
 			/** Marks a call Tiny Chat answers itself. */
 			answer: (id: string) => answered.add(id),
+			/**
+			 * Shows a call again once it changes: through its subagent's
+			 * conversation if it is a subagent's, which it then returns.
+			 */
+			refresh: (id: string) => {
+				const parent = parents.get(id);
+				if (parent) emit(parent);
+				return parent;
+			},
 			signature,
 		};
 	},

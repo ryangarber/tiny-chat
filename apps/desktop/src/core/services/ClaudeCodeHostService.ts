@@ -21,6 +21,7 @@ export const ClaudeCodeHostService = {
 		| "claudeCodeStatus"
 		| "claudeCodeRun"
 		| "claudeCodeCancel"
+		| "claudeCodeStopTask"
 		| "claudeCodeSend"
 		| "claudeCodeClose"
 		| "claudeCodeAnswer"
@@ -39,7 +40,8 @@ export const ClaudeCodeHostService = {
 			});
 
 		return {
-			claudeCodeStatus: async () => ClaudeCodeRunService.status(),
+			claudeCodeStatus: async (settings) =>
+				ClaudeCodeRunService.status(settings),
 
 			claudeCodeRun: async ({ key, request }) =>
 				ClaudeCodeRunService.run(request, {
@@ -72,6 +74,10 @@ export const ClaudeCodeHostService = {
 
 			claudeCodeCancel: async ({ id }) => {
 				ClaudeCodeRunService.cancel(id);
+			},
+
+			claudeCodeStopTask: async ({ id, toolUseId }) => {
+				await ClaudeCodeRunService.stopTask(id, toolUseId);
 			},
 
 			claudeCodeSend: async ({ id, prompt }) => {

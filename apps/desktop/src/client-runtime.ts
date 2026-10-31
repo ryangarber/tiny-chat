@@ -12,7 +12,7 @@ import type { AFMEvent } from "#core/features/provider/types/afm.ts";
 import type {
 	ClaudeCodeEvent,
 	ClaudeCodeHandlers,
-} from "#core/features/provider/types/claudeCode.ts";
+} from "#core/features/provider/types/claude.ts";
 import type { DesktopRPC, McpServer } from "#desktop/core/types/rpc.ts";
 import type {
 	ClientRuntime,
@@ -158,7 +158,8 @@ function create(rpc: DesktopView): ClientRuntime {
 	});
 
 	const ClaudeCodeProvider = createClaudeCodeProvider({
-		status: () => rpc.request.claudeCodeStatus(),
+		status: (settings) =>
+			rpc.request.claudeCodeStatus({ executable: settings?.executable }),
 		run: async (request, handlers) => {
 			const key = nextClaudeCodeKey++;
 			claudeCodeRuns.set(key, handlers);
@@ -171,6 +172,9 @@ function create(rpc: DesktopView): ClientRuntime {
 		},
 		cancel: async (id) => {
 			await rpc.request.claudeCodeCancel({ id });
+		},
+		stopTask: async (id, toolUseId) => {
+			await rpc.request.claudeCodeStopTask({ id, toolUseId });
 		},
 		send: async (id, prompt) => {
 			await rpc.request.claudeCodeSend({ id, prompt });

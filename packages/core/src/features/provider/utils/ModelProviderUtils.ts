@@ -97,7 +97,13 @@ export const ModelProviderUtils = {
 		);
 	},
 
-	getModelArgs: ({ maxTemp = 2 }: { maxTemp?: number }) => {
+	getModelArgs: ({
+		temperature = 2,
+		tokensOut = 200_000,
+	}: {
+		temperature?: number | false;
+		tokensOut?: number | false;
+	}) => {
 		const args: zModelArg[] = [
 			{
 				type: "range",
@@ -106,23 +112,28 @@ export const ModelProviderUtils = {
 				max: 2_000_000,
 				default: 200_000,
 			},
-			{
+		];
+
+		if (tokensOut) {
+			args.push({
 				type: "range",
 				name: "tokens-out",
 				min: 1_000,
-				max: 200_000,
+				max: tokensOut,
 				default: 20_000,
-			},
-		];
-		if (maxTemp > 0) {
+			});
+		}
+
+		if (temperature) {
 			args.push({
 				type: "range",
 				name: "temperature",
 				min: 0,
-				max: maxTemp,
+				max: temperature,
 				default: 1,
 			});
 		}
+
 		return args;
 	},
 
@@ -144,6 +155,9 @@ export const ModelProviderUtils = {
 					return (
 						typeof value === "number" && value >= arg.min && value <= arg.max
 					);
+				}
+				if (arg?.type === "toggle") {
+					return typeof value === "boolean";
 				}
 				return false;
 			}),

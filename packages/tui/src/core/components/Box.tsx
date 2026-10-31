@@ -6,7 +6,7 @@ import {
 	useContext,
 	useMemo,
 } from "react";
-import { TextContext } from "#tui/core/components/Text.tsx";
+import { InsideTextContext, TextContext } from "#tui/core/components/Text.tsx";
 import { type Color, useColor } from "#tui/core/hooks/useColor.ts";
 
 export interface BoxProps
@@ -39,6 +39,7 @@ export default function Box({
 }: BoxProps & { children?: ReactNode } & RefAttributes<DOMElement>) {
 	const context = useContext(BoxContext);
 	const textContext = useContext(TextContext);
+	const insideText = useContext(InsideTextContext);
 
 	const mergedContext = useMemo<BoxContext>(
 		() => ({
@@ -98,6 +99,11 @@ export default function Box({
 			borderBottom: !!_border,
 		};
 	}, [_border]);
+
+	// Ink throws for a box inside text, which would end the app over one block
+	// that cannot be laid out — markdown with an image inside a link, say. Its
+	// content flows on as part of the text instead.
+	if (insideText) return <>{props.children}</>;
 
 	return (
 		<BoxContext value={mergedContext}>

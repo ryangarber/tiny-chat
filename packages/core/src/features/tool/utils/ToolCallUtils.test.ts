@@ -157,7 +157,7 @@ describe("ToolCallUtils", () => {
 			});
 			expect(running.state).toBe("running");
 			expect(running.output).toEqual([
-				{ type: "code", value: "a\nb", terminal: true },
+				{ type: "code", value: "a\nb", title: "output", terminal: true },
 			]);
 
 			const done = ToolCallUtils.getDisplay({
@@ -299,6 +299,28 @@ describe("ToolCallUtils", () => {
 			expect(display.output).toEqual([
 				{ type: "json", value: { found: true } },
 				{ type: "code", value: "raw" },
+			]);
+		});
+
+		it("shows an agent's own terminal output without its colors", () => {
+			const display = ToolCallUtils.getDisplay({
+				part: result(call("Bash", { command: "pnpm test" }), [
+					{
+						id: "t",
+						type: "text",
+						value:
+							"\u001b[36mweb:test: \u001b[0m\u001b[2m Test Files \u001b[22m\r\n1 passed\r\n",
+					},
+				]),
+				toolsets,
+			});
+			expect(text(display.status)).toBe("Ran pnpm test");
+			expect(display.output).toEqual([
+				{
+					type: "code",
+					value: "web:test:  Test Files \n1 passed\n",
+					title: "output",
+				},
 			]);
 		});
 	});

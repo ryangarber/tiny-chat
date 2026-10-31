@@ -1,10 +1,10 @@
 import { type ReactNode, useState } from "react";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import type { Bindings } from "#tui/core/utils/ListBindingUtils.ts";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 import type { ChoiceItem } from "#tui/features/settings/components/Choice.tsx";
 import Textarea from "#tui/features/textarea/components/Textarea.tsx";
 

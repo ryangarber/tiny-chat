@@ -1,6 +1,5 @@
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { Fragment, memo } from "react";
-import { jsx, jsxs } from "react/jsx-runtime";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
 import {
 	type MarkdownSource,
@@ -9,8 +8,13 @@ import {
 } from "#client/features/message/hooks/useMarkdown.ts";
 import { useMarkdownBlocks } from "#client/features/message/hooks/useMarkdownBlocks.ts";
 import type { zEditorPart } from "#core/features/data/utils/EditorPartUtils.ts";
+import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import type { Color } from "#tui/core/hooks/useColor.ts";
-import { MarkdownComponents } from "#tui/features/message/components/MarkdownComponents.tsx";
+import {
+	MarkdownComponents,
+	markdownJsx,
+	markdownJsxs,
+} from "#tui/features/message/components/MarkdownComponents.tsx";
 import Selectable from "#tui/features/selection/components/Selectable.tsx";
 
 /**
@@ -35,8 +39,8 @@ const MarkdownBlock = memo(function MarkdownBlock({
 		{
 			Fragment,
 			components: MarkdownComponents,
-			jsx,
-			jsxs,
+			jsx: markdownJsx,
+			jsxs: markdownJsxs,
 			ignoreInvalidStyle: true,
 			passKeys: true,
 			passNode: true,
@@ -65,7 +69,9 @@ export default function Markdown({
 					key={index}
 					value={streaming && index === blocks.length - 1}
 				>
-					<MarkdownBlock source={block} parts={parts} />
+					<ErrorBoundary label="this markdown" resetKey={block}>
+						<MarkdownBlock source={block} parts={parts} />
+					</ErrorBoundary>
 				</StreamContext>
 			))}
 		</Selectable>

@@ -18,13 +18,35 @@ import type { zData } from "#core/features/data/types/part.ts";
 
 export type UsageLevel = "low" | "moderate" | "high";
 
-export type Categories = { name: string; tokens: number; loading: boolean }[];
+export type CategoryId =
+	| "instructions"
+	| "memories"
+	| "thoughts"
+	| "tools"
+	| "text"
+	| "files";
+
+export type Categories = {
+	id: CategoryId;
+	name: string;
+	tokens: number;
+	/**
+	 * How much of the bar it takes, from 0 to 1: of the context window where
+	 * the model has one, or of the total otherwise — or of the total where it
+	 * runs past the window, so the bar is never overfull.
+	 */
+	share: number;
+	loading: boolean;
+}[];
 
 export type Usage<T> = {
 	percent: number;
 	level: UsageLevel;
 	color: T;
 	loading: boolean;
+	tokens: number;
+	/** The context window, where the model's config gives one. */
+	maxTokens?: number;
 };
 
 const ZERO: CompactionResult = {
@@ -207,7 +229,17 @@ export const useEstimatedTokens = <T>({
 		if (percent >= 100) level = "high";
 		const color = colors?.[level] ?? ("" as T);
 		const loading = dependenciesLoading || chatTokens.isFetching;
-		return { totalTokens, usage: { percent, level, color, loading } };
+		return {
+			totalTokens,
+			usage: {
+				percent,
+				level,
+				color,
+				loading,
+				tokens: totalTokens,
+				maxTokens,
+			},
+		};
 	}, [
 		chatTokens.data,
 		chatTokens.isFetching,
@@ -218,24 +250,25 @@ export const useEstimatedTokens = <T>({
 
 	const before = chatTokens.data?.before;
 	const categoriesLoading = dependenciesLoading || chatTokens.isFetching;
-	const categories = useMemo<Categories>(
-		() =>
-			(
-				[
-					["Instructions", before?.instructions],
-					["Memories", before?.memories],
-					["Thoughts", before?.thoughts],
-					["Tools", before?.tools],
-					["Text", before?.text],
-					["Files", before?.files],
-				] as const
-			).map(([name, tokens]) => ({
-				name,
-				tokens: tokens ?? 0,
-				loading: categoriesLoading,
-			})),
-		[before, categoriesLoading],
-	);
+	const categories = useMemo<Categories>(() => {
+		const entries = [
+			["instructions", "Instructions", before?.instructions],
+			["memories", "Memories", before?.memories],
+			["thoughts", "Thoughts", before?.thoughts],
+			["tools", "Tools", before?.tools],
+			["text", "Text", before?.text],
+			["files", "Files", before?.files],
+		] as const;
+		const total = entries.reduce((sum, [, , tokens]) => sum + (tokens ?? 0), 0);
+		const whole = Math.max(total, usage.maxTokens ?? 0);
+		return entries.map(([id, name, tokens]) => ({
+			id,
+			name,
+			tokens: tokens ?? 0,
+			share: whole > 0 ? (tokens ?? 0) / whole : 0,
+			loading: categoriesLoading,
+		}));
+	}, [before, categoriesLoading, usage.maxTokens]);
 
 	return { chatTokens, draftTokens, totalTokens, usage, categories };
 };

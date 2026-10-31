@@ -133,7 +133,9 @@ const Command = Node.create({
 				char: "/",
 				pluginKey,
 				placement: "top-start",
-				allow: ({ editor }) => {
+				allow: ({ editor, state, range }) => {
+					// A slash written as code is only ever the text it is.
+					if (NodeUtils.isInCode(state, range.from)) return false;
 					const { command } = getSelectedCommandNode(
 						editor,
 						(this.options as CommandOptions).getCommands(),
@@ -150,6 +152,7 @@ const Command = Node.create({
 						}),
 					}),
 				render: renderCompletions({
+					tabs: true,
 					renderEmpty: () => "No matches",
 					renderItem: (item) => `/${item.name}`,
 					onTab: ({ item, editor, range }) => {

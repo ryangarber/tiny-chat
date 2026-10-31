@@ -1,6 +1,3 @@
-/** biome-ignore-all lint/suspicious/noArrayIndexKey: nodes stay in order */
-
-import { Text } from "ink";
 import { useMemo } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import { DiffUtils } from "#core/features/file/utils/DiffUtils.ts";
@@ -33,21 +30,17 @@ export default function Diff({
 		[before, after],
 	);
 
-	const diffShown = useMemo(() => diff.slice(0, maxHeight), [diff, maxHeight]);
-	const overflow = diff.length - diffShown.length;
-
 	const { highlighted } = useCode({ code: "", language });
 
 	// the app's first format is the file before the edit
 	return (
-		<Content formatter={() => after} backgroundColor={highlighted.bg}>
+		<Content
+			formatter={() => after}
+			backgroundColor={highlighted.bg}
+			maxHeight={maxHeight}
+		>
 			<Highlight code={highlighted} {...props}>
-				<DiffLines
-					diff={diffShown}
-					highlighted={highlighted}
-					language={language}
-				/>
-				{overflow > 0 && <Text dimColor>{` ⋮ ${overflow} more lines`}</Text>}
+				<DiffLines diff={diff} highlighted={highlighted} language={language} />
 			</Highlight>
 		</Content>
 	);

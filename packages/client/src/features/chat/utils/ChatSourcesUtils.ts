@@ -45,7 +45,9 @@ export const ChatSourcesUtils = {
 			.flat()
 			.flatMap((part) =>
 				part.type === "attachment" &&
-				part.content.type !== "web" &&
+				(part.content.type === "file" ||
+					part.content.type === "directory" ||
+					part.content.type === "unavailable") &&
 				!PathUtils.isMounted(part.source)
 					? [
 							ChatSourcesUtils.local(
@@ -57,19 +59,41 @@ export const ChatSourcesUtils = {
 			),
 
 	/**
-	 * Every file the chat has touched: what is on its mount, what its messages
-	 * (and the one being written) attached or pointed tools at, and whatever was
-	 * read out of those folders since. Folders that are no longer referenced
-	 * take what was read out of them with them.
+	 * Files on the machine that a message's calls changed without saying so — a
+	 * shell command, an MCP server's tool, Claude Code's own. One that is gone
+	 * now has nothing left to open.
+	 */
+	changed: (message: MessageLike): ChatFile[] =>
+		message.data
+			.flat()
+			.flatMap((part) =>
+				part.type === "toolResult" && part.changes ? part.changes.files : [],
+			)
+			.flatMap((change) =>
+				(change.after !== undefined || change.skipped) &&
+				!PathUtils.isMounted(change.path)
+					? [ChatSourcesUtils.local(change.path, false)]
+					: [],
+			),
+
+	/**
+	 * Every file the chat has touched: what is on its mount, the project folders
+	 * it works in, what its messages (and the one being written) attached,
+	 * pointed tools at or changed, and whatever was read out of those folders
+	 * since. Folders that are no longer referenced take what was read out of
+	 * them with them.
 	 */
 	files: ({
 		mounted,
+		folders = [],
 		messages,
 		draft,
 		loaded,
 		toolsets,
 	}: {
 		mounted: MountedFile[];
+		/** The chat's folders on this machine, as the working directory found them. */
+		folders?: string[];
 		messages: MessageLike[];
 		draft: MessageLike;
 		loaded: ChatFile[];
@@ -87,6 +111,7 @@ export const ChatSourcesUtils = {
 						: [tree, id, ...rest].filter(Boolean),
 			};
 		});
+		const project = folders.map((path) => ChatSourcesUtils.local(path, true));
 		const referenced = messages.flatMap((message) => [
 			...SourceUtils.find({ message, toolsets }).flatMap((source) =>
 				source.type === "file" && !PathUtils.isMounted(source.value)
@@ -94,9 +119,10 @@ export const ChatSourcesUtils = {
 					: [],
 			),
 			...ChatSourcesUtils.attachments(message),
+			...ChatSourcesUtils.changed(message),
 		]);
 		const drafted = ChatSourcesUtils.attachments(draft);
-		const directories = [...referenced, ...drafted].filter(
+		const directories = [...project, ...referenced, ...drafted].filter(
 			(file) => file.directory,
 		);
 		const read = loaded.filter((entry) =>
@@ -111,10 +137,9 @@ export const ChatSourcesUtils = {
 		);
 		return [
 			...new Map(
-				[...mount, ...referenced, ...drafted, ...read].map((file) => [
-					`${file.local}:${file.path}`,
-					file,
-				]),
+				[...mount, ...project, ...referenced, ...drafted, ...read].map(
+					(file) => [`${file.local}:${file.path}`, file],
+				),
 			).values(),
 		];
 	},
@@ -148,7 +173,7 @@ export const ChatSourcesUtils = {
 			memory.stability.toLowerCase().replace("_", " "),
 			`${Math.round(memory.confidence * 100)}% confident`,
 		].join(" · "),
-		learned: `Learned ${CommonUtils.formatDate({ date: memory.createdAt, relative: true })}`,
+		learned: `learned ${CommonUtils.formatDate({ date: memory.createdAt, relative: true })}`,
 		messageId: memory.messageId,
 	}),
 

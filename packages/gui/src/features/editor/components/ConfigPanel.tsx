@@ -1,4 +1,12 @@
-import { Box, Group, Select, Slider, Stack, Text } from "@mantine/core";
+import {
+	Box,
+	Checkbox,
+	Group,
+	Select,
+	Slider,
+	Stack,
+	Text,
+} from "@mantine/core";
 import { useMemo, useState } from "react";
 import { useConfigEditor } from "#client/features/agent/hooks/useConfigEditor.ts";
 import { useSkills } from "#client/features/agent/hooks/useSkills.ts";
@@ -150,41 +158,50 @@ export default function ConfigPanel({
 						/>
 					</Group>
 					<Stack gap="xs" mt={5}>
-						{modelArgs.map((arg) => (
-							<Box key={arg.name}>
-								<Text size="xs" mb={2} c="dimmed">
-									{arg.name}
-								</Text>
-								{arg.type === "list" && (
-									<Select
-										data={arg.values}
-										size="xs"
-										value={
-											(config.args as Record<string, string> | undefined)?.[
-												arg.name
-											] ?? arg.default
-										}
-										comboboxProps={{ offset: 0, position: "top", zIndex }}
-										onChange={(value) => setModelArg(arg.name, value)}
-										disabled={disabled}
-										classNames={{ dropdown: className }}
-									/>
-								)}
-								{arg.type === "range" && (
-									<ArgSlider
-										min={arg.min}
-										max={arg.max}
-										value={
-											(config.args as Record<string, number> | undefined)?.[
-												arg.name
-											] ?? arg.default
-										}
-										onChange={(value) => setModelArg(arg.name, value)}
-										disabled={disabled}
-									/>
-								)}
-							</Box>
-						))}
+						{modelArgs.map((arg) => {
+							const value =
+								(config.args as Record<string, string> | undefined)?.[
+									arg.name
+								] ?? arg.default;
+							return (
+								<Box key={arg.name}>
+									<Text size="xs" mb={2} c="dimmed">
+										{arg.name}
+									</Text>
+									{arg.type === "list" && (
+										<Select
+											data={arg.values}
+											size="xs"
+											value={String(value)}
+											comboboxProps={{ offset: 0, position: "top", zIndex }}
+											onChange={(value) => setModelArg(arg.name, value)}
+											disabled={disabled}
+											classNames={{ dropdown: className }}
+										/>
+									)}
+									{arg.type === "toggle" && (
+										<Checkbox.Card
+											checked={Boolean(value)}
+											onClick={() => setModelArg(arg.name, !value)}
+											disabled={disabled}
+										>
+											<Group wrap="nowrap" align="flex-start">
+												<Checkbox.Indicator />
+											</Group>
+										</Checkbox.Card>
+									)}
+									{arg.type === "range" && (
+										<ArgSlider
+											min={arg.min}
+											max={arg.max}
+											value={Number(value)}
+											onChange={(value) => setModelArg(arg.name, value)}
+											disabled={disabled}
+										/>
+									)}
+								</Box>
+							);
+						})}
 					</Stack>
 				</>
 			)}

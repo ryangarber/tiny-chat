@@ -147,6 +147,44 @@ export const AttachmentUtils = {
 	},
 
 	/**
+	 * A tab of the agent's browser as an attachment, read as its rendered text
+	 * when attached. Named by its title, or its URL while it has none.
+	 */
+	forTab: ({
+		tab,
+	}: {
+		tab: { index: number; url: string; title: string };
+	}): AttachmentItem => {
+		const name = (tab.title || tab.url || "Untitled tab").slice(0, 60);
+		return {
+			name,
+			label: name.replace(/["}]/g, ""),
+			value: `browser:${tab.index}`,
+		};
+	},
+
+	/**
+	 * A window on the computer as an attachment, read as its accessibility
+	 * outline and a screenshot when attached.
+	 */
+	forWindow: ({
+		window,
+	}: {
+		window: { id: string; app: string; title?: string };
+	}): AttachmentItem => {
+		const name = (
+			window.title && window.title !== window.app
+				? `${window.app} — ${window.title}`
+				: window.app
+		).slice(0, 60);
+		return {
+			name,
+			label: name.replace(/["}]/g, ""),
+			value: `window:${window.id}`,
+		};
+	},
+
+	/**
 	 * Write the chosen attachment into a plain text buffer as an atom standing
 	 * for its part, which is the file's name alone.
 	 */

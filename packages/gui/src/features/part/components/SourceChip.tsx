@@ -1,8 +1,10 @@
 import { Group, type GroupProps, Image } from "@mantine/core";
 import {
+	AppWindowIcon,
 	BrainIcon,
 	BrowserIcon,
 	ChatCircleIcon,
+	GlobeIcon,
 	LightningIcon,
 } from "@phosphor-icons/react";
 import { type HTMLAttributes, type ReactNode, useMemo } from "react";
@@ -67,6 +69,10 @@ export default function SourceChip({
 		icon = <LightningIcon size={size} />;
 	} else if (path.startsWith("chat:")) {
 		icon = <ChatCircleIcon size={size} />;
+	} else if (path.startsWith("browser:")) {
+		icon = <GlobeIcon size={size} />;
+	} else if (path.startsWith("window:")) {
+		icon = <AppWindowIcon size={size} />;
 	} else {
 		icon = (
 			<FileIcon
@@ -79,8 +85,11 @@ export default function SourceChip({
 		);
 	}
 
+	// A tab or window was read once, when attached; there is no file to open.
+	const live = path.startsWith("browser:") || path.startsWith("window:");
+
 	const events = useMemo<HTMLAttributes<HTMLElement>>(() => {
-		if (viewable) {
+		if (viewable && !live) {
 			const open = () => {
 				// Another chat is read where it lives, not previewed as a file.
 				if (path.startsWith("chat:")) {
@@ -105,7 +114,7 @@ export default function SourceChip({
 			};
 		}
 		return {};
-	}, [viewable, directory, path, chatId, web, viewFile]);
+	}, [viewable, live, directory, path, chatId, web, viewFile]);
 
 	if (inline) {
 		return (

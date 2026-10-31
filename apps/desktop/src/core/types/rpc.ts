@@ -12,7 +12,7 @@ import type {
 	ClaudeCodeHandlers,
 	ClaudeCodeRequest,
 	ClaudeCodeStatus,
-} from "#core/features/provider/types/claudeCode.ts";
+} from "#core/features/provider/types/claude.ts";
 
 /** A file's bytes, base64 encoded, since RPC carries JSON. */
 type Bytes = string;
@@ -138,7 +138,10 @@ export type DesktopRPC = {
 			};
 			afmCancel: { params: { id: number }; response: void };
 
-			claudeCodeStatus: { params: undefined; response: ClaudeCodeStatus };
+			claudeCodeStatus: {
+				params: { executable?: string };
+				response: ClaudeCodeStatus;
+			};
 			/**
 			 * Events arrive as `claudeCodeEvent` and questions as
 			 * `claudeCodeQuestion`, under `key`; returns the run's id.
@@ -148,6 +151,10 @@ export type DesktopRPC = {
 				response: string;
 			};
 			claudeCodeCancel: { params: { id: string }; response: void };
+			claudeCodeStopTask: {
+				params: { id: string; toolUseId: string };
+				response: void;
+			};
 			claudeCodeSend: {
 				params: { id: string; prompt: ClaudeCodeBlock[] };
 				response: void;

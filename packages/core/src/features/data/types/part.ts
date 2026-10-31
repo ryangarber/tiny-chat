@@ -75,6 +75,30 @@ export const zToolCallPart = _zDataPart.extend({
 });
 export type zToolCallPart = z.infer<typeof zToolCallPart>;
 
+/**
+ * A file a call changed without saying so — a shell command, an MCP server's
+ * tool, an agent's own — found by comparing the repository before and after.
+ * `before` and `after` hold the changed lines with a little context around
+ * them, and are absent where the file did not exist. `skipped` is why there is
+ * nothing to show: a lockfile, generated, binary or oversized file, or one past
+ * the limits.
+ */
+export const zFileChange = z.object({
+	path: z.string(),
+	before: z.string().optional(),
+	after: z.string().optional(),
+	skipped: z.string().optional(),
+});
+export type zFileChange = z.infer<typeof zFileChange>;
+
+/** The files a call changed. Only ever shown, never sent to the model. */
+export const zFileChanges = z.object({
+	files: z.array(zFileChange),
+	/** Changed files left out once there were too many to list. */
+	omitted: z.number().optional(),
+});
+export type zFileChanges = z.infer<typeof zFileChanges>;
+
 export const zToolResultPart = _zDataPart.extend({
 	type: z.literal("toolResult"),
 	name: z.string(),
@@ -82,6 +106,7 @@ export const zToolResultPart = _zDataPart.extend({
 		return zDataSimplePart.array();
 	},
 	error: z.boolean().optional(),
+	changes: zFileChanges.optional(),
 });
 export type zToolResultPart = z.infer<typeof zToolResultPart>;
 
@@ -106,6 +131,30 @@ export const zAttachmentPart = _zDataPart.extend({
 			type: z.literal("chat"),
 			title: z.string().nullish(),
 			transcript: z.string(),
+		}),
+		/**
+		 * A tab of the browser the `browser` tool drives, read as its rendered
+		 * text when attached — enough to answer from with no browser tools.
+		 */
+		z.object({
+			type: z.literal("browser"),
+			tab: z.number().optional(),
+			url: z.string(),
+			title: z.string().optional(),
+			text: z.string(),
+		}),
+		/**
+		 * A window on the user's computer, read as its accessibility outline and
+		 * a screenshot when attached. `window` is the `computer` tool's id for
+		 * it (`w3`), so the tool can pick it up from there.
+		 */
+		z.object({
+			type: z.literal("window"),
+			window: z.string(),
+			app: z.string(),
+			title: z.string().optional(),
+			outline: z.string(),
+			screenshot: z.object({ mime: z.string(), data: z.string() }).optional(),
 		}),
 		z.object({ type: z.literal("unavailable") }),
 	]),
@@ -159,6 +208,7 @@ export const zInterjectionPart = _zDataPart.extend({
 			id: z.string(),
 			name: z.string(),
 			error: z.boolean().optional(),
+			changes: zFileChanges.optional(),
 		})
 		.optional(),
 });

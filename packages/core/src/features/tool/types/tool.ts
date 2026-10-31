@@ -69,6 +69,13 @@ export interface Tool<
 	background?: boolean;
 
 	/**
+	 * Whether files a call changes are found and shown as diffs, for tools that
+	 * can change files without saying which: a shell, an MCP server's tool.
+	 * Tools that write files themselves show their own edits instead.
+	 */
+	tracksChanges?: boolean;
+
+	/**
 	 * Runs before `execute`, and before the loop stops for approval or feedback.
 	 * Throw to fail the call outright: the error becomes the tool result and the
 	 * model gets to correct itself, rather than the user being asked to approve

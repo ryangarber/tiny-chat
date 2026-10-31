@@ -44,30 +44,12 @@ export const shell_exec = {
 	}),
 } as const satisfies ToolDefinition;
 
-/** The programs a command runs, without their arguments: `git status && ls`. */
-const getPrograms = (command: string) =>
-	command
-		.split("&&")
-		.map((command) => {
-			const parts = command
-				.split(" ")
-				.filter(Boolean)
-				.filter((part) => part !== "--");
-			const end = parts.findIndex((part) => /[^A-Za-z0-9-_]/.test(part));
-			return parts
-				.slice(0, end === -1 ? undefined : end)
-				.join(" ")
-				.trim();
-		})
-		.filter(Boolean)
-		.join(" && ");
-
 const display: ToolDisplay<typeof shell_exec> = {
 	status: ({ input }) => [
 		["Running", "Ran"],
 		{
 			count: ["command", "commands"],
-			subject: getPrograms(input.command ?? ""),
+			subject: ShellUtils.programs(input.command ?? ""),
 		},
 	],
 	input: ({ input, output }) => [
@@ -75,6 +57,7 @@ const display: ToolDisplay<typeof shell_exec> = {
 			type: "code",
 			value: input.command ?? "",
 			language: output[0]?.dialect ?? "bash",
+			title: "input",
 		},
 	],
 	output: ({ state, output, stream }) => {
@@ -83,6 +66,7 @@ const display: ToolDisplay<typeof shell_exec> = {
 				{
 					type: "code",
 					value: stream.map((line) => line.value).join("\n"),
+					title: "output",
 					terminal: true,
 				},
 			];
@@ -95,7 +79,16 @@ const display: ToolDisplay<typeof shell_exec> = {
 			.filter(Boolean)
 			.join("\n");
 		return [
-			...(text ? [{ type: "code" as const, value: text, terminal: true }] : []),
+			...(text
+				? [
+						{
+							type: "code" as const,
+							value: text,
+							title: "output",
+							terminal: true,
+						},
+					]
+				: []),
 			...(result.code
 				? [
 						{
@@ -116,6 +109,7 @@ export const createShellExecTool: ToolFactory<
 	...options,
 	display,
 	background: true,
+	tracksChanges: true,
 	validate: async ({ input, context }) => {
 		const { commands, folders } = SettingsUtils.of(
 			context.user,

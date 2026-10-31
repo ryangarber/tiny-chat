@@ -79,7 +79,7 @@ export const AnthropicProvider: ModelProvider<_AnthropicProvider> = {
 	getModelArgs({ model }) {
 		const args: zModelArg[] = [];
 		if (ModelProviderUtils.isModel(model, "claude")) {
-			args.push(...ModelProviderUtils.getModelArgs({ maxTemp: -1 }));
+			args.push(...ModelProviderUtils.getModelArgs({ temperature: false }));
 			if (ModelProviderUtils.isModel(model, "4.5")) {
 				args.push({
 					name: "thinking",

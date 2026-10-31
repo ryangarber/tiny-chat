@@ -41,7 +41,15 @@ const readLoginEnv = () =>
 				"-c",
 				`printf '${MARKER}'; command env -0; printf '${MARKER}'`,
 			],
-			{ stdio: ["ignore", "pipe", "ignore"], timeout: 10_000 },
+			{
+				stdio: ["ignore", "pipe", "ignore"],
+				timeout: 10_000,
+				// An interactive shell turns on job control: it opens /dev/tty and
+				// makes itself the terminal's foreground process group, so a CLI
+				// sharing that terminal is stopped (SIGTTIN) the moment it reads a
+				// key. Its own session has no controlling terminal to take.
+				detached: true,
+			},
 		);
 		let stdout = "";
 		child.stdout.setEncoding("utf8");

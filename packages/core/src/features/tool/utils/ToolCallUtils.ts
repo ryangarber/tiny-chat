@@ -6,6 +6,7 @@ import type {
 	zToolCallPart,
 } from "#core/features/data/types/part.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
+import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type {
 	ToolBlock,
 	ToolCallContext,
@@ -22,6 +23,7 @@ import type {
 } from "#core/features/tool/types/tool.ts";
 import { ClaudeCodeToolUtils } from "#core/features/tool/utils/ClaudeCodeToolUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
+import { ToolOutputUtils } from "#core/features/tool/utils/ToolOutputUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 
 type ToolCallPart = Extract<RenderedPart, { type: "toolCall" }>;
@@ -277,10 +279,11 @@ export const ToolCallUtils = {
 		stream?: unknown[];
 	}): ToolCallDisplay => {
 		const { tool } = ToolUtils.find({ toolsets, part });
-		const display =
-			tool?.display ??
-			ClaudeCodeToolUtils.getDisplay(part.name) ??
-			fallback(part.name);
+		/** An agent's own tool's, for a call no Tiny Chat tool made. */
+		const agentDisplay = tool
+			? undefined
+			: ClaudeCodeToolUtils.getDisplay(part.name);
+		const display = tool?.display ?? agentDisplay ?? fallback(part.name);
 		const state = ToolCallUtils.getState({
 			part,
 			tool,
@@ -289,10 +292,17 @@ export const ToolCallUtils = {
 		const context = ToolCallUtils.getContext({ part, state, stream });
 		const pending = isPending(state);
 
+		// Tiny Chat's own tools clean their output on the way in; an agent's own
+		// (Claude Code's `Bash`) or an MCP server's comes as the terminal wrote
+		// it, colors, CRLF line endings and all.
 		const texts =
 			part.result?.output
 				.filter((output) => output.type === "text")
-				.map((output) => output.value) ?? [];
+				.map((output) =>
+					tool?.display
+						? output.value
+						: ToolOutputUtils.getPlain(output.value.replace(/\r\n/g, "\n")),
+				) ?? [];
 
 		let output: ToolBlock[] = [];
 		if (
@@ -309,14 +319,45 @@ export const ToolCallUtils = {
 			output = [
 				...(display.output?.(context) ?? []),
 				// Notices a tool leaves beside its output — truncation, summaries.
-				...texts.map(
-					(value): ToolBlock =>
-						tool?.display
-							? { type: "text", value, tone: "dimmed" }
-							: { type: "code", value },
-				),
+				...texts.map((value): ToolBlock => {
+					// Beside a file an agent's call read, its text is a notice
+					// (`PDF file read: …`) rather than output of its own.
+					if (tool?.display || (agentDisplay && context.files.length))
+						return { type: "text", value, tone: "dimmed" };
+					// An agent's own call answered in prose, such as a subagent.
+					if (agentDisplay?.text?.prose)
+						return {
+							type: "messages",
+							data: [[{ id: `${part.id}:result`, type: "text", value }]],
+						};
+					return { type: "code", value, title: agentDisplay?.text?.title };
+				}),
 			];
 		}
+
+		// What the call changed, found beside it. These are the file as it now
+		// stands, so they stand in for an agent's own preview of the same edit.
+		const changes =
+			state === "rejected"
+				? []
+				: ToolDisplayUtils.changes(part.result?.changes);
+		const changed = new Set(
+			changes.flatMap((block) =>
+				block.type === "diff" && block.path ? [block.path] : [],
+			),
+		);
+		let input = display.input?.(context) ?? [];
+		if (changed.size && agentDisplay)
+			input = input.filter(
+				(block) =>
+					!(
+						(block.type === "diff" || block.type === "file") &&
+						block.path &&
+						[...changed].some((path) =>
+							PathUtils.equals(path, block.path ?? ""),
+						)
+					),
+			);
 
 		return {
 			id: part.id,
@@ -327,8 +368,8 @@ export const ToolCallUtils = {
 				pieces: display.status(context),
 				pending,
 			}),
-			input: display.input?.(context) ?? [],
-			output,
+			input,
+			output: [...output, ...changes],
 			controls:
 				state === "feedback"
 					? {

@@ -65,7 +65,7 @@ export const CustomProvider: ModelProvider<OpenAICompatibleProvider> = {
 	},
 
 	getModelArgs() {
-		return ModelProviderUtils.getModelArgs({ maxTemp: -1 });
+		return ModelProviderUtils.getModelArgs({ temperature: false });
 	},
 
 	getLanguageModel({ user, model, env }) {

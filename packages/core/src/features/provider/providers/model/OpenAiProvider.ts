@@ -108,7 +108,9 @@ export const OpenAiProvider: ModelProvider<_OpenAIProvider> = {
 			);
 
 			args.push(
-				...ModelProviderUtils.getModelArgs({ maxTemp: isReasoning ? -1 : 2 }),
+				...ModelProviderUtils.getModelArgs({
+					temperature: isReasoning ? false : 2,
+				}),
 			);
 
 			if (isReasoning) {

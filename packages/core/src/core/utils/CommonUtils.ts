@@ -139,6 +139,31 @@ export const CommonUtils = {
 			: String(error);
 	},
 
+	/**
+	 * A count written short, as token counts are shown: `950`, `1K`, `1.7K`,
+	 * `12K`, `1.2M`. One decimal below ten of a unit, none above it, and never
+	 * rounded up into a unit it hasn't reached.
+	 */
+	formatCount: (value: number) => {
+		const sign = value < 0 ? "-" : "";
+		const count = Math.round(Math.abs(value));
+		const units = [
+			[1e9, "B"],
+			[1e6, "M"],
+			[1e3, "K"],
+		] as const;
+		for (const [size, suffix] of units) {
+			if (count < size) continue;
+			const scaled = count / size;
+			const digits = scaled < 10 ? 1 : 0;
+			const factor = 10 ** digits;
+			// Truncated, so 999,999 reads as 999K rather than 1000K.
+			const rounded = Math.floor(scaled * factor) / factor;
+			return `${sign}${Number(rounded.toFixed(digits))}${suffix}`;
+		}
+		return `${sign}${count}`;
+	},
+
 	escapeRegex: (value: string) => {
 		return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	},

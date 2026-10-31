@@ -1,5 +1,6 @@
 import {
 	type DOMElement,
+	Box as InkBox,
 	measureElement,
 	useBoxMetrics,
 	useInput,
@@ -21,7 +22,10 @@ import {
 	useState,
 } from "react";
 import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
+import Text from "#tui/core/components/Text.tsx";
 import { useMouse } from "#tui/core/hooks/useMouse.ts";
+import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
+import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { type MouseEvent, MouseUtils } from "#tui/core/utils/MouseUtils.ts";
 
@@ -70,6 +74,12 @@ export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 
 	/** @default true */
 	wheel?: boolean;
+	/**
+	 * Draws a handle down the right edge of the viewport while the content
+	 * overflows it, which can be dragged, or pressed beside to jump to.
+	 * @default true
+	 */
+	scrollbar?: boolean;
 	/** Rows a single turn of the wheel moves. @default 3 */
 	wheelStep?: number;
 	/**
@@ -145,6 +155,35 @@ export const pageRows = (viewport: number) => Math.max(1, viewport - 2);
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(Math.max(value, min), Math.max(min, max));
 
+/** What the scrollbar is drawn from: the rows of each, and the rows scrolled. */
+interface ScrollMetrics {
+	viewport: number;
+	content: number;
+	offset: number;
+}
+
+/**
+ * Where the scrollbar's handle sits in its track, which is the viewport's own
+ * height. The handle only touches either end of the track while the view is
+ * actually resting at that end, so a row left to scroll always shows.
+ */
+export const thumbOf = ({ viewport, content, offset }: ScrollMetrics) => {
+	const size = clamp(Math.round((viewport * viewport) / content), 1, viewport);
+	const travel = viewport - size;
+	const max = Math.max(0, content - viewport);
+	let top = 0;
+	if (max > 0 && offset >= max) top = travel;
+	else if (max > 0 && offset > 0)
+		top =
+			travel < 2
+				? Math.round((offset / max) * travel)
+				: clamp(Math.round((offset / max) * travel), 1, travel - 1);
+	return { size, top, travel, max };
+};
+
+/** Right half of a cell, so the handle hugs the edge of the view. */
+const THUMB = "▐";
+
 /**
  * A viewport onto content taller than itself.
  *
@@ -173,6 +212,7 @@ export default function ScrollView({
 	stickToBottom = false,
 	resetKey,
 	wheel = true,
+	scrollbar = true,
 	wheelStep = 3,
 	paging = false,
 	onScroll,
@@ -341,7 +381,8 @@ export default function ScrollView({
 		(event: MouseEvent) => {
 			if (!wheel) return false;
 			const node = viewportRef.current;
-			if (!node || MouseUtils.isCovered(node, event, rows)) return false;
+			// A scrollbar is part of the view it is drawn in, and of any around it.
+			if (!node || MouseUtils.isCovered(node, event, rows, true)) return false;
 			if (!MouseUtils.contains(MouseUtils.bounds(node, rows), event))
 				return false;
 			for (const handler of nested) if (handler(event)) return true;
@@ -377,6 +418,70 @@ export default function ScrollView({
 			scrollBy(key.pageUp ? -page : page);
 		},
 		{ isActive: paging },
+	);
+
+	// The scrollbar is drawn from what the layout effect below last measured,
+	// and only while there is something to scroll to.
+	const [metrics, setMetrics] = useState<ScrollMetrics | null>(null);
+	const trackRef = useRef<DOMElement | null>(null);
+	// The row of the handle the pointer took it by, while it is being dragged.
+	const grabRef = useRef<number | null>(null);
+	const [isDragging, setDragging] = useState(false);
+	const [isHovering, setHovering] = useState(false);
+
+	/** Scrolls so the row of the handle held sits on `row` of the track. */
+	const dragTo = (row: number) => {
+		const grab = grabRef.current;
+		const viewport = getViewportHeight();
+		const content = getContentHeight();
+		if (grab === null || viewport <= 0 || content <= viewport) return;
+		const { travel, max } = thumbOf({ viewport, content, offset: 0 });
+		const top = clamp(row - grab, 0, travel);
+		scrollTo(travel > 0 ? Math.round((top / travel) * max) : 0);
+	};
+
+	// Like a selection, a drag keeps going once the pointer leaves the view:
+	// it is held to the track's rows, so only how far up or down it is counts.
+	const { mouseRef: trackMouseRef } = useMouseInput({
+		onClick: ({ event }) => {
+			if (event.button !== "left") return;
+			const viewport = getViewportHeight();
+			const content = getContentHeight();
+			if (viewport <= 0 || content <= viewport) return;
+			const { size, top } = thumbOf({
+				viewport,
+				content,
+				offset: getScrollOffset(),
+			});
+			// Taken where it was pressed, or, pressed beside, by its middle — which
+			// jumps it there.
+			grabRef.current =
+				event.y >= top && event.y < top + size
+					? event.y - top
+					: Math.floor(size / 2);
+			setDragging(true);
+			dragTo(event.y);
+		},
+		onDrag: ({ event }) => dragTo(event.y),
+		onDragEnd: () => {
+			grabRef.current = null;
+			setDragging(false);
+		},
+		onHoverStart: () => setHovering(true),
+		onHoverEnd: () => setHovering(false),
+		isActive: !!metrics,
+	});
+
+	// Takes the mouse over what it is drawn on, so pressing it never starts a
+	// selection in the content beneath.
+	useMouseLayer(trackRef, !!metrics);
+
+	const setTrackRef = useCallback(
+		(node: DOMElement | null) => {
+			trackRef.current = node;
+			trackMouseRef(node);
+		},
+		[trackMouseRef],
 	);
 
 	const items = useMemo(() => Children.toArray(children), [children]);
@@ -590,6 +695,19 @@ export default function ScrollView({
 
 		// Nothing has been laid out yet, so any edge would be one every view is at.
 		const content = getContentHeight();
+
+		const viewportRows = getViewportHeight();
+		const next =
+			scrollbar && viewportRows > 0 && content > viewportRows
+				? { viewport: viewportRows, content, offset: getScrollOffset() }
+				: null;
+		if (
+			next?.viewport !== metrics?.viewport ||
+			next?.content !== metrics?.content ||
+			next?.offset !== metrics?.offset
+		)
+			setMetrics(next);
+
 		if (getViewportHeight() === 0 || content === 0) return;
 
 		const current = getScrollOffset();
@@ -667,6 +785,32 @@ export default function ScrollView({
 						))}
 					</Box>
 				</ScrollContext>
+				{metrics && (
+					// Ink's own box, which paints no background, so the column it takes
+					// still shows the content beneath wherever the handle is not.
+					<InkBox
+						ref={setTrackRef}
+						position="absolute"
+						top={0}
+						right={0}
+						width={1}
+						height={metrics.viewport}
+						flexDirection="column"
+					>
+						{(() => {
+							const { size, top } = thumbOf(metrics);
+							return (
+								<InkBox marginTop={top} height={size} flexShrink={0}>
+									<Text
+										color={isDragging || isHovering ? "border" : "borderSubtle"}
+									>
+										{Array.from({ length: size }, () => THUMB).join("\n")}
+									</Text>
+								</InkBox>
+							);
+						})()}
+					</InkBox>
+				)}
 			</Box>
 		</Box>
 	);

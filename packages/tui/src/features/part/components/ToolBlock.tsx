@@ -5,11 +5,13 @@ import {
 	useFindHidden,
 	useFindRevealed,
 } from "#client/features/find/hooks/useFindScope.ts";
+import { useDocument } from "#client/features/part/hooks/useDocument.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { ToolBlock as ToolBlockType } from "#core/features/tool/types/display.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
 import Box from "#tui/core/components/Box.tsx";
 import Content from "#tui/core/components/Content.tsx";
+import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
@@ -47,6 +49,27 @@ function TailLines({
 	);
 }
 
+/** A document's extracted text, read once it is shown. */
+function Document({
+	path,
+	document,
+}: {
+	path: string;
+	document: { data: string; mime: string };
+}) {
+	const { data, isPending } = useDocument({ path, document });
+	if (isPending || !data) {
+		return (
+			<Text color="textSubtle">
+				{isPending
+					? `Reading ${(path && PathUtils.name(path)) || "document"}…`
+					: `No text could be read from ${(path && PathUtils.name(path)) || "this document"}`}
+			</Text>
+		);
+	}
+	return <Code code={data} language="markdown" filename={path} />;
+}
+
 /** A path shown relative to the directory it was listed from. */
 const relative = (root: string, path: string) => {
 	const base = PathUtils.normalize({ path: root, unix: true }).replace(
@@ -64,11 +87,7 @@ const relative = (root: string, path: string) => {
  * of tools: each tool describes itself in these blocks, so a new tool needs no
  * code here.
  */
-export default function ToolBlock({
-	block,
-	active,
-	tail = true,
-}: {
+type ToolBlockProps = {
 	block: ToolBlockType;
 	/** Whether the call is still streaming or running. */
 	active: boolean;
@@ -77,7 +96,18 @@ export default function ToolBlock({
 	 * scrolls through the whole of it instead.
 	 */
 	tail?: boolean;
-}) {
+};
+
+/** Each block on its own, so one that fails to draw leaves the rest of the call. */
+export default function ToolBlock(props: ToolBlockProps) {
+	return (
+		<ErrorBoundary label={`this ${props.block.type}`} resetKey={props.block}>
+			<ToolBlockBody {...props} />
+		</ErrorBoundary>
+	);
+}
+
+function ToolBlockBody({ block, active, tail = true }: ToolBlockProps) {
 	switch (block.type) {
 		case "text":
 			return (
@@ -114,6 +144,8 @@ export default function ToolBlock({
 			);
 		case "file":
 			if (block.image) return <Image src={block.image} />;
+			if (block.document)
+				return <Document path={block.path} document={block.document} />;
 			return (
 				<TailLines follow={tail && active} value={block.content ?? ""}>
 					{(value) => (

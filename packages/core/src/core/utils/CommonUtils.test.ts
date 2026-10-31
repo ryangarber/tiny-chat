@@ -122,3 +122,23 @@ describe("CommonUtils.parseSchedule", () => {
 		).toBeNull();
 	});
 });
+
+describe("CommonUtils.formatCount", () => {
+	it.each([
+		[0, "0"],
+		[999.6, "1K"],
+		[950, "950"],
+		[1000, "1K"],
+		[1700, "1.7K"],
+		[1749, "1.7K"],
+		[9999, "9.9K"],
+		[12_345, "12K"],
+		[999_999, "999K"],
+		[1_000_000, "1M"],
+		[1_250_000, "1.2M"],
+		[2_000_000_000, "2B"],
+		[-1700, "-1.7K"],
+	])("writes %d as %s", (value, expected) => {
+		expect(CommonUtils.formatCount(value)).toBe(expected);
+	});
+});

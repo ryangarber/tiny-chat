@@ -1,4 +1,4 @@
-import type { Fragment, Node } from "@tiptap/pm/model";
+import { Fragment, type Node, Slice } from "@tiptap/pm/model";
 import { Selection } from "@tiptap/pm/state";
 import type { Content, Editor, JSONContent } from "@tiptap/react";
 import { useEditorPartStore } from "#client/features/editor/stores/useEditorPartStore.ts";
@@ -130,6 +130,35 @@ export const EditorUtils = {
 		if (paste?.type === "node") return EditorUtils.insertNode(paste.node);
 		if (paste?.type === "code") return EditorUtils.insertCode(paste);
 		return false;
+	},
+
+	/**
+	 * Insert text exactly as it is, the way Ctrl or Cmd with Shift and V
+	 * pastes: nothing folded away, fenced, linked or read as Markdown. Each
+	 * line is a paragraph of its own, as typing it would make it, apart from
+	 * in code, which holds its newlines.
+	 */
+	insertPlain: (text: string) => {
+		const { editor } = useEditorStore.getState();
+		if (!editor) return false;
+
+		const value = text.replace(/\r\n?/g, "\n");
+		const { state, schema } = editor;
+		if (state.selection.$from.parent.type.spec.code) {
+			editor.view.dispatch(state.tr.insertText(value).scrollIntoView());
+			return true;
+		}
+
+		const paragraphs = value
+			.split("\n")
+			.map((line) =>
+				schema.nodes.paragraph.create(null, line ? schema.text(line) : null),
+			);
+		const slice = new Slice(Fragment.from(paragraphs), 1, 1);
+		editor.view.dispatch(
+			state.tr.replaceSelection(slice).scrollIntoView().setMeta("paste", true),
+		);
+		return true;
 	},
 
 	insertCode: ({

@@ -12,6 +12,7 @@ import type { MessageState } from "#core/features/data/types/message.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
+import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
@@ -100,12 +101,14 @@ export default function Message({
 				maxWidth={columns - 3}
 			>
 				<SelectionActionsContext value={actions}>
-					<MessageParts
-						data={streamed.data}
-						status={streamed.status}
-						compaction={compaction}
-						message={message}
-					/>
+					<ErrorBoundary label="this message" resetKey={streamed.data}>
+						<MessageParts
+							data={streamed.data}
+							status={streamed.status}
+							compaction={compaction}
+							message={message}
+						/>
+					</ErrorBoundary>
 				</SelectionActionsContext>
 				{!!streamed.status && (
 					<Text>

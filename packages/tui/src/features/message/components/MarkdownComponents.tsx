@@ -3,11 +3,13 @@ import {
 	Children,
 	type ComponentType,
 	createContext,
+	type ElementType,
 	isValidElement,
 	type JSX,
 	type ReactNode,
 	useContext,
 } from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
 import { ComponentUtils } from "#client/core/utils/ComponentUtils.ts";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
@@ -68,6 +70,11 @@ function BaseComponent({
 	let key = 0;
 
 	const flush = () => {
+		// Only the line breaks between blocks, which would each draw a blank line.
+		if (inlineBuffer.every((c) => typeof c === "string" && !c.trim())) {
+			inlineBuffer = [];
+			return;
+		}
 		if (inlineBuffer.length > 0) {
 			groups.push(
 				<Text key={key++} {...text}>
@@ -142,9 +149,17 @@ const AComponent: Components["a"] = ({ href, children }) => (
 
 const CodeBlockContext = createContext(false);
 
-const PreComponent: Components["pre"] = ({ children }) => (
-	<CodeBlockContext value={true}>{children}</CodeBlockContext>
-);
+const PreComponent: Components["pre"] = ({ children }) => {
+	// A `<pre>` written as HTML need not hold a `<code>`, and its bare text
+	// cannot sit in the box the block is drawn in.
+	const isCode = Children.toArray(children).every(
+		(child) =>
+			(typeof child === "string" && !child.trim()) ||
+			(isValidElement(child) && child.type === CodeComponent),
+	);
+	if (!isCode) return <Code code={ComponentUtils.text({ children })} />;
+	return <CodeBlockContext value={true}>{children}</CodeBlockContext>;
+};
 
 const CodeComponent: Components["code"] = ({ children, className }) => {
 	const { colorScheme } = useContext(ThemeContext);
@@ -339,10 +354,123 @@ const MarkComponent: Components["mark"] = ({ children, node }) => (
 	</BaseComponent>
 );
 
+// --- Fallbacks for the HTML markdown may carry ---
+
+/**
+ * Inline HTML tags (sanitized raw HTML lets them through) and how their text
+ * is styled. Every tag not mapped above has to land on a component: one left
+ * as a string becomes a host element Ink knows nothing of, which throws for
+ * the text inside it, or worse, aborts Yoga for good.
+ */
+const INLINE_TAGS: Record<string, TextProps> = {
+	b: { bold: true },
+	i: { italic: true },
+	cite: { italic: true },
+	dfn: { italic: true },
+	var: { italic: true },
+	u: { underline: true },
+	ins: { underline: true },
+	s: { strikethrough: true },
+	strike: { strikethrough: true },
+	kbd: { color: "textSubtle", backgroundColor: "interior" },
+	samp: { color: "textSubtle", backgroundColor: "interior" },
+	tt: { color: "textSubtle", backgroundColor: "interior" },
+	small: { dimColor: true },
+	rt: { dimColor: true },
+	rp: { dimColor: true },
+	abbr: {},
+	big: {},
+	font: {},
+	label: {},
+	q: {},
+	ruby: {},
+	span: {},
+	time: {},
+};
+
+/** Tags with nothing to show in a terminal, or nothing that should be shown. */
+const HIDDEN_TAGS = new Set([
+	"area",
+	"audio",
+	"base",
+	"button",
+	"canvas",
+	"col",
+	"colgroup",
+	"embed",
+	"iframe",
+	"map",
+	"meta",
+	"noscript",
+	"object",
+	"param",
+	"script",
+	"select",
+	"source",
+	"style",
+	"svg",
+	"template",
+	"textarea",
+	"track",
+	"video",
+	"wbr",
+]);
+
+const InlineFallback = ({
+	tag,
+	children,
+}: {
+	tag: string;
+	children?: ReactNode;
+}) => (
+	<Text {...INLINE_TAGS[tag]}>
+		{tag === "q" ? ["“", children, "”"] : children}
+	</Text>
+);
+
+/** Any other tag — `div`, `center`, `dl`, `summary`, … — stacks as a block. */
+const BlockFallback = ({
+	tag,
+	children,
+}: {
+	tag: string;
+	children?: ReactNode;
+}) => (
+	<BaseComponent text={tag === "summary" || tag === "dt" ? { bold: true } : {}}>
+		{children}
+	</BaseComponent>
+);
+
+const HiddenFallback = () => null;
+
+/**
+ * The element factory markdown is built with: what it is handed is either a
+ * component from the map above or a tag that has none, which is drawn as the
+ * nearest thing to it rather than handed to Ink as is.
+ */
+const fallback =
+	(factory: typeof jsx) =>
+	(type: ElementType, props: Record<string, unknown>, key?: string) => {
+		if (typeof type !== "string") return factory(type, props, key);
+		const children = props.children as ReactNode;
+		if (HIDDEN_TAGS.has(type)) return factory(HiddenFallback, {}, key);
+		return factory(
+			type in INLINE_TAGS ? InlineFallback : BlockFallback,
+			{ tag: type, children },
+			key,
+		);
+	};
+
+export const markdownJsx = fallback(jsx);
+export const markdownJsxs = fallback(jsxs);
+
 // --- Inline/block detection ---
 
 const BLOCK_NODES: Set<unknown> = new Set([
 	PComponent,
+	H1Component,
+	H2Component,
+	H4Component,
 	ImgComponent,
 	PreComponent,
 	UlComponent,
@@ -356,6 +484,7 @@ const BLOCK_NODES: Set<unknown> = new Set([
 	TdComponent,
 	ThComponent,
 	DetailsComponent,
+	BlockFallback,
 ]);
 
 function isBlockNode(node: ReactNode): boolean {

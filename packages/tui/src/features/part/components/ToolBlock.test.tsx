@@ -42,3 +42,53 @@ describe("web tool content", () => {
 		}
 	});
 });
+
+describe("file tool content", () => {
+	it("labels code blocks with their title", async () => {
+		const screen = await render(
+			<ToolBlock
+				block={{ type: "code", value: "ls", language: "bash", title: "output" }}
+				active={false}
+			/>,
+		);
+		try {
+			expect(stripVTControlCharacters(screen.lastFrame() ?? "")).toContain(
+				"output",
+			);
+		} finally {
+			screen.unmount();
+			screen.cleanup();
+		}
+	});
+
+	it("shows a document's extracted text", async () => {
+		const screen = await render(
+			<ToolBlock
+				block={{
+					type: "file",
+					path: "/docs/tiny.pdf",
+					// A one-page PDF reading "Tiny PDF text".
+					document: {
+						data: "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0MyA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDEwIDUwIFRkIChUaW55IFBERiB0ZXh0KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDMzNCAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQwNAolJUVPRgo=",
+						mime: "application/pdf",
+					},
+					language: "markdown",
+				}}
+				active={false}
+			/>,
+		);
+		try {
+			await vi.waitFor(
+				() =>
+					expect(stripVTControlCharacters(screen.lastFrame() ?? "")).toContain(
+						"Tiny PDF text",
+					),
+				{ timeout: 15_000 },
+			);
+			expect(screen.lastFrame()).toContain("/docs/tiny.pdf");
+		} finally {
+			screen.unmount();
+			screen.cleanup();
+		}
+	});
+});

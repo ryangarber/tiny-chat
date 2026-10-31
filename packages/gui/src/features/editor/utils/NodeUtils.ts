@@ -1,3 +1,4 @@
+import type { EditorState } from "@tiptap/pm/state";
 import type { NodeConfig } from "@tiptap/react";
 import {
 	EditorPartUtils,
@@ -23,6 +24,18 @@ const markers = {
 
 export const NodeUtils = {
 	markers,
+
+	/**
+	 * Whether the character at a position is code: in a block of code, or
+	 * marked as inline code. A trigger character written there is only ever the
+	 * text it is.
+	 */
+	isInCode: (state: EditorState, pos: number) => {
+		const $pos = state.doc.resolve(pos);
+		if ($pos.parent.type.spec.code) return true;
+		const char = state.doc.nodeAt(pos);
+		return !!char?.marks.some((mark) => mark.type.spec.code);
+	},
 
 	/**
 	 * The Markdown a part node is serialized as and parsed from: the marker of

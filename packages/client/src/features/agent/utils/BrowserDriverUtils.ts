@@ -1071,6 +1071,36 @@ function driver(load: any, proc: any) {
 	const methods: Record<string, (params: any, id: unknown) => Promise<any>> = {
 		detect: async (params) => detect(params),
 		run,
+		/**
+		 * The open tabs, for attaching one. Never launches the browser: with
+		 * none running there is nothing to attach. Wrapped, as a JSON-RPC result
+		 * has to be an object.
+		 */
+		listTabs: async () => {
+			if (!session) return { tabs: [] };
+			const page = active && !active.isClosed() ? active : null;
+			const tabs = await Promise.all(
+				session.context.pages().map(async (other: any, index: number) => ({
+					index,
+					url: other.url(),
+					title: await other.title().catch(() => ""),
+					active: other === page,
+				})),
+			);
+			return { tabs };
+		},
+		/** One tab's rendered text, leaving the active tab as it was. */
+		readTab: async (params) => {
+			if (!session) throw new Error("The browser is not running");
+			const page = session.context.pages()[params.index];
+			if (!page) throw new Error(`No tab at index ${params.index}`);
+			const text: string = await page.evaluate(getText, null);
+			return {
+				url: page.url(),
+				title: await page.title().catch(() => ""),
+				text: truncate(text ?? "", params.maxLength ?? 20_000),
+			};
+		},
 		close: async () => {
 			await close();
 			return {};
@@ -1116,7 +1146,9 @@ function driver(load: any, proc: any) {
 					});
 				}
 			};
-			if (message.method === "detect") void task();
+			// Only reading, so not held up behind a run the agent is in.
+			if (["detect", "listTabs", "readTab"].includes(message.method))
+				void task();
 			else queue = queue.then(task);
 		})
 		// the app or CLI went away

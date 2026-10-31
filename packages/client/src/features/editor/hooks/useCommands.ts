@@ -107,15 +107,19 @@ export const useCommands = ({
 	const isAnonymous =
 		!session.data?.user || session.data.user.isAnonymous === true;
 
-	// The chats most recently written in, across projects, and the newest
-	// projects, as far as the list has been loaded.
+	// The chats most recently written in the active project — or outside of
+	// any, as the chat list shows them — and the newest projects, as far as the
+	// list has been loaded.
 	const { projects: chatList } = useChatList();
 	const pages = chatList.data?.pages ?? [];
 	const recentChats = pages
-		.flatMap((page) => [
-			...page.chats,
-			...page.projects.flatMap((project) => project.chats),
-		])
+		.flatMap((page) =>
+			project
+				? page.projects
+						.filter((other) => other.id === project.id)
+						.flatMap((other) => other.chats)
+				: page.chats,
+		)
 		.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
 		.slice(0, RECENTS);
 	const recentProjects = pages
@@ -159,6 +163,22 @@ export const useCommands = ({
 								active:
 									config.args?.[arg.name] === value ||
 									(!config.args?.[arg.name] && arg.default === value),
+								run: () => setModelArg(arg.name, value),
+							})),
+						},
+					],
+				};
+			} else if (arg.type === "toggle") {
+				const current = config.args?.[arg.name] ?? arg.default;
+				return {
+					name: arg.name,
+					value: arg.name,
+					choices: [
+						{
+							items: [true, false].map((value) => ({
+								name: value ? "on" : "off",
+								value: value ? "on" : "off",
+								active: current === value,
 								run: () => setModelArg(arg.name, value),
 							})),
 						},

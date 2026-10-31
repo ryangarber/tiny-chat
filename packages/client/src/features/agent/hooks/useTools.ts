@@ -56,6 +56,8 @@ export const useTools = () => {
 							(tool): Tool<any, void> => ({
 								name: tool.name,
 								description: tool.description ?? "",
+								// A server's tool may change files, and never says which.
+								tracksChanges: !tool.annotations?.readOnlyHint,
 
 								input: z.fromJSONSchema(
 									tool.inputSchema as Parameters<typeof z.fromJSONSchema>[0],

@@ -344,6 +344,7 @@ export default function Settings() {
 			});
 		return (
 			<Choice<ChoiceItem & { config: Pick<zConfig, "provider" | "model"> }>
+				tabs
 				groups={[...modelProviders]
 					.sort((a, b) => a.name.localeCompare(b.name))
 					.map((provider) => ({
@@ -475,6 +476,7 @@ export default function Settings() {
 		);
 		return (
 			<Choice<ChoiceItem & { provider: string }>
+				tabs
 				groups={(["model", "web", "other"] as const)
 					.map((type) => ({
 						name: type,

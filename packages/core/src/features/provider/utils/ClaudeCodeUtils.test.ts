@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
-import type { ClaudeCodeMessage } from "#core/features/provider/types/claudeCode.ts";
+import type { ClaudeCodeMessage } from "#core/features/provider/types/claude.ts";
 import type { zModelMessage } from "#core/features/provider/types/model.ts";
 import {
 	CLAUDE_CODE_SIGNATURE,
 	ClaudeCodeUtils,
 } from "#core/features/provider/utils/ClaudeCodeUtils.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 
 const text = (value: string, session?: string) => ({
 	id: crypto.randomUUID(),
@@ -232,6 +233,141 @@ describe("ClaudeCodeUtils", () => {
 		expect(events[1].type).toBe("end");
 	});
 
+	it("builds a subagent's conversation inside the call that started it", () => {
+		const streamed: [string, unknown][] = [];
+		const reader = ClaudeCodeUtils.createReader({
+			onSubagent: (id, data) => streamed.push([id, data]),
+		});
+		reader.read({
+			type: "assistant",
+			parent_tool_use_id: null,
+			message: {
+				id: "m1",
+				content: [{ type: "tool_use", id: "agent", name: "Agent", input: {} }],
+			},
+		});
+		const nested = [
+			{
+				type: "assistant",
+				parent_tool_use_id: "agent",
+				message: { id: "s1", content: [{ type: "text", text: "Looking" }] },
+			},
+			{
+				type: "assistant",
+				parent_tool_use_id: "agent",
+				message: {
+					id: "s1",
+					content: [
+						{
+							type: "tool_use",
+							id: "read",
+							name: "Read",
+							input: { file_path: "/a" },
+						},
+					],
+				},
+			},
+			{
+				type: "user",
+				parent_tool_use_id: "agent",
+				message: {
+					content: [
+						{ type: "tool_result", tool_use_id: "read", content: "text" },
+					],
+				},
+			},
+		] as const;
+		// None of it shows at the top level.
+		for (const event of nested) expect(reader.read(event)).toEqual([]);
+
+		const [id, data] = streamed.at(-1) ?? [];
+		expect(id).toBe("agent");
+		expect(data).toMatchObject([
+			[
+				{ type: "text", value: "Looking" },
+				{ type: "toolCall", id: "read", name: "Read" },
+				{ type: "toolResult", id: "read", output: [{ value: "text" }] },
+			],
+		]);
+		// Its calls are known, so approving one shows it through the subagent.
+		expect(reader.getCall("read")?.name).toBe("Read");
+		expect(reader.refresh("read")).toBe("agent");
+		expect(reader.refresh("agent")).toBeUndefined();
+	});
+
+	it("settles a background subagent's call once it ends", () => {
+		const reader = ClaudeCodeUtils.createReader();
+		reader.read({
+			type: "assistant",
+			parent_tool_use_id: null,
+			message: {
+				id: "m1",
+				content: [{ type: "tool_use", id: "agent", name: "Agent", input: {} }],
+			},
+		});
+		reader.read({
+			type: "system",
+			subtype: "task_started",
+			task_id: "task",
+			tool_use_id: "agent",
+			is_backgrounded: true,
+		});
+		const [returned] = reader.read({
+			type: "user",
+			parent_tool_use_id: null,
+			message: {
+				content: [
+					{ type: "tool_result", tool_use_id: "agent", content: "launched" },
+				],
+			},
+		});
+		expect(
+			returned.type === "data" &&
+				returned.value.type === "toolResult" &&
+				ToolCallUtils.isBackground(returned.value.output),
+		).toBe(true);
+
+		reader.read({
+			type: "assistant",
+			parent_tool_use_id: "agent",
+			message: { id: "s1", content: [{ type: "text", text: "beta" }] },
+		});
+		expect(
+			reader.read({
+				type: "system",
+				subtype: "task_notification",
+				task_id: "task",
+				tool_use_id: "agent",
+				status: "completed",
+				summary: "done",
+			}),
+		).toMatchObject([
+			{
+				type: "data",
+				value: {
+					type: "interjection",
+					task: { id: "agent", name: "Agent" },
+					value: [{ type: "text", value: "beta" }],
+				},
+			},
+		]);
+	});
+
+	it("reports structured output as JSON", () => {
+		const reader = ClaudeCodeUtils.createReader();
+		const events = reader.read({
+			type: "result",
+			subtype: "success",
+			is_error: false,
+			session_id: "s",
+			structured_output: { answer: 42 },
+		});
+		expect(events[0]).toMatchObject({
+			type: "data",
+			value: { type: "json", value: { answer: 42 } },
+		});
+	});
+
 	it("turns tool output into MCP content", () => {
 		expect(
 			ClaudeCodeUtils.toToolContent({
@@ -250,6 +386,25 @@ describe("ClaudeCodeUtils", () => {
 			{ type: "text", text: '{"b":1}' },
 			{ type: "image", data: "AAA", mimeType: "image/png" },
 			{ type: "text", text: "hi" },
+		]);
+	});
+
+	it("reads the images and PDFs Claude Code's Read returns as files", () => {
+		const parts = ClaudeCodeUtils.fromToolContent([
+			{ type: "text", text: "PDF file read: /a/b.pdf (1KB)" },
+			{
+				type: "document",
+				source: { type: "base64", media_type: "application/pdf", data: "JVBE" },
+			},
+			{
+				type: "image",
+				source: { type: "base64", data: "iVBO", media_type: "image/png" },
+			},
+		]);
+		expect(parts.map(({ id: _, ...part }) => part)).toEqual([
+			{ type: "text", value: "PDF file read: /a/b.pdf (1KB)" },
+			{ type: "file", mime: "application/pdf", data: "JVBE" },
+			{ type: "file", mime: "image/png", data: "iVBO" },
 		]);
 	});
 });

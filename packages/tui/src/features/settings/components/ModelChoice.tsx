@@ -30,6 +30,7 @@ export default function ModelChoice({
 
 	return (
 		<Choice<ChoiceItem & { config: Model | null }>
+			tabs
 			groups={[
 				...(onClear
 					? [

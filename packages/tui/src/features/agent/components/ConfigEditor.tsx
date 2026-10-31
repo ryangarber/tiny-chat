@@ -14,6 +14,7 @@ import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import type { Page } from "#tui/core/stores/useAppStore.ts";
@@ -24,7 +25,6 @@ import ConfigItemText, {
 import McpServerEditor, {
 	type McpServer,
 } from "#tui/features/agent/components/McpServerEditor.tsx";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 import Choice from "#tui/features/settings/components/Choice.tsx";
 import ModelChoice from "#tui/features/settings/components/ModelChoice.tsx";
 
@@ -219,8 +219,18 @@ export default function ConfigEditor({
 					detail: config?.provider || undefined,
 					onSelect: () => setRoute("model"),
 				},
-				...modelArgs.map(
-					(arg): ConfigItem => ({
+				...modelArgs.map((arg): ConfigItem => {
+					if (arg.type === "toggle") {
+						const enabled = (args[arg.name] ?? arg.default) === true;
+						return {
+							name: arg.name,
+							value: `arg:${arg.name}`,
+							enabled,
+							arg,
+							onSelect: () => setModelArg(arg.name, !enabled),
+						};
+					}
+					return {
 						name: arg.name,
 						value: `arg:${arg.name}`,
 						state: String(args[arg.name] ?? arg.default),
@@ -229,8 +239,8 @@ export default function ConfigEditor({
 							arg.type === "list"
 								? () => setRoute(`arg:${arg.name}`)
 								: undefined,
-					}),
-				),
+					};
+				}),
 			],
 		};
 		if (!config) return [model];
@@ -277,6 +287,7 @@ export default function ConfigEditor({
 		localSkills.data,
 		toolsetItem,
 		toggleSkill,
+		setModelArg,
 	]);
 
 	if (route === "model") {

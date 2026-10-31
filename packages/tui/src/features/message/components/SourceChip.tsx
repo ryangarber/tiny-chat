@@ -11,6 +11,8 @@ import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 
 const icon = (path: string) => {
 	if (path.startsWith("chat:")) return "💬";
+	if (path.startsWith("browser:")) return "🌐";
+	if (path.startsWith("window:")) return "🪟";
 	if (path.startsWith("web:")) return SourceUtils.getTypeEmoji("web");
 	if (path.startsWith("memory:")) return SourceUtils.getTypeEmoji("memory");
 	if (path.startsWith("action:")) return SourceUtils.getTypeEmoji("action");
@@ -19,7 +21,8 @@ const icon = (path: string) => {
 
 /**
  * Any kind of source, by the path the app's chip takes: a file's own, or
- * `web:`, `memory:`, `action:` or `chat:` and its URL or ID. A click opens it
+ * `web:`, `memory:`, `action:`, `chat:`, `browser:` or `window:` and its URL
+ * or ID. A click opens it
  * in the chat's sources, or goes to the chat.
  */
 export default function SourceChip({
@@ -53,7 +56,9 @@ export default function SourceChip({
 			}
 			onOpen?.();
 		},
-		isActive: viewable,
+		// A tab or window was read once, when attached; there is no file to open.
+		isActive:
+			viewable && !path.startsWith("browser:") && !path.startsWith("window:"),
 	});
 
 	return (

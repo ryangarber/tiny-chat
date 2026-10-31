@@ -12,6 +12,13 @@ export interface TextContext
 	extends Pick<TextProps, "color" | "dimColor" | "backgroundColor" | "wrap"> {}
 export const TextContext = createContext<TextContext | undefined>(undefined);
 
+/**
+ * Whether what renders here sits inside a `<Text>`, where Ink lays out
+ * nothing but text: a `<Box>` there throws, and takes the whole app with it.
+ * Whatever lays itself out as a block reads this to fall back to text instead.
+ */
+export const InsideTextContext = createContext(false);
+
 export default function Text({
 	color: _color,
 	dimColor: _dimColor,
@@ -51,13 +58,15 @@ export default function Text({
 
 	return (
 		<TextContext value={mergedContext}>
-			<_Text
-				color={color}
-				dimColor={dimColor}
-				backgroundColor={backgroundColor}
-				wrap={wrap}
-				{...props}
-			/>
+			<InsideTextContext value={true}>
+				<_Text
+					color={color}
+					dimColor={dimColor}
+					backgroundColor={backgroundColor}
+					wrap={wrap}
+					{...props}
+				/>
+			</InsideTextContext>
 		</TextContext>
 	);
 }

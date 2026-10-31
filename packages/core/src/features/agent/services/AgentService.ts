@@ -24,6 +24,7 @@ import type {
 	zToolCallPart,
 	zToolResultPart,
 } from "#core/features/data/types/part.ts";
+import { FileChangeService } from "#core/features/file/services/FileChangeService.ts";
 import {
 	ModelProviderService,
 	type RunLanguageModelOptions,
@@ -50,26 +51,20 @@ export const AgentService = {
 		toolsets,
 		skills,
 		skipInstructions,
-		provider,
 	}: {
 		context: zAgentContext;
 		capabilities: Capabilities;
 		toolsets: Toolset<any>[];
 		skills: zSkill[];
 		skipInstructions?: boolean;
-		/** Leaves Tiny Chat's tools out where it brings its own. */
-		provider?: ModelProvider<any>;
 	}) => {
 		const { prompt } = AgentUtils.getLastPrompt({
 			messages: context.messages,
 			withText: false,
 		});
 
-		const ownTools =
-			!!prompt?.config && !!provider?.hasOwnTools?.({ config: prompt.config });
 		const enabledToolsets = toolsets.filter(
 			(toolset) =>
-				!ownTools &&
 				toolset.status.valid &&
 				prompt?.config?.toolsets?.includes(ToolUtils.name({ toolset })),
 		);
@@ -116,16 +111,20 @@ export const AgentService = {
 		};
 	},
 
-	/** The chat's first local folder, where a local agent should run. */
-	getLocalFolder: async (
-		capabilities: Capabilities,
-	): Promise<string | undefined> => {
+	/**
+	 * The chat's local folders, the primary one first, where a local agent
+	 * runs: the shell's directory without any.
+	 */
+	getLocalFolders: async (capabilities: Capabilities): Promise<string[]> => {
 		try {
 			const shell = capabilities.shell;
-			if (!shell) return undefined;
-			return (await shell.folders?.())?.[0] ?? (await shell.cwd?.());
+			if (!shell) return [];
+			const folders = (await shell.folders?.()) ?? [];
+			if (folders.length) return folders;
+			const cwd = await shell.cwd?.();
+			return cwd ? [cwd] : [];
 		} catch {
-			return undefined;
+			return [];
 		}
 	},
 
@@ -196,7 +195,8 @@ export const AgentService = {
 		interjections?: () => zInterjectionPart[] | Promise<zInterjectionPart[]>;
 		/** Output a tool reports while it is still running, keyed by call id */
 		toolStream?: (_: {
-			tool: Tool<any, any>;
+			/** Unset for one of an agent's own calls. */
+			tool?: Tool<any, any>;
 			part: zToolCallPart;
 			mutation: StreamMutation<
 				z.infer<Exclude<ToolDefinition["stream"], void>>
@@ -228,7 +228,6 @@ export const AgentService = {
 			capabilities,
 			toolsets,
 			skills,
-			provider,
 		});
 		const instructions =
 			[builtInstructions, extraInstructions].filter(Boolean).join("\n\n") ||
@@ -260,8 +259,19 @@ export const AgentService = {
 			return { type: "data", value: part };
 		};
 
+		/**
+		 * Files changed by calls of tools that do not say what they change,
+		 * shown beside their results as diffs.
+		 */
+		const changes = capabilities.shell
+			? FileChangeService.createTracker({
+					shell: capabilities.shell,
+					folders: () => AgentService.getLocalFolders(capabilities),
+				})
+			: undefined;
+
 		/** Runs one call to its result. Never rejects. */
-		const run = async ({
+		const execute = async ({
 			toolCall,
 			tool,
 			feedback,
@@ -352,6 +362,19 @@ export const AgentService = {
 			}
 		};
 
+		/** {@link execute}, with what the call changed when its tool tracks it. */
+		const run = async (
+			args: Parameters<typeof execute>[0] & { track?: boolean },
+		) => {
+			const tracker =
+				args.track !== false && args.tool.tracksChanges ? changes : undefined;
+			await tracker?.begin();
+			const ran = await execute(args);
+			const changed = await tracker?.end();
+			if (changed) ran.result.changes = changed;
+			return ran;
+		};
+
 		/**
 		 * Calls running in the background, by call id. Each settles once the part
 		 * reporting it is in `finished`, which the model reads at its next step.
@@ -367,21 +390,26 @@ export const AgentService = {
 		) => {
 			background.set(
 				toolCall.id,
-				run({ toolCall, tool, feedback, signal: backgroundAbort.signal }).then(
-					({ result }) => {
-						background.delete(toolCall.id);
-						finished.push({
-							id: CommonUtils.getRandomId(),
-							type: "interjection",
-							value: result.output,
-							task: {
-								id: toolCall.id,
-								name: toolCall.name,
-								error: result.error,
-							},
-						});
-					},
-				),
+				// Untracked: its window would overlap every call made meanwhile.
+				run({
+					toolCall,
+					tool,
+					feedback,
+					signal: backgroundAbort.signal,
+					track: false,
+				}).then(({ result }) => {
+					background.delete(toolCall.id);
+					finished.push({
+						id: CommonUtils.getRandomId(),
+						type: "interjection",
+						value: result.output,
+						task: {
+							id: toolCall.id,
+							name: toolCall.name,
+							error: result.error,
+						},
+					});
+				}),
 			);
 		};
 
@@ -746,14 +774,20 @@ export const AgentService = {
 					// The agent keeps its own context, so the chat is not compacted.
 					stream = provider.runAgent({
 						user: context.user,
+						context,
 						config,
 						messages,
 						system: instructions,
 						tools: enabledTools,
-						cwd: await AgentService.getLocalFolder(capabilities),
+						folders: await AgentService.getLocalFolders(capabilities),
 						executeTool,
 						approve,
 						answer,
+						stream: toolStream
+							? (part, data) =>
+									toolStream({ part, mutation: { mode: "replace", data } })
+							: undefined,
+						signal: toolSignal && ((part) => toolSignal({ part })),
 						interjections,
 						abortSignal: options?.abortSignal,
 					});
@@ -877,6 +911,13 @@ export const AgentService = {
 							);
 							if (partial === -1) parts.push(event.value);
 							else parts[partial] = event.value;
+						} else if (event.value.type === "toolResult") {
+							// An agent's own call reports again once its changes are known.
+							const existing = parts.findIndex(
+								(p) => p.type === "toolResult" && p.id === event.value.id,
+							);
+							if (existing === -1) parts.push(event.value);
+							else parts[existing] = event.value;
 						} else {
 							parts.push(event.value);
 						}

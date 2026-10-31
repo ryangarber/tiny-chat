@@ -1,4 +1,7 @@
-import type { CompletionItem } from "#client/features/editor/types/completion.ts";
+import type {
+	CompletionGroup,
+	CompletionItem,
+} from "#client/features/editor/types/completion.ts";
 
 /** Letters and digits only: the characters a name is matched on. */
 const compact = (value: string) =>
@@ -220,5 +223,52 @@ export const CompletionUtils = {
 				return a.order - b.order;
 			})
 			.map(({ item }) => item);
+	},
+
+	/**
+	 * The tabs a list can be narrowed to with ←→: every item (`null`) first,
+	 * then each named group that has any. A list of fewer than two such groups
+	 * has nothing to narrow, so no tabs.
+	 */
+	tabs: (groups: readonly CompletionGroup[]): (string | null)[] => {
+		const names = [
+			...new Set(
+				groups.flatMap((group) =>
+					group.name && group.items.length ? [group.name] : [],
+				),
+			),
+		];
+		return names.length > 1 ? [null, ...names] : [];
+	},
+
+	/**
+	 * The tab `direction` steps to from `tab`, wrapping around. A tab the list
+	 * no longer has steps from every item.
+	 */
+	stepTab: ({
+		tabs,
+		tab,
+		direction,
+	}: {
+		tabs: readonly (string | null)[];
+		tab: string | null;
+		direction: -1 | 1;
+	}): string | null => {
+		if (!tabs.length) return null;
+		const index = Math.max(0, tabs.indexOf(tab));
+		return tabs[(index + direction + tabs.length) % tabs.length] ?? null;
+	},
+
+	/** The groups a tab shows: its own, or all of them when it is gone. */
+	inTab: <T extends CompletionGroup>({
+		groups,
+		tab,
+	}: {
+		groups: T[];
+		tab: string | null;
+	}): T[] => {
+		if (tab === null || !CompletionUtils.tabs(groups).includes(tab))
+			return groups;
+		return groups.filter((group) => group.name === tab);
 	},
 } as const;

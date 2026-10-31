@@ -1,6 +1,5 @@
 import z from "zod";
 import type { Model } from "#core/core/services/PostgresService.ts";
-import type { zData } from "#core/features/data/types/part.ts";
 
 const DEFAULT_TOOLSETS = [
 	"actions",
@@ -20,10 +19,7 @@ const DEFAULT_SKILLS: string[] = [];
  * A message as it travels: its embedding and the provider metadata of its
  * generations stay on the server, which is the only place either is used.
  */
-export type MessageState = Omit<Model["Message"], "embedding" | "metadata"> & {
-	config: zConfig;
-	data: zData;
-};
+export type MessageState = Omit<Model["Message"], "embedding" | "metadata">;
 
 export type MessageSearchResult = Pick<
 	MessageState,

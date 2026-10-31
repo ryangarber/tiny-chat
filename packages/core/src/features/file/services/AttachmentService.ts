@@ -1,4 +1,5 @@
 import type {
+	ComputerCapability,
 	ShellCapability,
 	WebCapability,
 } from "#core/core/types/capability.ts";
@@ -10,6 +11,7 @@ import { FileOperationService } from "#core/features/file/services/FileOperation
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
+import { ComputerService } from "#core/features/tool/services/ComputerService.ts";
 
 export const AttachmentService = {
 	unavailable: ({
@@ -33,6 +35,8 @@ export const AttachmentService = {
 		shell,
 		web,
 		chat,
+		browser,
+		computer,
 	}: {
 		source: string;
 		label?: string;
@@ -44,11 +48,49 @@ export const AttachmentService = {
 			title: string | null;
 			messages: Pick<MessageState, "author" | "createdAt" | "data">[];
 		}>;
+		/** Reads a tab of the agent's browser, for a `browser:<index>` source. */
+		browser?: (
+			tab: number,
+		) => Promise<{ url: string; title?: string; text: string }>;
+		/** The host's computer, for a `window:<id>` source. */
+		computer?: ComputerCapability;
 	}): Promise<zAttachmentPart> => {
 		const id = CommonUtils.getRandomId();
 		let content: zAttachmentPart["content"];
 
-		if (source.startsWith("web:")) {
+		if (source.startsWith("browser:")) {
+			if (!browser) throw new Error(`Cannot read browser tab: ${source}`);
+			const tab = Number(source.slice(8));
+			const result = await browser(tab);
+			content = {
+				type: "browser",
+				tab,
+				url: result.url,
+				title: result.title || undefined,
+				text: result.text,
+			};
+		} else if (source.startsWith("window:")) {
+			if (!computer) throw new Error(`Cannot read window: ${source}`);
+			const result = await ComputerService.run({
+				capability: computer,
+				window: source.slice(7),
+				steps: [{ action: "read" }],
+				screenshot: true,
+			});
+			const failed = result.steps.find((step) => !step.ok);
+			if (failed || !result.window) {
+				throw new Error(failed?.error ?? `No window ${source.slice(7)}`);
+			}
+			const outline = result.steps.find((step) => step.action === "read");
+			content = {
+				type: "window",
+				window: result.window.id,
+				app: result.window.app,
+				title: result.window.title,
+				outline: typeof outline?.value === "string" ? outline.value : "",
+				screenshot: result.screenshots.at(-1),
+			};
+		} else if (source.startsWith("web:")) {
 			if (!web) throw new Error(`Cannot read web attachment: ${source}`);
 			const result = await web.view({ url: source.slice(4) });
 			content = {

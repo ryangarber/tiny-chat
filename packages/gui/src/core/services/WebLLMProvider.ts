@@ -49,7 +49,7 @@ export const WebLLMProvider: ModelProvider<_WebLLMProvider> = {
 	},
 
 	getModelArgs() {
-		return ModelProviderUtils.getModelArgs({ maxTemp: 2 });
+		return ModelProviderUtils.getModelArgs({ temperature: 2 });
 	},
 
 	getLanguageModel({ user, model, env }) {

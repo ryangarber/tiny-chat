@@ -9,7 +9,8 @@ import type {
 import type { CommandEdit } from "#client/features/editor/types/command.ts";
 import { AttachmentUtils } from "#client/features/editor/utils/AttachmentUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import Completions from "#tui/features/editor/components/Completions.tsx";
+import Completions from "#tui/core/components/Completions.tsx";
+import { MarkdownUtils } from "#tui/features/editor/utils/MarkdownUtils.ts";
 
 export default function Attachments({
 	content,
@@ -26,7 +27,10 @@ export default function Attachments({
 
 	const { getAttachables } = useAttachments();
 
-	const query = AttachmentUtils.query({ content, cursor });
+	// An at sign written as code is only ever the text it is.
+	const found = AttachmentUtils.query({ content, cursor });
+	const query =
+		found && !MarkdownUtils.isInCode(content, found.from) ? found : null;
 
 	const [groups, setGroups] = useState<AttachmentGroup[]>([]);
 
@@ -80,6 +84,7 @@ export default function Attachments({
 	return (
 		<Completions<AttachmentGroup, AttachmentItem>
 			groups={groups}
+			tabs
 			renderItem={({ item }) => {
 				return `${item.name}${item.directory ? "/" : ""}`;
 			}}

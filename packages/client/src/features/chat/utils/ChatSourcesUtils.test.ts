@@ -136,3 +136,42 @@ describe("ChatSourcesUtils", () => {
 		).toEqual([{ url: "https://x.dev", title: "X", content: "much longer" }]);
 	});
 });
+
+describe("ChatSourcesUtils.files", () => {
+	it("lists project folders and files calls changed, but not deleted ones", () => {
+		const files = ChatSourcesUtils.files({
+			mounted: [],
+			folders: ["/repo"],
+			messages: [
+				{
+					data: [
+						[
+							{
+								type: "toolResult",
+								id: "call",
+								name: "shell_exec",
+								output: [],
+								changes: {
+									files: [
+										{ path: "/repo/a.ts", before: "a", after: "b" },
+										{ path: "/repo/gone.ts", before: "a" },
+										{ path: "/repo/pnpm-lock.yaml", skipped: "lockfile" },
+									],
+								},
+							},
+						],
+					],
+				},
+			] as never,
+			draft: { data: [] },
+			loaded: [ChatSourcesUtils.local("/repo/src", true)],
+			toolsets: [],
+		});
+		expect(files.map((file) => [file.path, file.directory])).toEqual([
+			["/repo", true],
+			["/repo/a.ts", false],
+			["/repo/pnpm-lock.yaml", false],
+			["/repo/src", true],
+		]);
+	});
+});

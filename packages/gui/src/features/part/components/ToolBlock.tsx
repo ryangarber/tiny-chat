@@ -2,6 +2,7 @@ import { JsonTree } from "@gfazioli/mantine-json-tree";
 import { Anchor, Box, Stack, Text } from "@mantine/core";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
+import { useDocument } from "#client/features/part/hooks/useDocument.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { ToolBlock as ToolBlockType } from "#core/features/tool/types/display.ts";
 import Code from "#gui/features/code/components/Code.tsx";
@@ -27,6 +28,31 @@ const relative = (root: string, path: string) => {
 		? normalized.slice(base.length + 1)
 		: normalized;
 };
+
+/** A document's extracted text, read once it is shown. */
+function Document({
+	path,
+	document,
+}: {
+	path: string;
+	document: { data: string; mime: string };
+}) {
+	const { data, isPending } = useDocument({ path, document });
+	if (isPending || !data) {
+		return (
+			<Text size="sm" c="dimmed">
+				{isPending
+					? `Reading ${(path && PathUtils.name(path)) || "document"}…`
+					: `No text could be read from ${(path && PathUtils.name(path)) || "this document"}`}
+			</Text>
+		);
+	}
+	return (
+		<Tail height={TAIL_HEIGHT} follow={false} content={data}>
+			<Code code={data} language="markdown" filename={path} />
+		</Tail>
+	);
+}
 
 /**
  * Draws one piece of tool content. This is the whole of the app's knowledge
@@ -87,6 +113,9 @@ export default function ToolBlock({
 				return (
 					<Image src={block.image} filename={PathUtils.name(block.path)} />
 				);
+			}
+			if (block.document) {
+				return <Document path={block.path} document={block.document} />;
 			}
 			return (
 				<Tail height={TAIL_HEIGHT} follow={active} content={block.content}>

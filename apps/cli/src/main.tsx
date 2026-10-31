@@ -45,14 +45,39 @@ export async function main(options: AppOptions) {
 		},
 	);
 
+	// A throw in a key or mouse handler, or a promise nobody awaited, would end
+	// the process over one failed action, and with the alternate screen the app
+	// would just vanish. It is logged for `/console` and the app carries on —
+	// unless it was Yoga's WebAssembly that failed, after which nothing can be
+	// laid out again, so the app quits and says why.
+	let fatal: unknown;
+	const onError = (error: unknown) => {
+		console.error("[main] uncaught", error);
+		if (error instanceof Error && error.name === "RuntimeError") {
+			fatal = error;
+			instance.unmount();
+		}
+	};
+	process.on("uncaughtException", onError);
+	process.on("unhandledRejection", onError);
+
 	// The UI quits by unmounting, which has run its cleanup by now. What
 	// remains (queries, MCP servers, workers) is the process's to end.
 	try {
 		await instance.waitUntilExit();
 	} finally {
+		process.off("uncaughtException", onError);
+		process.off("unhandledRejection", onError);
 		// Detach the adapter without closing the terminal owned by the process.
 		stdin.destroy();
 		restoreStderr();
+	}
+	if (fatal) {
+		// Past the alternate screen and the console's capture, so it is seen.
+		process.stderr.write(
+			`${fatal instanceof Error ? (fatal.stack ?? fatal.message) : String(fatal)}\n`,
+		);
+		process.exit(1);
 	}
 	process.exit(0);
 }

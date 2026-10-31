@@ -1,5 +1,6 @@
 import type { Client } from "#client/client.ts";
 import { createChatShellCapability } from "#client/core/capabilities/createChatShellCapability.ts";
+import { ClientBrowserService } from "#client/features/agent/services/ClientBrowserService.ts";
 import type { AttachmentItem } from "#client/features/editor/types/attachment.ts";
 import type { EditorNode } from "#client/features/editor/types/node.ts";
 import { EditorNodeUtils } from "#client/features/editor/utils/EditorNodeUtils.ts";
@@ -41,6 +42,8 @@ export const AttachmentService = {
 				]);
 				return { title: chat.title, messages };
 			},
+			browser: (tab) => ClientBrowserService.readTab({ client, tab }),
+			computer: client.computer,
 		});
 		return EditorNodeUtils.create(attachment);
 	},

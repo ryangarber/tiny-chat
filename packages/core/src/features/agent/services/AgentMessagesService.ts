@@ -208,8 +208,44 @@ export const AgentMessagesService = {
 	buildAttachmentParts: (attachment: zAttachmentPart): zDataPart[] => {
 		const source = PathUtils.normalize({ path: attachment.source });
 		let content: zDataPart;
+		const extra: zDataPart[] = [];
 
-		if (attachment.content.type === "file") {
+		if (attachment.content.type === "browser") {
+			const { tab, url, title, text } = attachment.content;
+			content = {
+				id: attachment.id,
+				type: "text",
+				value: [
+					`A tab of the browser the \`browser\` tool drives, as it read when attached${tab === undefined ? "" : ` (tab index ${tab})`}.`,
+					`URL: ${url}`,
+					...(title ? [`Title: ${title}`] : []),
+					"",
+					text,
+				].join("\n"),
+			};
+		} else if (attachment.content.type === "window") {
+			const { window, app, title, outline, screenshot } = attachment.content;
+			content = {
+				id: attachment.id,
+				type: "text",
+				value: [
+					`A window on the user's computer, as it was when attached: its accessibility outline${screenshot ? " and a screenshot" : ""}. With the \`computer\` tool, target it as \`${window}\`; refs may have gone stale since.`,
+					`App: ${app}`,
+					...(title ? [`Title: ${title}`] : []),
+					"",
+					outline,
+				].join("\n"),
+			};
+			if (screenshot) {
+				extra.push({
+					id: CommonUtils.getRandomId(),
+					type: "file",
+					name: `${window}.${screenshot.mime.split("/")[1] ?? "png"}`,
+					mime: screenshot.mime,
+					data: screenshot.data,
+				});
+			}
+		} else if (attachment.content.type === "file") {
 			content = {
 				id: attachment.id,
 				type: "file",
@@ -253,6 +289,7 @@ export const AgentMessagesService = {
 				value: `<attachment source="${source}" name="${attachment.label}">`,
 			},
 			content,
+			...extra,
 			{
 				id: CommonUtils.getRandomId(),
 				type: "text",

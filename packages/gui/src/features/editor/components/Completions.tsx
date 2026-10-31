@@ -1,4 +1,5 @@
 import {
+	Badge,
 	Box,
 	Combobox,
 	Group,
@@ -16,12 +17,14 @@ import {
 	useEffect,
 	useImperativeHandle,
 	useMemo,
+	useState,
 } from "react";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
 import type {
 	CompletionGroup,
 	CompletionItem,
 } from "#client/features/editor/types/completion.ts";
+import { CompletionUtils } from "#client/features/editor/utils/CompletionUtils.ts";
 
 export type { CompletionGroup, CompletionItem };
 
@@ -35,6 +38,8 @@ export interface CompletionProps<
 > extends SuggestionProps<T1, T2> {
 	renderEmpty: () => ReactNode;
 	renderItem?: (item: T2) => ReactNode;
+	/** Narrows the list to one of its named groups at a time with ←→. */
+	tabs?: boolean;
 	onTab?: (args: {
 		item: T2;
 		editor: Editor;
@@ -58,19 +63,27 @@ function Completions<
 				query,
 				renderEmpty,
 				renderItem,
+				tabs: withTabs,
 				onTab,
 			},
 			ref,
 		) => {
 			const combobox = useCombobox();
 
-			const [groups, items] = useMemo(
-				() => [
-					_groups.filter((group) => group.items.length),
-					_groups.flatMap((group) => group.items),
-				],
-				[_groups],
+			const tabs = useMemo(
+				() => (withTabs ? CompletionUtils.tabs(_groups) : []),
+				[withTabs, _groups],
 			);
+			const [_tab, setTab] = useState<string | null>(null);
+			const tab = tabs.includes(_tab) ? _tab : null;
+
+			const [groups, items] = useMemo(() => {
+				const shown = CompletionUtils.inTab({ groups: _groups, tab });
+				return [
+					shown.filter((group) => group.items.length),
+					shown.flatMap((group) => group.items),
+				];
+			}, [_groups, tab]);
 
 			const select = useCallback(
 				(value: string) => {
@@ -84,6 +97,22 @@ function Completions<
 				ref,
 				() => ({
 					onKeyDown: ({ event }) => {
+						const modified =
+							event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
+						if (
+							tabs.length &&
+							!modified &&
+							(event.key === "ArrowLeft" || event.key === "ArrowRight")
+						) {
+							setTab(
+								CompletionUtils.stepTab({
+									tabs,
+									tab,
+									direction: event.key === "ArrowLeft" ? -1 : 1,
+								}),
+							);
+							return true;
+						}
 						if (event.key === "ArrowDown") {
 							combobox.selectNextOption();
 							return true;
@@ -117,7 +146,7 @@ function Completions<
 						return false;
 					},
 				}),
-				[combobox, editor, items, onTab, query, range, select],
+				[combobox, editor, items, onTab, query, range, select, tabs, tab],
 			);
 
 			// biome-ignore lint/correctness/useExhaustiveDependencies: auto select
@@ -142,6 +171,32 @@ function Completions<
 			return (
 				<Combobox store={combobox} onOptionSubmit={select} withinPortal={false}>
 					<Paper withBorder>
+						{tabs.length > 0 && (
+							<Group
+								gap={4}
+								px={5}
+								pt={5}
+								wrap="nowrap"
+								w={250}
+								style={{ overflowX: "auto" }}
+								// Clicking a tab keeps the cursor in the editor.
+								onMouseDown={(event) => event.preventDefault()}
+							>
+								{tabs.map((name) => (
+									<Badge
+										key={name ?? ""}
+										size="sm"
+										radius="sm"
+										variant={name === tab ? "filled" : "light"}
+										color={name === tab ? undefined : "gray"}
+										style={{ cursor: "pointer", flexShrink: 0 }}
+										onClick={() => setTab(name)}
+									>
+										{name ?? "All"}
+									</Badge>
+								))}
+							</Group>
+						)}
 						<Combobox.Options>
 							<ScrollAreaAutosize mah={300} w={250} p={5}>
 								<Box>
@@ -153,7 +208,8 @@ function Completions<
 									{groups.map((group) => (
 										<Combobox.Group
 											key={group.items.map((item) => item.value).join(",")}
-											label={group.name}
+											// A tab is the group it shows, so it goes unlabelled.
+											label={tab === null ? group.name : undefined}
 										>
 											{group.items.map((item) => (
 												<Combobox.Option

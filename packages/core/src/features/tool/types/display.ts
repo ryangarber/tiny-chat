@@ -61,12 +61,16 @@ export type ToolBlock =
 			title?: string;
 			terminal?: boolean;
 	  }
-	/** A file's contents: text, or an image as a data URL. */
+	/**
+	 * A file's contents: text, an image as a data URL, or a document (a PDF,
+	 * Word document or spreadsheet) whose text is extracted when it is shown.
+	 */
 	| {
 			type: "file";
 			path: string;
 			content?: string;
 			image?: string;
+			document?: { data: string; mime: string };
 			language?: string;
 	  }
 	| {

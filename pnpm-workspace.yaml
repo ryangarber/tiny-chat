@@ -52,11 +52,11 @@ catalogs:
     "react-devtools-core": "^8.0.0"
     "babel-plugin-react-compiler": "^1.0.0"
   prisma:
-    "prisma": "8.0.0-rc.28"
-    "@prisma/orm-postgres": "8.0.0-rc.21"
-    "@prisma/orm-extension-paradedb": "8.0.0-rc.21"
-    "@prisma/orm-extension-pgvector": "npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.21"
-    "@ryangarber/prisma-orm-extension-zod": "0.2.13"
-    "@ryangarber/better-auth-adapter-prisma": "0.1.13"
+    "prisma": 8.0.0-rc.29
+    "@prisma/orm-postgres": 8.0.0-rc.21
+    "@prisma/orm-extension-paradedb": 8.0.0-rc.21
+    "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.21
+    "@ryangarber/prisma-orm-extension-zod": 0.2.13
+    "@ryangarber/better-auth-adapter-prisma": 0.1.13
 patchedDependencies:
   native-run: patches/native-run.patch

@@ -49,9 +49,9 @@ export const palettes: Record<
 		"#858790", // [3]
 		"#A2A4AD", // [4]  border
 		"#C4C6CF", // [5]  exterior / borderSubtle
-		"#E8E9F0", // [6]  surface
-		"#F5F5F5", // [7]  interior
-		"#FAFAFA", // [8]
+		"#E8E9EA", // [6]  surface
+		"#F5F5F7", // [7]  interior
+		"#FAFAFC", // [8]
 		"#FFFFFF", // [9]
 	],
 } as const;

@@ -15,6 +15,13 @@ export const zBrowserSettings = z.object({
 });
 export type zBrowserSettings = z.infer<typeof zBrowserSettings>;
 
+export interface BrowserTab {
+	index: number;
+	url: string;
+	title: string;
+	active: boolean;
+}
+
 const SETTINGS_KEY = "browser";
 
 /**
@@ -224,6 +231,34 @@ export const ClientBrowserService = {
 			},
 			abort,
 		);
+	},
+
+	/**
+	 * The tabs open in the browser the agent drives, to attach one. Only asks a
+	 * driver already running, so it never starts one or a browser.
+	 */
+	getTabs: async ({ client }: { client: Client }): Promise<BrowserTab[]> => {
+		const driver = await drivers.get(client)?.catch(() => null);
+		if (!driver) return [];
+		const { tabs } = await request<{ tabs: BrowserTab[] }>(
+			driver,
+			"listTabs",
+			{},
+		);
+		return tabs;
+	},
+
+	/** One tab as its rendered text, without switching to it. */
+	readTab: async ({
+		client,
+		tab,
+	}: {
+		client: Client;
+		tab: number;
+	}): Promise<{ url: string; title: string; text: string }> => {
+		const driver = await drivers.get(client)?.catch(() => null);
+		if (!driver) throw new Error("The browser is not running");
+		return await request(driver, "readTab", { index: tab });
 	},
 
 	/** Local to this machine, so kept in the runtime's storage, not on the user. */

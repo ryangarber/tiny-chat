@@ -9,6 +9,7 @@ import {
 } from "react";
 import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
+import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import ScrollView, {
 	type ScrollViewProps,
 } from "#tui/core/components/ScrollView.tsx";
@@ -221,7 +222,9 @@ export function ContentFullscreen() {
 								minHeight={0}
 								overscan={Number.POSITIVE_INFINITY}
 							>
-								<Selectable>{content.children}</Selectable>
+								<ErrorBoundary label="this block" resetKey={content.children}>
+									<Selectable>{content.children}</Selectable>
+								</ErrorBoundary>
 							</ScrollView>
 						</ContentWidthContext.Provider>
 					</WidthContext.Provider>

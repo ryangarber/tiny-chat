@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import ProjectEditor from "#tui/features/chat/components/ProjectEditor.tsx";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 
 /** What the chats outside of any project are listed under. */
 export const NO_PROJECT = "no project";

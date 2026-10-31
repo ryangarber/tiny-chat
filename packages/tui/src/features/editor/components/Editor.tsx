@@ -1,8 +1,12 @@
+import { readFile, stat } from "node:fs/promises";
+import { basename } from "node:path";
 import { type DOMElement, type Key, useInput } from "ink";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
+import { AgentStreamService } from "#client/core/services/StreamService.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
+import { useStreamStore } from "#client/features/agent/stores/useStreamStore.ts";
 import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useDisabled } from "#client/features/editor/hooks/useDisabled.ts";
@@ -20,6 +24,7 @@ import { PasteUtils } from "#client/features/editor/utils/PasteUtils.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
+import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
@@ -31,8 +36,9 @@ import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
 import Attachments from "#tui/features/editor/components/Attachments.tsx";
 import Commands from "#tui/features/editor/components/Commands.tsx";
+import EditorFooter from "#tui/features/editor/components/EditorFooter.tsx";
 import Shell from "#tui/features/editor/components/Shell.tsx";
-import TokenUsage from "#tui/features/editor/components/TokenUsage.tsx";
+import { TokenBreakdown } from "#tui/features/editor/components/TokenUsage.tsx";
 import { useCodeHighlight } from "#tui/features/editor/hooks/useCodeHighlight.ts";
 import { useEditorStore } from "#tui/features/editor/stores/useEditorStore.ts";
 import { EditorUtils } from "#tui/features/editor/utils/EditorUtils.ts";
@@ -80,9 +86,13 @@ export default function Editor({
 		}
 		previousFeedbackId.current = nextFeedbackId;
 	}, [nextFeedbackId]);
-	const { config, status, modelArgs } = useConfig();
+	const { config, status } = useConfig();
 	const { sendMessage } = useMessaging();
 	const { messages } = useMessages();
+	const chatId = useChatStore((state) => state.active.chatId);
+	const stream = useStreamStore((state) =>
+		chatId ? state.chatAgentStreams.get(chatId) : undefined,
+	);
 	const { upload } = useUploads();
 	useWorkingStatus(messages, sendMessage, upload);
 
@@ -116,19 +126,13 @@ export default function Editor({
 		(state) => state.isCompletionsEmpty,
 	);
 
+	// The model and its config are in the footer now, which opens them.
 	const project = useChatStore((state) => state.active.project);
-	const placeholder = useMemo(() => {
-		if (!config) return project ? project.title || "untitled" : "(none)";
-		return [
-			project ? project.title || "untitled" : "(none)",
-			status === "unavailable" ? "no model available" : config.model,
-			...modelArgs.map(
-				(arg) => `${arg.name} ${config.args?.[arg.name] ?? arg.default}`,
-			),
-		]
-			.join(" · ")
-			.slice(0, columns - 12);
-	}, [config, status, modelArgs, columns, project]);
+	const placeholder = useMemo(
+		() =>
+			(project ? project.title || "untitled" : "(none)").slice(0, columns - 8),
+		[columns, project],
+	);
 
 	// The atoms are painted before the markdown, so a command or an attachment
 	// standing in the value keeps its own style whatever punctuation it carries.
@@ -263,18 +267,50 @@ export default function Editor({
 	// a paste either arrives empty or carries the file's name instead. Ctrl+V
 	// goes to the clipboard itself, which is the only way to reach one — and
 	// stands in for the paste altogether on terminals that cannot bracket one.
+	//
+	// Ctrl or Cmd with Shift and V pastes the clipboard's text exactly as it is,
+	// with nothing folded away, fenced or attached. Shift is only told apart
+	// over the kitty protocol, and Cmd only reaches here where the terminal
+	// leaves it unbound.
 	useInput(
 		(input, key) => {
-			if (!key.ctrl || input !== "v") return;
+			if (input.toLowerCase() !== "v") return;
+			const plain = key.shift && (key.ctrl || key.super);
+			if (!plain && !key.ctrl) return;
 
 			void (async () => {
 				const clipboard = await ClipboardService.read();
 				if (!clipboard) return;
 
 				if (clipboard.type === "text") {
-					paste(clipboard.text);
+					if (plain) insert(clipboard.text.replace(/\r\n?/g, "\n"));
+					else paste(clipboard.text);
 					return;
 				}
+				// Files copied in Finder (or a file manager) attach the files
+				// themselves, read from disk, rather than the icon standing in
+				// for them; a plain paste writes out their paths instead.
+				if (clipboard.type === "files") {
+					if (plain) {
+						insert(clipboard.paths.join("\n"));
+						return;
+					}
+					for (const path of clipboard.paths) {
+						try {
+							if (!(await stat(path)).isFile()) continue;
+							const data = await readFile(path);
+							const type = await FileTypeUtils.getMime({ data, path });
+							upload.mutate({
+								kind: "ATTACHMENT",
+								file: new File([data], basename(path), { type }),
+							});
+						} catch (error) {
+							console.warn("[Editor] failed to read pasted file", path, error);
+						}
+					}
+					return;
+				}
+				if (plain) return;
 
 				const name = `Pasted-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
 				upload.mutate({
@@ -346,6 +382,16 @@ export default function Editor({
 			});
 	};
 
+	// The token breakdown, opened from the pie in the footer.
+	const [tokensOpen, setTokensOpen] = useState(false);
+
+	const submit = () => {
+		if (isNavigating) return;
+		// A paste still open goes out as the paste it was.
+		refold(true);
+		sendMessage.mutate();
+	};
+
 	return (
 		<Panel id="editor" disabled={_disabled}>
 			{/* Drawn over what is above the editor, which stays where it is. */}
@@ -373,13 +419,20 @@ export default function Editor({
 					/>
 				</Box>
 			)}
+			{/* The footer stands in the bottom padding row, so the composer is no
+			    taller for it. */}
+			{tokensOpen && (
+				<Box position="absolute" bottom="100%" right={1}>
+					<TokenBreakdown usage={usage} categories={categories} />
+				</Box>
+			)}
 			<Box
 				paddingX={2}
-				paddingY={1}
+				paddingTop={1}
 				backgroundColor="interior"
 				borderStyle="round"
 				border={true}
-				alignItems="flex-end"
+				flexDirection="column"
 			>
 				<Textarea
 					focus={!disabled}
@@ -407,12 +460,7 @@ export default function Editor({
 						if (broken) write(broken);
 						else insert("\n");
 					}}
-					onSubmit={() => {
-						if (isNavigating) return;
-						// A paste still open goes out as the paste it was.
-						refold(true);
-						sendMessage.mutate();
-					}}
+					onSubmit={submit}
 					// A paste is clicked open, written out in full to be read and
 					// edited until the cursor leaves it.
 					onClick={unfold}
@@ -421,7 +469,29 @@ export default function Editor({
 					styles={styles}
 					placeholder={placeholder}
 				/>
-				<TokenUsage usage={usage} categories={categories} />
+				<EditorFooter
+					usage={usage}
+					onTokensOpenChange={setTokensOpen}
+					model={
+						status === "unavailable" ? "no model available" : config?.model
+					}
+					unavailable={status === "unavailable"}
+					maxModelWidth={Math.max(8, Math.floor(columns / 3))}
+					canSend={
+						!_disabled &&
+						!sendMessage.isPending &&
+						!!content.trim() &&
+						status === "ready"
+					}
+					onSend={submit}
+					// As the app's send does: stop while a reply streams, unless
+					// there is something written to send after it.
+					onStop={
+						stream && !content.trim() && !_disabled
+							? () => AgentStreamService.abort(stream)
+							: undefined
+					}
+				/>
 			</Box>
 		</Panel>
 	);

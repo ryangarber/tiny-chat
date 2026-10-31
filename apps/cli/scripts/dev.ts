@@ -112,7 +112,7 @@ setExitHandler((isCtrlD) => {
 try {
 	const inputs = await run();
 
-	if (!watch && child) {
+	if (!watchMode && child) {
 		const running = child;
 		await new Promise<void>((resolve) => running.once("exit", () => resolve()));
 	}

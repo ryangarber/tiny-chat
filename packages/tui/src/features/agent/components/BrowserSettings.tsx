@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useBrowser } from "#client/features/agent/hooks/useBrowser.ts";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import ConfigItemText, {
 	type ConfigItem,
 } from "#tui/features/agent/components/ConfigItem.tsx";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 
 /**
  * The browser toolset's requirements and settings, beside its toggle in the

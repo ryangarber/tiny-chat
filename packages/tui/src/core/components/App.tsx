@@ -3,9 +3,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
 import { usePersistedPanels } from "#client/core/hooks/usePersistedPanels.ts";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
-import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject.ts";
-import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useEstimatedTokens } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { MessageProvider } from "#client/features/message/components/MessageProvider.tsx";
@@ -19,7 +17,6 @@ import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import {
 	type Panel as PanelName,
-	selectFocus,
 	selectPage,
 	useAppStore,
 } from "#tui/core/stores/useAppStore.ts";
@@ -40,14 +37,15 @@ import Uploads from "#tui/features/upload/components/Uploads.tsx";
 import Actions from "#tui/features/user/components/Actions.tsx";
 import Memories from "#tui/features/user/components/Memories.tsx";
 
+/** The scope of the whole screen, searched once nothing narrower is. */
+const FIND_ROOT = "app";
+
 /** Columns from which the chat list and files open beside the chat rather than below it. */
 const SIDEBAR_COLUMNS = 120;
 
-/** The scope of the whole screen, searched once nothing narrower is. */
-const FIND_ROOT = "app";
 // Halfway between the former chat-list (32) and file-preview (up to 64) widths.
 const panelWidth = (columns: number) =>
-	Math.floor((32 + Math.min(64, Math.floor(columns * 0.4))) / 2);
+	Math.min(Math.floor(columns * 0.25), 40);
 
 export default function App() {
 	usePrepareCode();
@@ -80,19 +78,7 @@ export default function App() {
 		});
 	}, [update.data, setStatus]);
 
-	const { projects } = useChatList();
-	const projectList = projects.data?.pages.flatMap((page) => page.projects);
-
 	useInput((input, key) => {
-		if (key.shift && key.tab) {
-			// Pages, panels and tool controls own their keys (a tool control
-			// cycles its suggestions with it): the shortcut is the editor's.
-			if (selectFocus(useAppStore.getState()) !== "editor") return;
-			// Something written in the editor takes it to indent and unindent.
-			if (!useComposerStore.getState().isEmpty) return;
-			ChatService.cycleProject(projectList ?? []);
-			return;
-		}
 		if (key.ctrl && (input === "c" || input === "d")) {
 			// Ctrl+C copies a selection, which whatever holds it sees to.
 			if (input === "c" && useSelectionStore.getState().holder) return;

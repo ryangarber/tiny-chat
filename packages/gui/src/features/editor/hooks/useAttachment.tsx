@@ -100,6 +100,8 @@ const Attachment = Node.create({
 						text: text.slice(match.from, match.to),
 					};
 				},
+				// An at sign written as code is only ever the text it is.
+				allow: ({ state, range }) => !NodeUtils.isInCode(state, range.from),
 				placement: "top-start",
 				items: async ({ query, signal }) => {
 					const items = await (
@@ -133,6 +135,7 @@ const Attachment = Node.create({
 					});
 				},
 				render: renderCompletions({
+					tabs: true,
 					renderEmpty: () => "No matches",
 					renderItem: (item) => {
 						return (

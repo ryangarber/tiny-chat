@@ -1,6 +1,8 @@
 import {
+	getFiles,
 	getImageBinary,
 	getText,
+	hasFiles,
 	hasImage,
 	hasText,
 	setImageBinary,
@@ -10,6 +12,7 @@ import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 
 /** What the clipboard was holding when it was read. */
 export type ClipboardContent =
+	| { type: "files"; paths: string[] }
 	| { type: "text"; text: string }
 	| { type: "image"; data: Uint8Array<ArrayBuffer> }
 	| null;
@@ -44,11 +47,17 @@ export const ClipboardService = {
 	},
 
 	/**
-	 * What the clipboard is holding, an image ahead of text: a screenshot copied
-	 * on macOS carries its file name as text alongside the image itself.
+	 * What the clipboard is holding: files ahead of an image, and an image ahead
+	 * of text. A file copied in Finder carries its icon as an image and its name
+	 * as text alongside the file itself, so either alone would attach the wrong
+	 * thing; a screenshot copied on macOS likewise carries its file name as text.
 	 */
 	read: async (): Promise<ClipboardContent> => {
 		try {
+			if (hasFiles()) {
+				const paths = (await getFiles()).filter(Boolean);
+				if (paths.length) return { type: "files", paths };
+			}
 			if (hasImage()) {
 				return { type: "image", data: Uint8Array.from(await getImageBinary()) };
 			}

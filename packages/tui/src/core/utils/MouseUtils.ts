@@ -284,14 +284,24 @@ export const MouseUtils = {
 		};
 	},
 
-	/** Whether an overlay is drawn over `node` at `point`, hiding it from the mouse there. */
-	isCovered: (node: DOMElement, point: MousePoint, rows: number) => {
+	/**
+	 * Whether an overlay is drawn over `node` at `point`, hiding it from the
+	 * mouse there. With `ownLayers`, an overlay drawn inside `node` — a scroll
+	 * view's own scrollbar — is taken as part of it rather than over it.
+	 */
+	isCovered: (
+		node: DOMElement,
+		point: MousePoint,
+		rows: number,
+		ownLayers = false,
+	) => {
 		const top = layers
 			.filter((layer) =>
 				MouseUtils.contains(MouseUtils.bounds(layer, rows), point),
 			)
 			.sort(byDrawOrder)
 			.at(-1);
-		return !!top && !isInside(node, top);
+		if (!top || isInside(node, top)) return false;
+		return !(ownLayers && isInside(top, node));
 	},
 } as const;

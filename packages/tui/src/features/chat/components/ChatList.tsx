@@ -4,6 +4,7 @@ import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import Box from "#tui/core/components/Box.tsx";
+import Completions from "#tui/core/components/Completions.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
@@ -14,7 +15,6 @@ import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import ProjectList, {
 	NO_PROJECT,
 } from "#tui/features/chat/components/ProjectList.tsx";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 
 /**
  * The project the chats below are listed for, between arrows that step to the

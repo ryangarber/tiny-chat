@@ -79,3 +79,37 @@ describe("CompletionUtils", () => {
 		).toEqual(["astra", "astral", "typo-astra", "gpt-6-astra"]);
 	});
 });
+
+describe("CompletionUtils tabs", () => {
+	const groups = [
+		{ items: [{ value: "default" }] },
+		{ name: "openai", items: [{ value: "a" }] },
+		{ name: "empty", items: [] },
+		{ name: "anthropic", items: [{ value: "b" }] },
+	];
+
+	it("offers every item, then each named group with items", () => {
+		expect(CompletionUtils.tabs(groups)).toEqual([null, "openai", "anthropic"]);
+		expect(CompletionUtils.tabs(groups.slice(0, 2))).toEqual([]);
+	});
+
+	it("steps around the tabs, from every item when one is gone", () => {
+		const tabs = CompletionUtils.tabs(groups);
+		expect(CompletionUtils.stepTab({ tabs, tab: null, direction: -1 })).toBe(
+			"anthropic",
+		);
+		expect(
+			CompletionUtils.stepTab({ tabs, tab: "anthropic", direction: 1 }),
+		).toBe(null);
+		expect(CompletionUtils.stepTab({ tabs, tab: "gone", direction: 1 })).toBe(
+			"openai",
+		);
+	});
+
+	it("shows a tab's own group, or all of them once it is gone", () => {
+		expect(CompletionUtils.inTab({ groups, tab: "openai" })).toEqual([
+			groups[1],
+		]);
+		expect(CompletionUtils.inTab({ groups, tab: "gone" })).toBe(groups);
+	});
+});

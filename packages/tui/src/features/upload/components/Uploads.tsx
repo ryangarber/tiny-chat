@@ -7,11 +7,11 @@ import type {
 } from "#client/features/editor/types/completion.ts";
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useSentinel } from "#tui/core/hooks/useSentinel.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 
 interface UploadItem extends CompletionItem {
 	detail?: string;

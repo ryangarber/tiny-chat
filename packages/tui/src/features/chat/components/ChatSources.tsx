@@ -35,7 +35,9 @@ import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
 import Box from "#tui/core/components/Box.tsx";
+import Completions from "#tui/core/components/Completions.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
+import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
 import ScrollView, {
@@ -48,12 +50,8 @@ import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
-import Completions from "#tui/features/editor/components/Completions.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Image from "#tui/features/part/components/Image.tsx";
-
-/** Lines of a file drawn in its preview; past this it is cut short. */
-const MAX_LINES = 2000;
 
 type Preview =
 	| { type: "file"; file: ChatFile }
@@ -147,19 +145,9 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	if (content.data.extracted) {
 		return <Markdown source={content.data.text} />;
 	}
-	const lines = content.data.text.split("\n");
 	return (
 		<Box flexDirection="column">
-			<Code
-				code={lines.slice(0, MAX_LINES).join("\n")}
-				language={language}
-				lineNumbers
-			/>
-			{lines.length > MAX_LINES && (
-				<Text color="textSubtle">
-					{` ⋮ ${lines.length - MAX_LINES} more lines`}
-				</Text>
-			)}
+			<Code code={content.data.text} language={language} lineNumbers />
 		</Box>
 	);
 }
@@ -335,7 +323,9 @@ function PreviewPane({
 						: { maxHeight: Math.floor(rows / 2) })}
 					overscan={Number.POSITIVE_INFINITY}
 				>
-					{body}
+					<ErrorBoundary label="this preview" resetKey={preview}>
+						{body}
+					</ErrorBoundary>
 				</ScrollView>
 			</WidthContext.Provider>
 			<HelpText

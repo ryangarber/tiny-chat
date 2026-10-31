@@ -12,9 +12,10 @@ import type {
 } from "#client/features/editor/types/command.ts";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
 import { CommandUtils } from "#client/features/editor/utils/CommandUtils.ts";
+import Completions from "#tui/core/components/Completions.tsx";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
-import Completions from "#tui/features/editor/components/Completions.tsx";
+import { MarkdownUtils } from "#tui/features/editor/utils/MarkdownUtils.ts";
 import { useUpdate } from "#tui/features/update/hooks/useUpdate.ts";
 
 export default function Commands({
@@ -72,7 +73,10 @@ export default function Commands({
 			: undefined,
 	});
 
-	const query = CommandUtils.query({ content, cursor, groups: commands });
+	// A slash written as code is only ever the text it is.
+	const found = CommandUtils.query({ content, cursor, groups: commands });
+	const query =
+		found && !MarkdownUtils.isInCode(content, found.from) ? found : null;
 
 	const commandGroups =
 		!query || query.command
@@ -104,6 +108,7 @@ export default function Commands({
 		return (
 			<Completions<CommandChoiceGroup, CommandChoiceItem>
 				groups={groups}
+				tabs
 				renderEmpty={() => {
 					return "no matches";
 				}}
@@ -138,6 +143,7 @@ export default function Commands({
 	} else {
 		return (
 			<Completions<CommandGroup, CommandItem>
+				tabs
 				groups={groups}
 				renderItem={({ item }) => {
 					return `/${item.name ?? item.value}`;

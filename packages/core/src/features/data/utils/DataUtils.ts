@@ -99,6 +99,7 @@ export const DataUtils = {
 								name: finished.task.name,
 								error: finished.task.error,
 								output: finished.value,
+								changes: finished.task.changes,
 							}
 						: parts.find(
 								(p): p is zToolResultPart =>

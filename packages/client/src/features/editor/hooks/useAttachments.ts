@@ -1,6 +1,8 @@
 import { useCallback, useContext, useMemo, useRef } from "react";
+import { z } from "zod";
 import { ClientContext } from "#client/client.ts";
 import { useLatestCallback } from "#client/core/hooks/useLatestCallback.ts";
+import { ClientBrowserService } from "#client/features/agent/services/ClientBrowserService.ts";
 import { useChatFiles } from "#client/features/chat/hooks/useChatFiles.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -12,6 +14,7 @@ import { FileOperationService } from "#core/features/file/services/FileOperation
 import { FileSearchService } from "#core/features/file/services/FileSearchService.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
+import { ComputerService } from "#core/features/tool/services/ComputerService.ts";
 
 /** How long a walked tree answers searches before it is walked again. */
 const TREE_TTL = 30_000;
@@ -25,6 +28,24 @@ const TREE_ENTRIES = 50_000;
 /** Files and folders found below the directory being typed in. */
 const MAX_DEEP_RESULTS = 20;
 
+/** How long the open tabs and windows answer searches before being asked again. */
+const LIVE_TTL = 5_000;
+
+/**
+ * How long the menu waits on the browser or the computer. A host that is busy
+ * or stuck (a permission prompt, a run holding the queue) leaves its group out
+ * rather than holding up every other attachment.
+ */
+const LIVE_TIMEOUT = 1_500;
+
+const withTimeout = <T>(promise: Promise<T>, fallback: T) =>
+	Promise.race([
+		promise,
+		new Promise<T>((resolve) =>
+			setTimeout(() => resolve(fallback), LIVE_TIMEOUT),
+		),
+	]);
+
 interface LocalTree {
 	at: number;
 	tree: Promise<{
@@ -35,8 +56,9 @@ interface LocalTree {
 
 /**
  * Build the attachments available to any client: everything on the mount, the
- * uploads and repositories the account holds, recent chats, plus files on the
- * local machine when the client can read the filesystem.
+ * uploads and repositories the account holds, recent chats, the agent's open
+ * browser tabs and the computer's windows, plus files on the local machine when
+ * the client can read the filesystem.
  */
 export const useAttachments = () => {
 	const client = useContext(ClientContext);
@@ -132,6 +154,78 @@ export const useAttachments = () => {
 		},
 		[client],
 	);
+
+	// The agent's browser tabs and the computer's windows, as they are now:
+	// asked for once the menu opens and kept for a few keystrokes after.
+	const liveRef = useRef<{ at: number; groups: Promise<AttachmentGroup[]> }>(
+		null,
+	);
+	const getLive = useCallback((): Promise<AttachmentGroup[]> => {
+		const cached = liveRef.current;
+		if (cached && Date.now() - cached.at < LIVE_TTL) return cached.groups;
+
+		const getTabs = async (): Promise<AttachmentGroup[]> => {
+			const tabs = await ClientBrowserService.getTabs({ client }).catch(
+				(error) => {
+					console.warn("[useAttachments] failed to list tabs", error);
+					return [];
+				},
+			);
+			// A fresh page has nothing on it to attach.
+			const open = tabs.filter((tab) => tab.url !== "about:blank");
+			return open.length
+				? [
+						{
+							name: "Browser",
+							items: open.map((tab) => AttachmentUtils.forTab({ tab })),
+						},
+					]
+				: [];
+		};
+
+		const getWindows = async (): Promise<AttachmentGroup[]> => {
+			if (!client.computer) return [];
+			const status = await ComputerService.status(client.computer);
+			if (!status.available) return [];
+			const result = await ComputerService.run({
+				capability: client.computer,
+				steps: [{ action: "windows" }],
+			}).catch((error) => {
+				console.warn("[useAttachments] failed to list windows", error);
+				return null;
+			});
+			const windows = z
+				.array(
+					z.object({
+						id: z.string(),
+						app: z.string(),
+						title: z.string().optional(),
+						minimized: z.boolean().optional(),
+					}),
+				)
+				.safeParse(result?.steps[0]?.value);
+			const shown = windows.success
+				? windows.data.filter((window) => !window.minimized)
+				: [];
+			return shown.length
+				? [
+						{
+							name: "Windows",
+							items: shown.map((window) =>
+								AttachmentUtils.forWindow({ window }),
+							),
+						},
+					]
+				: [];
+		};
+
+		const groups = Promise.all([
+			withTimeout(getTabs(), []),
+			withTimeout(getWindows(), []),
+		]).then((groups) => groups.flat());
+		liveRef.current = { at: Date.now(), groups };
+		return groups;
+	}, [client]);
 
 	// Stable for an editor that takes it in once, while searching what is on
 	// hand now.
@@ -256,7 +350,11 @@ export const useAttachments = () => {
 				}
 			};
 
-			const [mounted, local] = await Promise.all([getMounted(), getLocal()]);
+			const [mounted, local, live] = await Promise.all([
+				getMounted(),
+				getLocal(),
+				directory.length ? [] : getLive(),
+			]);
 			if (signal?.aborted) return [];
 
 			return [
@@ -266,6 +364,7 @@ export const useAttachments = () => {
 				// rather than a path being walked down.
 				...(directory.length ? [] : uploadGroups),
 				...(directory.length ? [] : chatGroups),
+				...live,
 				...local,
 			];
 		},

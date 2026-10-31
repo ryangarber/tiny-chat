@@ -2,7 +2,6 @@ import { type Key, useInput, useWindowSize } from "ink";
 import {
 	type ReactNode,
 	type RefObject,
-	useCallback,
 	useEffect,
 	useId,
 	useRef,
@@ -13,6 +12,7 @@ import type {
 	CompletionGroup,
 	CompletionItem,
 } from "#client/features/editor/types/completion.ts";
+import { CompletionUtils } from "#client/features/editor/utils/CompletionUtils.ts";
 import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import HelpText, { type Action } from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
@@ -56,6 +56,11 @@ export type CompletionsProps<
 		pointer?: boolean;
 	}) => boolean | undefined;
 	itemProps?: BoxProps;
+	/**
+	 * Pressing 1 to 9 selects the item in that place, leaving Enter to press
+	 * it. Only for lists that are not also typed into.
+	 */
+	numbered?: boolean;
 	renderItem?: (_: { item: T2; selected: boolean }) => ReactNode;
 	renderEmpty?: () => ReactNode;
 	withStyles?: boolean;
@@ -69,6 +74,11 @@ export type CompletionsProps<
 	stickToBottom?: number;
 	/** Takes the full height it is given, as a sidebar does, instead of half the screen at most. */
 	fill?: boolean;
+	/**
+	 * Narrows the list to one of its named groups at a time with ←→, every
+	 * item being the first tab. `selected` stays an index into every item.
+	 */
+	tabs?: boolean;
 };
 
 export default function Completions<
@@ -83,6 +93,7 @@ export default function Completions<
 	bindings,
 	active: _active,
 	itemProps,
+	numbered = false,
 	renderItem,
 	renderEmpty,
 	before,
@@ -92,6 +103,7 @@ export default function Completions<
 	selectFirstOnChange = true,
 	stickToBottom,
 	fill = false,
+	tabs: withTabs = false,
 	ref: _ref,
 	...props
 }: CompletionsProps<T1, T2>) {
@@ -107,10 +119,21 @@ export default function Completions<
 		})),
 	);
 
+	// What is drawn is the tab's items; `selected` and everything handed back
+	// out stay indices into every item, so a list's owner never sees the tab.
+	const tabs = withTabs ? CompletionUtils.tabs(groups) : [];
+	const [_tab, setTab] = useState<string | null>(null);
+	const tab = tabs.includes(_tab) ? _tab : null;
+	const indices = items.flatMap((item, index) =>
+		tab === null || item.group === tab ? [index] : [],
+	);
+
 	const [uncontrolledSelected, setUncontrolledSelected] = useState(0);
 
 	const selected = controlledSelected ?? uncontrolledSelected;
 	const setSelected = setControlledSelected ?? setUncontrolledSelected;
+	/** Where the selection is drawn among the tab's items. */
+	const shown = Math.max(0, indices.indexOf(selected));
 
 	const isEmpty = !items.length;
 	useEffect(() => {
@@ -136,13 +159,13 @@ export default function Completions<
 	 */
 	const pickPage = (direction: -1 | 1) => {
 		const view = ref.current;
-		const from = view?.getItemPosition(selected);
-		if (!view || !from || !items.length) return;
+		const from = view?.getItemPosition(shown);
+		if (!view || !from || !indices.length) return;
 		const page = pageRows(view.getViewportHeight());
-		let next = selected;
+		let next = shown;
 		for (
-			let index = selected + direction;
-			index >= 0 && index < items.length;
+			let index = shown + direction;
+			index >= 0 && index < indices.length;
 			index += direction
 		) {
 			const position = view.getItemPosition(index);
@@ -150,20 +173,28 @@ export default function Completions<
 			next = index;
 		}
 		// A row taller than a page is still a step.
-		if (next === selected)
-			next = Math.min(Math.max(selected + direction, 0), items.length - 1);
-		setSelected(() => next);
+		if (next === shown)
+			next = Math.min(Math.max(shown + direction, 0), indices.length - 1);
+		setSelected(() => indices[next] ?? 0);
 	};
 
-	const pick = useCallback(
-		(offset: number) => {
-			if (!items.length) return;
-			setSelected(
-				(previous) => ((previous ?? 0) + offset + items.length) % items.length,
-			);
-		},
-		[items.length, setSelected],
-	);
+	const pick = (offset: number) => {
+		if (!indices.length) return;
+		const next = (shown + offset + indices.length) % indices.length;
+		setSelected(() => indices[next] ?? 0);
+	};
+
+	/** Opens a tab, the selection going to its first item unless it is in it. */
+	const selectTab = (next: string | null) => {
+		setTab(next);
+		const group = items[selected]?.group;
+		if (next !== null && group !== next) {
+			const first = items.findIndex((item) => item.group === next);
+			if (first !== -1) setSelected(() => first);
+		}
+	};
+	const pickTab = (direction: -1 | 1) =>
+		selectTab(CompletionUtils.stepTab({ tabs, tab, direction }));
 
 	const list = useId();
 	const item = items[selected];
@@ -214,7 +245,17 @@ export default function Completions<
 		if (action?.type === "run") return perform(action.verb, action.direction);
 		// Anything but a verb disarms, moving the cursor as it would anyway.
 		if (action?.type === "disarm") setArmed(null);
+		if (numbered && /^[1-9]$/.test(input) && !key.ctrl && !key.meta) {
+			const index = indices[Number(input) - 1];
+			if (index === undefined) return;
+			setSelected(() => index);
+			return;
+		}
 		if (key.shift) return;
+		if (tabs.length && !key.ctrl && !key.meta && !key.super) {
+			if (key.leftArrow) return pickTab(-1);
+			if (key.rightArrow) return pickTab(1);
+		}
 		if (key.upArrow) pick(-1);
 		if (key.downArrow) pick(1);
 		if (key.pageUp) pickPage(-1);
@@ -225,7 +266,8 @@ export default function Completions<
 
 	const [hovered, setHovered] = useState<number | null>(null);
 	const { mouseRef } = useMouseInput({
-		onClick: ({ index }) => {
+		onClick: ({ index: position }) => {
+			const index = position === undefined ? undefined : indices[position];
 			if (index === undefined) return;
 			// Only a press on what is already selected, in a list that already has
 			// the focus, goes through: the first press on a list elsewhere just
@@ -245,6 +287,14 @@ export default function Completions<
 			if (hovered === index) setHovered(null);
 		},
 		isActive: !!items.length,
+	});
+
+	const tabMouse = useMouseInput({
+		onClick: ({ index }) => {
+			if (index !== undefined && index < tabs.length)
+				selectTab(tabs[index] ?? null);
+		},
+		isActive: tabs.length > 0,
 	});
 
 	useEffect(() => {
@@ -268,16 +318,37 @@ export default function Completions<
 			backgroundColor="interior"
 		>
 			{before}
+			{tabs.length > 0 && (
+				<Box flexWrap="wrap" columnGap={2} marginBottom={1} marginLeft={2}>
+					{tabs.map((name, index) => (
+						<Box
+							key={name ?? ""}
+							ref={(element) => tabMouse.mouseRef(element, index)}
+							flexShrink={0}
+						>
+							<Text
+								color={name === tab ? "primary" : "textSubtle"}
+								bold={name === tab}
+								underline={name === tab}
+							>
+								{(name ?? "all").toLowerCase()}
+							</Text>
+						</Box>
+					))}
+				</Box>
+			)}
 			<ScrollView
 				ref={ref}
-				selectedIndex={selected}
+				selectedIndex={shown}
 				{...(fill
 					? { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 }
 					: { maxHeight: Math.floor(rows / 2) })}
 				paddingBottom={1}
 				{...props}
 			>
-				{items.map((item, index) => {
+				{indices.map((index, position) => {
+					const item = items[index];
+					if (!item) return null;
 					const rendered =
 						armed && index === selected ? (
 							<Text color="redBright">
@@ -288,20 +359,19 @@ export default function Completions<
 							(renderItem?.({ item, selected: index === selected }) ??
 							item.name)
 						);
-					const groupIndex = groups.findIndex(
-						(group) => group.name === item.group,
-					);
+					// A tab is the group it shows, so it goes unlabelled.
+					const label = tab === null ? item.groupLabel : undefined;
 					return (
 						<Box key={item.group + item.value} flexDirection="column">
-							{item.groupLabel && (
-								<Box marginLeft={2} marginTop={groupIndex > 0 ? 1 : 0}>
+							{label && (
+								<Box marginLeft={2} marginTop={position > 0 ? 1 : 0}>
 									<Text color="textSubtle" bold>
-										{item.groupLabel.toLowerCase()}
+										{label.toLowerCase()}
 									</Text>
 								</Box>
 							)}
 							<Box
-								ref={(element) => mouseRef(element, index)}
+								ref={(element) => mouseRef(element, position)}
 								color={
 									index === selected
 										? active
@@ -309,7 +379,7 @@ export default function Completions<
 											: "textSubtle"
 										: undefined
 								}
-								dimColor={index === hovered || item.active}
+								dimColor={position === hovered || item.active}
 							>
 								<Text>{index === selected ? "▶ " : "  "}</Text>
 								<Box gap={1} {...itemProps}>
@@ -332,6 +402,9 @@ export default function Completions<
 				<HelpText
 					actions={[
 						"move",
+						...(tabs.length
+							? [{ key: "←→", name: "group", onClick: () => pickTab(1) }]
+							: []),
 						...(bindings
 							? ListBindingUtils.help(bindings, item, { armed }).map(
 									({ verb, ...action }) => ({

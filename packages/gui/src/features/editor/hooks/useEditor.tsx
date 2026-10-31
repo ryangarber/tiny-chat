@@ -14,6 +14,7 @@ import {
 	useContext,
 	useEffect,
 	useLayoutEffect,
+	useRef,
 	useState,
 } from "react";
 import { ClientContext } from "#client/client.ts";
@@ -30,6 +31,9 @@ import { usePaste } from "#gui/features/editor/hooks/usePaste.tsx";
 import { usePlaceholder } from "#gui/features/editor/hooks/usePlaceholder.tsx";
 import { useEditorStore } from "#gui/features/editor/stores/useEditorStore.ts";
 import { EditorUtils } from "#gui/features/editor/utils/EditorUtils.ts";
+
+/** How long after Ctrl or Cmd, Shift and V a paste is waited on, and taken as plain. */
+const PLAIN_PASTE_WINDOW = 100;
 
 const EnterKeymap = Extension.create({
 	name: "enterKeymap",
@@ -132,10 +136,21 @@ export const useEditor = ({
 
 	const [isMultiline, setMultiline] = useState(false);
 
+	// Ctrl or Cmd with Shift and V pastes plain text. Where the webview binds
+	// it, a paste follows the keys and is taken as plain; where nothing does,
+	// the clipboard is read for it instead once the paste has not come.
+	const plainPaste = useRef(false);
+
 	const editor = _useEditor({
 		editorProps: {
 			handleDrop: dropOutsideAtom,
 			handlePaste: (_view, event): boolean => {
+				if (plainPaste.current) {
+					plainPaste.current = false;
+					const text = event.clipboardData?.getData("text/plain");
+					if (text) return EditorUtils.insertPlain(text);
+				}
+
 				let uploaded = false;
 				for (const item of event.clipboardData?.items ?? []) {
 					if (item.kind === "file") {
@@ -152,6 +167,25 @@ export const useEditor = ({
 				return text ? EditorUtils.insertPasted(text) : false;
 			},
 			handleKeyDown: (_view, event) => {
+				if (
+					event.code === "KeyV" &&
+					event.shiftKey &&
+					(event.ctrlKey || event.metaKey) &&
+					!event.altKey
+				) {
+					plainPaste.current = true;
+					setTimeout(() => {
+						if (!plainPaste.current) return;
+						plainPaste.current = false;
+						navigator.clipboard
+							?.readText()
+							.then((text) => text && EditorUtils.insertPlain(text))
+							.catch((error) =>
+								console.warn("[useEditor] couldn't read the clipboard", error),
+							);
+					}, PLAIN_PASTE_WINDOW);
+					return false;
+				}
 				if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
 					if (event.shiftKey) {
 						console.log(editor.getJSON());

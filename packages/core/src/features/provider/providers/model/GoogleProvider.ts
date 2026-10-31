@@ -100,7 +100,7 @@ export const GoogleProvider: ModelProvider<GoogleGenerativeAIProvider> = {
 	getModelArgs({ model }) {
 		const args: zModelArg[] = [];
 		if (ModelProviderUtils.isModel(model, "gemini")) {
-			args.push(...ModelProviderUtils.getModelArgs({ maxTemp: 2 }));
+			args.push(...ModelProviderUtils.getModelArgs({ temperature: 2 }));
 			if (ModelProviderUtils.isModel(model, "gemini 2.5")) {
 				args.push({
 					name: "thinking-budget",

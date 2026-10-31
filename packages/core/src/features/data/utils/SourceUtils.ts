@@ -146,6 +146,15 @@ const expandCall = ({ sources, key }: { sources?: Source[]; key: string }) => {
 	return produced.length ? produced.map((source) => source.key) : [key];
 };
 
+/** Claude Code's own file tools, by the input naming the file each works on. */
+const CLAUDE_CODE_FILE_TOOLS: Record<string, string> = {
+	Read: "file_path",
+	Write: "file_path",
+	Edit: "file_path",
+	MultiEdit: "file_path",
+	NotebookEdit: "notebook_path",
+};
+
 /** Sources read out of a supported tool's result. */
 const fromToolCall = ({
 	part,
@@ -157,6 +166,11 @@ const fromToolCall = ({
 	toolsets: Toolset<any>[];
 }): Source[] => {
 	const { tool } = ToolUtils.find({ toolsets, part });
+	const field = tool ? undefined : CLAUDE_CODE_FILE_TOOLS[part.name];
+	const path = field && result && !result.error ? part.input?.[field] : null;
+	if (typeof path === "string" && path) {
+		return [{ key: path, type: "file", value: { path, directory: false } }];
+	}
 	if (tool?.name.startsWith("github_") && !result?.error) {
 		return GitHubSourceUtils.parse(tool.name, ToolUtils.json(result, true)).map(
 			(value) => ({ key: value.url, type: "web", value }),

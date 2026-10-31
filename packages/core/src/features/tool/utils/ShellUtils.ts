@@ -738,7 +738,79 @@ const isScriptSafe = (script: ParsedScript, context: Context): boolean => {
 	});
 };
 
+/**
+ * A program and the plain words after it — `npm run build` — up to its first
+ * option or real argument.
+ */
+const describe = (words: readonly string[]) => {
+	const parts = words.filter(Boolean);
+	const end = parts.findIndex(
+		(part, index) =>
+			index > 0 && (part.startsWith("-") || /[^A-Za-z0-9-_]/.test(part)),
+	);
+	return parts.slice(0, end === -1 ? undefined : end).join(" ");
+};
+
+/** The simple commands a script runs, in order, outside of substitutions. */
+const getCommands = (script: ParsedScript): string[] => {
+	const commands: string[] = [];
+	const visit = (node: SyntaxNode) => {
+		const item = node as unknown as {
+			type: string;
+			name?: Word;
+			suffix?: readonly { type: string; value?: string }[];
+		};
+		// What a word substitutes is not what the command line is seen to run.
+		if (item.type === "Word") return;
+		if (item.type === "Command") {
+			if (!item.name) return;
+			commands.push(
+				describe([
+					item.name.value,
+					...(item.suffix ?? []).flatMap((part) =>
+						part.type === "Word" ? [part.value ?? ""] : [],
+					),
+				]),
+			);
+			return;
+		}
+		forEachChild(node, visit);
+	};
+	visit(script);
+	return commands;
+};
+
 export const ShellUtils = {
+	/**
+	 * The programs a command runs, without their arguments, for a status
+	 * line: `git status, ls` for `cd app && git status; ls -la`. Changing
+	 * directory first only sets up what follows, so it is left out unless it
+	 * is all there is.
+	 */
+	programs: (command: string): string => {
+		let commands: string[];
+		try {
+			const script = parse(command);
+			commands = script.errors?.length ? [] : getCommands(script);
+		} catch {
+			commands = [];
+		}
+		// Half-written or another dialect: split on the usual separators.
+		if (!commands.length) {
+			commands = command
+				.split(/&&|\|\||[;|&\n]/)
+				.map((part) => describe(part.trim().split(/\s+/)));
+		}
+		commands = commands.filter(Boolean);
+		const start = commands.findIndex(
+			(item) => !DIRECTORY_COMMANDS.has(item.split(" ")[0] ?? ""),
+		);
+		if (start > 0) commands = commands.slice(start);
+		return commands
+			.filter((item, index) => item !== commands[index - 1])
+			.join(", ");
+	},
+
 	/** Read-only commands that can run without an approval prompt. */
 	safeCommands: new Set([
 		"cd",

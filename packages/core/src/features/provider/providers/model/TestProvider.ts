@@ -51,7 +51,7 @@ export const TestProvider: ModelProvider<ProviderV4> = {
 	},
 
 	getModelArgs() {
-		return ModelProviderUtils.getModelArgs({ maxTemp: -1 });
+		return ModelProviderUtils.getModelArgs({ temperature: false });
 	},
 };
 

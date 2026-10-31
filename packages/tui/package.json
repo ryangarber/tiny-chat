@@ -22,7 +22,7 @@
 		"cli-boxes": "^4.0.1",
 		"client": "workspace:*",
 		"core": "workspace:*",
-		"hast-util-to-jsx-runtime": "^2.3.6",
+		"hast-util-to-jsx-runtime": "^2.3.7",
 		"ink": "^8.0.0",
 		"ink-picture": "^2.1.0",
 		"ink-spinner": "^5.0.0",

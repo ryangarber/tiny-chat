@@ -260,3 +260,18 @@ describe("ShellUtils", () => {
 		expect(module.ShellUtils.isSafe("pwd")).toBe(true);
 	});
 });
+
+describe("ShellUtils.programs", () => {
+	it.each([
+		["git status && ls", "git status, ls"],
+		["cd app; python main.py", "python"],
+		["cd a && cd b && npm run build && ls -la", "npm run build, ls"],
+		["cat x | grep y || echo $(rm -rf /)", "cat x, grep y, echo"],
+		["FOO=1 npm test & wait", "npm test, wait"],
+		["cd app\npython -m pytest", "python"],
+		["cd app", "cd app"],
+		["Get-ChildItem -Path . ; Write-Host hi", "Get-ChildItem, Write-Host hi"],
+	])("%j shows %j", (command, expected) => {
+		expect(ShellUtils.programs(command)).toBe(expected);
+	});
+});
