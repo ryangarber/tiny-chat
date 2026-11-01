@@ -1,3 +1,28 @@
+## 0.10.8 (2026-11-01)
+
+### Features
+
+- improved claude code experience ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- redesigned token usage ui ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- shell command diff displays ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- project folders show as sources ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- improved command statuses ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- improved completions for long lists ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- plain paste (meta+shift+v) ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- **tui:** scroll bars and improved panels ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+
+### Bug Fixes
+
+- code blocks don't prevent command/attachment ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- chats outside of project show in `/chats` ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- commands/attachments open in code blocks ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- **tui:** wrap app in error boundaries ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+- **tui:** image files copied from finder paste empty ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+
+### Other
+
+- improve light color palette ([0e3bac4](https://github.com/ryangarber/tiny-chat/commit/0e3bac482bccd1c5bacf6c6a1bc332353ba4c9ab))
+
 ## 0.10.7 (2026-10-31)
 
 ### Features
