@@ -23,6 +23,9 @@ createLogger({
 	logWriter: useConsoleStore.getState().writer,
 	logToDisk: true,
 	silent: true,
+	// `main` decides what an uncaught error does: the app logs it and carries
+	// on, which it cannot do if the logger has already ended the process.
+	exitOnUncaught: false,
 });
 
 const parser = longestMatch(

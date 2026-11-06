@@ -37,6 +37,25 @@ export const createShell = (
 			files.set(path, content);
 			return { path, success: true };
 		},
+		rename: async ({ path, to }) => {
+			const moved = [...files.keys()].filter(
+				(key) => key === path || key.startsWith(`${path}/`),
+			);
+			if (!moved.length) throw new Error(`Missing file: ${path}`);
+			for (const key of moved) {
+				files.set(`${to}${key.slice(path.length)}`, files.get(key) ?? "");
+				files.delete(key);
+			}
+			return { path: to, success: true };
+		},
+		remove: async ({ path }) => {
+			const removed = [...files.keys()].filter(
+				(key) => key === path || key.startsWith(`${path}/`),
+			);
+			if (!removed.length) throw new Error(`Missing file: ${path}`);
+			for (const key of removed) files.delete(key);
+			return { path, success: true };
+		},
 		exec: async () => ({ stdout: "", stderr: "" }),
 	};
 };

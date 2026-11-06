@@ -1,6 +1,6 @@
-import { prisma8Adapter } from "@ryangarber/better-auth-adapter-prisma";
 import { betterAuth } from "better-auth";
 import { anonymous, bearer } from "better-auth/plugins";
+import { prisma8Adapter } from "better-auth-prisma-orm";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { userFields } from "#core/prisma/better-auth-adapter.ts";
 import { nativeAuth } from "#server/core/utils/NativeAuthPlugin.ts";

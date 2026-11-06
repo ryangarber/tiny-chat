@@ -2,6 +2,15 @@
   "originHash" : "ee3e123e11d19270c8de6b2ab262f46b1f5783ea8bb60fbe80d48e18602f1345",
   "pins" : [
     {
+      "identity" : "afmize",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ryangarber/afmize.git",
+      "state" : {
+        "revision" : "715686c9a3b5c50c08ced1920a2293368b79c102",
+        "version" : "1.1.0"
+      }
+    },
+    {
       "identity" : "alamofire",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Alamofire/Alamofire.git",

@@ -1,4 +1,3 @@
-import Image from "ink-picture";
 import type { ReactNode } from "react";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import {
@@ -17,6 +16,7 @@ import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import MessageParts from "#tui/features/message/components/MessageParts.tsx";
+import Image from "#tui/features/part/components/Image.tsx";
 import Quote from "#tui/features/part/components/Quote.tsx";
 
 /** Lines a block is held to while it grows, keeping its newest in view. */
@@ -129,33 +129,22 @@ function ToolBlockBody({ block, active, tail = true }: ToolBlockProps) {
 		}
 		case "code":
 			return (
-				<TailLines
-					follow={tail && (active || !!block.terminal)}
-					value={block.value}
-				>
-					{(value) => (
-						<Code
-							code={value}
-							language={block.language}
-							filename={block.title}
-						/>
-					)}
-				</TailLines>
+				<Code
+					code={block.value}
+					language={block.language}
+					filename={block.title}
+				/>
 			);
 		case "file":
-			if (block.image) return <Image src={block.image} />;
+			if (block.image) return <Image src={block.image} path={block.path} />;
 			if (block.document)
 				return <Document path={block.path} document={block.document} />;
 			return (
-				<TailLines follow={tail && active} value={block.content ?? ""}>
-					{(value) => (
-						<Code
-							code={value}
-							language={block.language}
-							filename={block.path}
-						/>
-					)}
-				</TailLines>
+				<Code
+					code={block.content ?? ""}
+					language={block.language}
+					filename={block.path}
+				/>
 			);
 		case "diff":
 			return (

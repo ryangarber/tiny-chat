@@ -133,6 +133,34 @@ export const FileService = {
 		return await filesystem.writeFile(uri, content);
 	},
 
+	rename: async ({
+		user,
+		path,
+		to,
+		...spec
+	}: { user: zUser; path: PathLike; to: PathLike } & FilesystemSpec) => {
+		const { filesystem } = await FileService.get({ user, ...spec });
+		const from = PathUtils.asMount(path);
+		const uri = PathUtils.asMount(to);
+		if (!from) throw new Error(`invalid path: ${path}`);
+		if (!uri) throw new Error(`invalid path: ${to}`);
+		await filesystem.mkdir(dirname(uri), { recursive: true });
+		await filesystem.mv(from, uri);
+		return uri;
+	},
+
+	remove: async ({
+		user,
+		path,
+		...spec
+	}: { user: zUser; path: PathLike } & FilesystemSpec) => {
+		const { filesystem } = await FileService.get({ user, ...spec });
+		const uri = PathUtils.asMount(path);
+		if (!uri) throw new Error(`invalid path: ${path}`);
+		await filesystem.rm(uri, { recursive: true });
+		return uri;
+	},
+
 	exec: async ({
 		user,
 		command,

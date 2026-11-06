@@ -4,16 +4,9 @@ import {
 	Box,
 	type BoxProps,
 	Group,
-	Portal,
 	Text,
-	Transition,
 } from "@mantine/core";
-import {
-	ArrowClockwiseIcon,
-	ChatCircleIcon,
-	ChatsCircleIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useContext, useMemo } from "react";
 import { ClientContext } from "#client/client.ts";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
@@ -23,7 +16,9 @@ import { ComposerService } from "#client/features/editor/services/ComposerServic
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
+import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import MessageParts from "#gui/features/message/components/MessageParts.tsx";
+import QuoteActions from "#gui/features/message/components/QuoteActions.tsx";
 import { useMessageSelection } from "#gui/features/message/hooks/useMessageSelection.ts";
 
 export default function MessageBody({
@@ -44,11 +39,8 @@ export default function MessageBody({
 	const regenerate = useMessageStore((s) => s.regenerate);
 	const resume = useMessageStore((s) => s.resume);
 
-	const { rect, captureSelection, getSelectedText } = useMessageSelection(
-		message.id,
-	);
-
-	const isSelected = rect !== null;
+	const selection = useMessageSelection(message.id);
+	const { getSelectedText } = selection;
 
 	const client = useContext(ClientContext);
 	const handleQuoteClick = () => {
@@ -117,14 +109,16 @@ export default function MessageBody({
 							</Group>
 						</Alert>
 					)}
-					<MessageParts
-						message={streamed}
-						data={streamed.data}
-						status={streamed.status}
-						compaction={compaction}
-						regenerate={regenerate}
-						resume={resume}
-					/>
+					<ErrorBoundary label="this message" resetKey={streamed.data}>
+						<MessageParts
+							message={streamed}
+							data={streamed.data}
+							status={streamed.status}
+							compaction={compaction}
+							regenerate={regenerate}
+							resume={resume}
+						/>
+					</ErrorBoundary>
 					{!!streamed.status && (
 						<Box
 							component="span"
@@ -136,50 +130,11 @@ export default function MessageBody({
 						</Box>
 					)}
 					{streamed.author === "MODEL" && (
-						<Portal target={document.body}>
-							<Transition mounted={isSelected ?? false} transition="fade">
-								{(styles) => (
-									<Group
-										gap={6}
-										wrap="nowrap"
-										style={{
-											position: "fixed",
-											top: (rect?.top ?? 0) - 30,
-											left: (rect?.left ?? 0) + (rect?.width ?? 0) / 2,
-											transform: "translateX(-50%)",
-											zIndex: "var(--mantine-zindex-app)",
-											...styles,
-										}}
-									>
-										<ActionIcon
-											className="glass-shadow"
-											size={32}
-											title="Quote"
-											aria-label="Quote"
-											onMouseDown={captureSelection}
-											onTouchStart={captureSelection}
-											onClick={handleQuoteClick}
-										>
-											<ChatCircleIcon
-												size={18}
-												style={{ transform: "scale(-1,1)" }}
-											/>
-										</ActionIcon>
-										<ActionIcon
-											className="glass-shadow"
-											size={32}
-											title="Quote in a new chat"
-											aria-label="Quote in a new chat"
-											onMouseDown={captureSelection}
-											onTouchStart={captureSelection}
-											onClick={handleQuoteInNewChatClick}
-										>
-											<ChatsCircleIcon size={18} />
-										</ActionIcon>
-									</Group>
-								)}
-							</Transition>
-						</Portal>
+						<QuoteActions
+							selection={selection}
+							onQuote={handleQuoteClick}
+							onQuoteInNewChat={handleQuoteInNewChatClick}
+						/>
 					)}
 				</Box>
 			</Box>

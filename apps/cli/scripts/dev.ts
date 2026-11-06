@@ -47,10 +47,15 @@ async function run() {
 	child = started;
 	setPassthrough(true);
 
-	started.on("exit", () => {
+	started.on("exit", (code, signal) => {
 		if (child !== started) return;
 		child = undefined;
 		setPassthrough(false);
+
+		log({
+			level: code === 0 ? "info" : "warning",
+			message: `Exited with code ${code} ${signal}`,
+		});
 
 		if (watchMode) log({ message: "Waiting for changes" });
 	});
@@ -74,7 +79,7 @@ async function reload(inputs: string[] | null) {
 		lastInputs = inputs;
 
 		if (!inputs) {
-			log({ level: "warning", message: "nothing to watch" });
+			log({ level: "warning", message: "Nothing to watch" });
 			return;
 		}
 

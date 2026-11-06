@@ -4,6 +4,7 @@ import type { AfmAvailability, AfmEvent, AfmRequest } from "@afmize/node";
 import type { JSONRPCMessage } from "@modelcontextprotocol/client";
 import type { ClaudeCodeChannelMessage } from "@ryangarber/ai-sdk-providers/claude";
 import type { CodexChannelMessage } from "@ryangarber/ai-sdk-providers/codex";
+import type { CursorChannelMessage } from "@ryangarber/ai-sdk-providers/cursor";
 import type { RPCSchema } from "electrobun/view";
 
 /** A file's bytes, base64 encoded, since RPC carries JSON. */
@@ -41,6 +42,7 @@ export type DesktopRPC = {
 			};
 
 			cwd: { params: undefined; response: string };
+			tmpdir: { params: undefined; response: string };
 			resolveDir: { params: { path: string }; response: string };
 			locate: { params: { paths: readonly string[] }; response: string | null };
 			readFile: {
@@ -70,6 +72,14 @@ export type DesktopRPC = {
 			};
 			writeFile: {
 				params: { path: string; content: string };
+				response: { path: string; success: true };
+			};
+			rename: {
+				params: { path: string; to: string };
+				response: { path: string; success: true };
+			};
+			remove: {
+				params: { path: string };
 				response: { path: string; success: true };
 			};
 			/** Output arrives as `spawnOutput` under `id` while it runs. */
@@ -125,6 +135,8 @@ export type DesktopRPC = {
 			 * arrive as `codex`.
 			 */
 			codex: { params: CodexChannelMessage; response: void };
+			cursor: { params: CursorChannelMessage; response: void };
+			cursorSignIn: { params: undefined; response: void };
 
 			/** `ComputerHostService`'s raw `{ ok, result }` or `{ ok, error }`. */
 			computerCall: {
@@ -160,6 +172,7 @@ export type DesktopRPC = {
 			afmEvent: { key: number; event: AfmEvent };
 			claudeCode: ClaudeCodeChannelMessage;
 			codex: CodexChannelMessage;
+			cursor: CursorChannelMessage;
 			updateProgress: { fraction: number };
 			openUrl: { url: string };
 		};

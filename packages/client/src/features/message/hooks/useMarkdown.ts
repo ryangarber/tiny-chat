@@ -32,7 +32,7 @@ export type * from "mdast-util-to-hast";
 export type MarkdownSource = string | zData;
 
 const allowedTags: Partial<Record<keyof JSX.IntrinsicElements, string[]>> = {
-	blockquote: ["model"],
+	blockquote: ["model", "source"],
 	mark: ["sources"],
 	link: ["source", "is-directory"],
 	slot: ["name", "value", "accepts-content", "needs-run"],
@@ -200,7 +200,11 @@ const toEditorPartNode = (part: zEditorPart): EditorPartNode | Code => {
 	}
 
 	if (part.type === "quote") {
-		return node("blockquote", { model: part.model }, markdown(part.text));
+		return node(
+			"blockquote",
+			{ model: part.model, source: part.source },
+			markdown(part.text),
+		);
 	}
 
 	const code: Code = { type: "code", lang: part.language, value: part.text };

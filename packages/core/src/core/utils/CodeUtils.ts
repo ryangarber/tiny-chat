@@ -75,8 +75,17 @@ const MAX_RESULTS = 5_000;
 const MAX_RESULT_COST = 300_000;
 const CHARACTERS_PER_COST = 64;
 
+/**
+ * How long highlighting stays off after the worker fails, before the next
+ * request starts a new one. A worker can die of something passing (its module
+ * failing to load while the dev server restarts), which shouldn't leave every
+ * code block plain until the app is reloaded.
+ */
+const WORKER_RETRY_MS = 5_000;
+
 let createWorker: (() => CodeWorker) | undefined;
 let worker: CodeWorker | null | undefined;
+let failedAt: number | null = null;
 let nextId = 0;
 let resultCost = 0;
 
@@ -143,11 +152,16 @@ export const CodeUtils = {
 	setWorker: (factory: (() => CodeWorker) | undefined) => {
 		worker?.terminate();
 		worker = undefined;
+		failedAt = null;
 		createWorker = factory;
 		prepared.clear();
 	},
 
 	getWorker: () => {
+		if (worker === null && failedAt !== null) {
+			if (Date.now() - failedAt < WORKER_RETRY_MS) return null;
+			worker = undefined;
+		}
 		if (worker !== undefined) return worker;
 		if (!createWorker) return null;
 
@@ -184,13 +198,18 @@ export const CodeUtils = {
 		} catch (error) {
 			console.error("[CodeUtils] could not start highlight worker:", error);
 			worker = null;
+			failedAt = Date.now();
 		}
 		return worker;
 	},
 
+	/** Drops the worker and everything waiting on it; the next request after a pause starts another. */
 	fail: () => {
 		worker?.terminate();
 		worker = null;
+		failedAt = Date.now();
+		// a new worker has loaded nothing yet
+		prepared.clear();
 		for (const { resolve } of pending.values()) resolve(null);
 		pending.clear();
 		jobs.clear();

@@ -13,6 +13,7 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import Console from "#gui/core/components/Console.tsx";
+import { RootErrorBoundary } from "#gui/core/components/ErrorBoundary.tsx";
 import Tasks from "#gui/core/components/Tasks.tsx";
 import { useExperiments } from "#gui/core/hooks/useExperiments.tsx";
 import { setHashbangQuery, useHashbang } from "#gui/core/hooks/useHashbang.ts";
@@ -240,164 +241,168 @@ export default function App() {
 			forceColorScheme={theme}
 			cssVariablesResolver={cssResolver}
 		>
-			<ModalsProvider>
-				<Tasks />
-				<ProjectShortcut />
-				<FindScope
-					id={FIND_ROOT}
-					label="Window"
-					region
-					pos="relative"
-					ref={containerRef}
-					style={{
-						height: appHeight,
-						transition: keyboardTransition("height"),
-					}}
-				>
-					<LoadingOverlay
-						visible={session.isPending}
-						zIndex={1000}
-						overlayProps={{ blur: 2 }}
-					/>
-					<Find root={FIND_ROOT} />
-					<AppShell
-						ref={appShellRef}
-						withBorder={false}
-						navbar={{
-							width: isMobile ? "100%" : isSidebarOpen ? sidebarWidth : 60,
-							breakpoint: AppService.breakpoint,
-							collapsed: { desktop: false, mobile: !isSidebarOpen },
-						}}
-						aside={{
-							width: isMobile ? "100%" : asideWidth,
-							breakpoint: AppService.breakpoint,
-							collapsed: { desktop: !isAsideOpen, mobile: !isAsideOpen },
-						}}
+			<RootErrorBoundary>
+				<ModalsProvider>
+					<Tasks />
+					<ProjectShortcut />
+					<FindScope
+						id={FIND_ROOT}
+						label="Window"
+						region
+						pos="relative"
+						ref={containerRef}
 						style={{
 							height: appHeight,
-							maxHeight: appHeight,
-							transition: [
-								keyboardTransition("height"),
-								keyboardTransition("max-height"),
-							].join(", "),
-							overflow: "hidden",
-							//*REVERT?* transform: `translateY(${viewport.offsetTop}px)`,
-						}}
-						styles={{
-							navbar: {
-								zIndex: "calc(var(--mantine-z-index-app) + 2)",
-								transition: isResizingSidebar
-									? "width 0ms, min-width 0ms, transform 300ms ease"
-									: "width 250ms ease, min-width 250ms ease, transform 300ms ease",
-							},
-							aside: {
-								zIndex: "calc(var(--mantine-z-index-app) + 2)",
-								transition: isResizingAside
-									? "width 0ms, min-width 0ms, transform 300ms ease"
-									: "width 250ms ease, min-width 250ms ease, transform 300ms ease",
-							},
-							main: {
-								transition: [
-									isResizingSidebar || isResizingAside
-										? "padding-inline-start 0ms, padding-inline-end 0ms"
-										: "padding-inline-start 250ms ease, padding-inline-end 250ms ease",
-									keyboardTransition("height"),
-									keyboardTransition("max-height"),
-								].join(", "),
-							},
+							transition: keyboardTransition("height"),
 						}}
 					>
-						{/* On mobile, panels are swiped instead; see `usePanelSwipe`. */}
-						{!isMobile && (
-							<div
-								ref={sidebarResizeHandleRef}
-								{...dragSidebarResize()}
-								style={{
-									position: "absolute",
-									top: 0,
-									left: isSidebarOpen ? sidebarWidth - 7 : 53,
-									bottom: 0,
-									width: 15,
-									zIndex: "var(--mantine-z-index-max)",
-									touchAction: "none",
-									cursor: "ew-resize",
-								}}
-							/>
-						)}
-						{!isMobile && (
-							<div
-								ref={asideResizeHandleRef}
-								{...dragAsideResize()}
-								style={{
-									position: "absolute",
-									top: 0,
-									right: isAsideOpen ? asideWidth - 7 : 0,
-									bottom: 0,
-									width: 15,
-									zIndex: "var(--mantine-z-index-max)",
-									touchAction: "none",
-									cursor: "ew-resize",
-								}}
-							/>
-						)}
-						<AppShell.Navbar
-							ref={navbarRef}
-							style={{
-								padding: 10,
-								paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
-								paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
-								paddingLeft: "calc(10px + env(safe-area-inset-left, 0px))",
-								paddingRight: "calc(10px + env(safe-area-inset-right, 0px))",
-								touchAction: "pan-y",
-								fontWeight: 450,
+						<LoadingOverlay
+							visible={session.isPending}
+							zIndex={1000}
+							overlayProps={{ blur: 2 }}
+						/>
+						<Find root={FIND_ROOT} />
+						<AppShell
+							ref={appShellRef}
+							withBorder={false}
+							navbar={{
+								width: isMobile ? "100%" : isSidebarOpen ? sidebarWidth : 60,
+								breakpoint: AppService.breakpoint,
+								collapsed: { desktop: false, mobile: !isSidebarOpen },
 							}}
-							withBorder
-						>
-							<FindScope label="Chats" region pos="relative" h="100%">
-								<Sidebar />
-							</FindScope>
-						</AppShell.Navbar>
-						<AppShell.Main
+							aside={{
+								width: isMobile ? "100%" : asideWidth,
+								breakpoint: AppService.breakpoint,
+								collapsed: { desktop: !isAsideOpen, mobile: !isAsideOpen },
+							}}
 							style={{
 								height: appHeight,
 								maxHeight: appHeight,
-								minHeight: 0,
+								transition: [
+									keyboardTransition("height"),
+									keyboardTransition("max-height"),
+								].join(", "),
 								overflow: "hidden",
-								// The header paints behind the notch and the chat runs under the home
-								// indicator; keep chat content in the safe area. The composer takes the
-								// bottom inset itself.
-								paddingTop: "env(safe-area-inset-top, 0px)",
-								paddingLeft: isMobile
-									? "env(safe-area-inset-left, 0px)"
-									: "calc(var(--app-shell-navbar-offset, 0px) + env(safe-area-inset-left, 0px))",
-								paddingRight: isMobile
-									? "env(safe-area-inset-right, 0px)"
-									: "calc(var(--app-shell-aside-offset, 0px) + env(safe-area-inset-right, 0px))",
+								//*REVERT?* transform: `translateY(${viewport.offsetTop}px)`,
+							}}
+							styles={{
+								navbar: {
+									zIndex: "calc(var(--mantine-z-index-app) + 2)",
+									transition: isResizingSidebar
+										? "width 0ms, min-width 0ms, transform 300ms ease"
+										: "width 250ms ease, min-width 250ms ease, transform 300ms ease",
+								},
+								aside: {
+									zIndex: "calc(var(--mantine-z-index-app) + 2)",
+									transition: isResizingAside
+										? "width 0ms, min-width 0ms, transform 300ms ease"
+										: "width 250ms ease, min-width 250ms ease, transform 300ms ease",
+								},
+								main: {
+									transition: [
+										isResizingSidebar || isResizingAside
+											? "padding-inline-start 0ms, padding-inline-end 0ms"
+											: "padding-inline-start 250ms ease, padding-inline-end 250ms ease",
+										keyboardTransition("height"),
+										keyboardTransition("max-height"),
+									].join(", "),
+								},
 							}}
 						>
-							<Chat />
-						</AppShell.Main>
-						<AppShell.Aside
-							ref={asideRef}
-							style={{
-								padding: 10,
-								paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
-								paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
-								paddingLeft: "calc(10px + env(safe-area-inset-left, 0px))",
-								paddingRight: "calc(10px + env(safe-area-inset-right, 0px))",
-								touchAction: "pan-y",
-								fontWeight: 450,
-							}}
-							withBorder
-						>
-							<FindScope label="Sources" region pos="relative" h="100%">
-								<ChatSources />
-							</FindScope>
-						</AppShell.Aside>
-					</AppShell>
-				</FindScope>
-				<Console />
-			</ModalsProvider>
+							{/* On mobile, panels are swiped instead; see `usePanelSwipe`. */}
+							{!isMobile && (
+								<div
+									ref={sidebarResizeHandleRef}
+									{...dragSidebarResize()}
+									style={{
+										position: "absolute",
+										top: 0,
+										left: isSidebarOpen ? sidebarWidth - 7 : 53,
+										bottom: 0,
+										width: 15,
+										zIndex: "var(--mantine-z-index-max)",
+										touchAction: "none",
+										cursor: "ew-resize",
+									}}
+								/>
+							)}
+							{!isMobile && (
+								<div
+									ref={asideResizeHandleRef}
+									{...dragAsideResize()}
+									style={{
+										position: "absolute",
+										top: 0,
+										right: isAsideOpen ? asideWidth - 7 : 0,
+										bottom: 0,
+										width: 15,
+										zIndex: "var(--mantine-z-index-max)",
+										touchAction: "none",
+										cursor: "ew-resize",
+									}}
+								/>
+							)}
+							<AppShell.Navbar
+								ref={navbarRef}
+								style={{
+									padding: 10,
+									paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
+									paddingBottom:
+										"calc(10px + env(safe-area-inset-bottom, 0px))",
+									paddingLeft: "calc(10px + env(safe-area-inset-left, 0px))",
+									paddingRight: "calc(10px + env(safe-area-inset-right, 0px))",
+									touchAction: "pan-y",
+									fontWeight: 450,
+								}}
+								withBorder
+							>
+								<FindScope label="Chats" region pos="relative" h="100%">
+									<Sidebar />
+								</FindScope>
+							</AppShell.Navbar>
+							<AppShell.Main
+								style={{
+									height: appHeight,
+									maxHeight: appHeight,
+									minHeight: 0,
+									overflow: "hidden",
+									// The header paints behind the notch and the chat runs under the home
+									// indicator; keep chat content in the safe area. The composer takes the
+									// bottom inset itself.
+									paddingTop: "env(safe-area-inset-top, 0px)",
+									paddingLeft: isMobile
+										? "env(safe-area-inset-left, 0px)"
+										: "calc(var(--app-shell-navbar-offset, 0px) + env(safe-area-inset-left, 0px))",
+									paddingRight: isMobile
+										? "env(safe-area-inset-right, 0px)"
+										: "calc(var(--app-shell-aside-offset, 0px) + env(safe-area-inset-right, 0px))",
+								}}
+							>
+								<Chat />
+							</AppShell.Main>
+							<AppShell.Aside
+								ref={asideRef}
+								style={{
+									padding: 10,
+									paddingTop: "calc(10px + env(safe-area-inset-top, 0px))",
+									paddingBottom:
+										"calc(10px + env(safe-area-inset-bottom, 0px))",
+									paddingLeft: "calc(10px + env(safe-area-inset-left, 0px))",
+									paddingRight: "calc(10px + env(safe-area-inset-right, 0px))",
+									touchAction: "pan-y",
+									fontWeight: 450,
+								}}
+								withBorder
+							>
+								<FindScope label="Sources" region pos="relative" h="100%">
+									<ChatSources />
+								</FindScope>
+							</AppShell.Aside>
+						</AppShell>
+					</FindScope>
+					<Console />
+				</ModalsProvider>
+			</RootErrorBoundary>
 		</MantineProvider>
 	);
 }

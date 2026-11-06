@@ -18,7 +18,14 @@ type Exec = ShellCapability["exec"];
  */
 export type HostShellPrimitives = Pick<
 	ShellCapability,
-	"readFile" | "readFiles" | "readDir" | "walk" | "writeFile"
+	| "tmpdir"
+	| "readFile"
+	| "readFiles"
+	| "readDir"
+	| "walk"
+	| "writeFile"
+	| "rename"
+	| "remove"
 > & {
 	os: ShellEnvironment["os"];
 
@@ -101,9 +108,11 @@ export const HostShellService = {
 			path: (await state).launcher.toShell(item.path),
 		});
 
-		const { readFiles, walk } = primitives;
+		const { readFiles, walk, tmpdir } = primitives;
 
 		return {
+			tmpdir:
+				tmpdir && (async () => (await state).launcher.toShell(await tmpdir())),
 			cwd: async () => {
 				const { cwd, launcher } = await state;
 				return launcher.toShell(cwd);
@@ -169,6 +178,12 @@ export const HostShellService = {
 				await out(
 					await primitives.writeFile({ path: await at(path), content }),
 				),
+			rename: async ({ path, to }) =>
+				await out(
+					await primitives.rename({ path: await at(path), to: await at(to) }),
+				),
+			remove: async ({ path }) =>
+				await out(await primitives.remove({ path: await at(path) })),
 			exec: async ({ command, stream, abort }) => {
 				const { cwd, launcher } = await state;
 				return await primitives.spawn({

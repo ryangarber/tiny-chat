@@ -77,7 +77,20 @@ describe("ToolCallUtils", () => {
 			const summary = ToolCallUtils.resolveSummary([
 				statusOf(done(call("read_file", { path: "a.txt" }))),
 				statusOf(done(call("read_file", { path: "b.txt" }))),
-				statusOf(done(call("edit_file", { path: "a.txt" }))),
+				statusOf(
+					done(
+						call("edit_files", {
+							steps: [
+								{
+									action: "edit",
+									path: "a.txt",
+									old_string: "a",
+									new_string: "b",
+								},
+							],
+						}),
+					),
+				),
 			]);
 			expect(text(summary)).toBe("Read 2 files, edited 1 file");
 			expect(summary.filter((part) => part.subject)).toEqual([
@@ -126,8 +139,8 @@ describe("ToolCallUtils", () => {
 		it("shows input as it streams in", () => {
 			const display = ToolCallUtils.getDisplay({
 				part: call(
-					"write_file",
-					{ path: "/a.ts", content: "const a" },
+					"edit_files",
+					{ steps: [{ action: "write", path: "/a.ts", content: "const a" }] },
 					{ partial: true },
 				),
 				toolsets,

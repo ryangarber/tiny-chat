@@ -14,16 +14,19 @@ const create = ({
 	start,
 	dirs = [],
 	files = [],
+	tmpdir,
 }: {
 	os?: HostShellPrimitives["os"];
 	start: string;
 	dirs?: string[];
 	files?: string[];
+	tmpdir?: string;
 }) => {
 	const calls: { method: string; path: string }[] = [];
 	const spawned: ShellProcess[] = [];
 	const primitives: HostShellPrimitives = {
 		os,
+		tmpdir: tmpdir ? async () => tmpdir : undefined,
 		cwd: async () => start,
 		resolveDir: async ({ path }) => {
 			const resolved = path.replace(/[\\/][^\\/]+[\\/]\.\.$/, "");
@@ -42,6 +45,14 @@ const create = ({
 		},
 		writeFile: async ({ path }) => {
 			calls.push({ method: "writeFile", path });
+			return { path, success: true };
+		},
+		rename: async ({ path, to }) => {
+			calls.push({ method: "rename", path });
+			return { path: to, success: true };
+		},
+		remove: async ({ path }) => {
+			calls.push({ method: "remove", path });
 			return { path, success: true };
 		},
 		spawn: async ({ program, args, cwd, env }) => {
@@ -98,6 +109,20 @@ describe("HostShellService", () => {
 			"D:\\x.txt",
 		]);
 		expect(spawned[0]).toMatchObject({ program: bash, cwd: "C:\\Users\\me" });
+	});
+
+	it("spells the OS temp directory for Git Bash and WSL", async () => {
+		const wsl = "\\\\wsl.localhost\\Ubuntu\\home\\me";
+		const { shell } = create({
+			os: "windows",
+			start: "C:\\Users\\me",
+			tmpdir: "C:\\Users\\me\\Temp",
+			files: ["C:\\Program Files\\Git\\bin\\bash.exe"],
+			dirs: [wsl],
+		});
+		expect(await shell.tmpdir?.()).toBe("/c/Users/me/Temp");
+		await shell.chdir?.({ path: wsl });
+		expect(await shell.tmpdir?.()).toBe("/mnt/c/Users/me/Temp");
 	});
 
 	it("falls back to Windows PowerShell", async () => {

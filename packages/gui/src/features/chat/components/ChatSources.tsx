@@ -22,7 +22,14 @@ import {
 	ChatTextIcon,
 	PencilSimpleIcon,
 } from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { BundledLanguage } from "streamdown";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatActions } from "#client/features/chat/hooks/useChatActions.ts";
@@ -48,6 +55,10 @@ import type { ActionState } from "#core/features/data/types/action.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
+import Content, {
+	type ContentFormatterFunction,
+} from "#gui/core/components/Content.tsx";
+import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 import Code from "#gui/features/code/components/Code.tsx";
@@ -88,6 +99,48 @@ function Changes({ changes }: { changes: ChatFileChanges }) {
 	);
 }
 
+/**
+ * Prose — a Markdown file, or a document's extracted text — read the way a web
+ * page is, and quoted from the same way.
+ */
+function Prose({ path, text }: { path: string; text: string }) {
+	const name = PathUtils.name(path);
+	const formats = useMemo(() => ["Markdown"], []);
+	const formatter = useCallback<ContentFormatterFunction>(
+		() => ({
+			filename: `${name.replace(/\.[^.]*$/, "")}.md`,
+			extension: "md",
+			mime: "text/plain",
+			data: text,
+		}),
+		[name, text],
+	);
+	return (
+		<Content
+			formats={formats}
+			formatter={formatter}
+			findLabel={name}
+			quote={{ source: path }}
+			h="100%"
+			bg="var(--tc-surface)"
+			style={{ borderRadius: "var(--mantine-radius-md)" }}
+		>
+			<Box h="100%" p="sm" className="markdown-sm" style={{ overflow: "auto" }}>
+				<Text size="sm" fw={600} pr={110} mb="sm" truncate>
+					{name}
+				</Text>
+				{text.trim() ? (
+					<Markdown source={text} />
+				) : (
+					<Text size="sm" c="dimmed">
+						Nothing written yet
+					</Text>
+				)}
+			</Box>
+		</Content>
+	);
+}
+
 function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	const content = useFileViewer({ file });
 	const diff = useFileDiff({ file, repos });
@@ -104,6 +157,7 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 				maw="100%"
 				h="100%"
 				fillHeight
+				quote={{ source: file.path }}
 			/>
 		);
 	}
@@ -136,6 +190,12 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	if (content.data.image) {
 		return <Image src={content.data.image} filename={file.path} />;
 	}
+	if (
+		typeof content.data.text === "string" &&
+		(content.data.extracted || FileTypeUtils.isMarkdown(file.path))
+	) {
+		return <Prose path={file.path} text={content.data.text} />;
+	}
 	if (!content.data.text) {
 		return (
 			<Code
@@ -147,9 +207,7 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 			/>
 		);
 	}
-	return content.data.extracted ? (
-		<Markdown source={content.data.text} />
-	) : (
+	return (
 		<Code
 			filename={file.path}
 			language={FileTypeUtils.getExtension(file) as BundledLanguage}
@@ -157,6 +215,7 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 			maw="100%"
 			h="100%"
 			fillHeight
+			quote={{ source: file.path }}
 		/>
 	);
 }
@@ -193,7 +252,9 @@ function PreviewPane({
 				mih={0}
 				pos="relative"
 			>
-				{children}
+				<ErrorBoundary label="this preview" resetKey={children}>
+					{children}
+				</ErrorBoundary>
 			</FindScope>
 		</Stack>
 	);
@@ -685,7 +746,12 @@ export default function ChatSources() {
 			{(previewedFile || previewedItem) && <Divider />}
 			{previewedWeb && (
 				<PreviewPane onClose={() => viewFile(null)}>
-					<Web key={previewedWeb.url} source={previewedWeb} h="100%" />
+					<Web
+						key={previewedWeb.url}
+						source={previewedWeb}
+						h="100%"
+						quote={{ source: `web:${previewedWeb.url}` }}
+					/>
 				</PreviewPane>
 			)}
 			{(previewedMemory || previewedAction) && (

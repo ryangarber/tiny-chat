@@ -281,8 +281,15 @@ const HrComponent: Components["hr"] = () => {
 const BrComponent: Components["br"] = () => <Text>{"\n"}</Text>;
 
 const BlockquoteComponent: Components["blockquote"] = ({ children, node }) => {
-	const { model } = ComponentUtils.props(node, { model: undefined });
-	return <Quote model={model}>{children}</Quote>;
+	const { model, source } = ComponentUtils.props(node, {
+		model: undefined,
+		source: undefined,
+	});
+	return (
+		<Quote model={model} source={source}>
+			{children}
+		</Quote>
+	);
 };
 
 const SubComponent: Components["sub"] = ({ children }) => (

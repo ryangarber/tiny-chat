@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
+import { useChapters } from "#client/features/chapter/hooks/useChapters.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
@@ -12,6 +13,7 @@ import ScrollView, {
 } from "#tui/core/components/ScrollView.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
+import ChapterRail from "#tui/features/chapter/components/ChapterRail.tsx";
 import GetStarted from "#tui/features/chat/components/GetStarted.tsx";
 import Message from "#tui/features/message/components/Message.tsx";
 
@@ -37,6 +39,8 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 		const index = messageList.findIndex((message) => message.id === id);
 		if (index >= 0) ref.current?.scrollToIndex(index, "auto");
 	});
+
+	const { chapters, focusToolCall } = useChapters({ messages: messageList });
 
 	// The page keys are the transcript's while the chat has the focus, but for
 	// a list or shell output drawn over the editor, which scrolls itself.
@@ -88,6 +92,18 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 			minHeight={0}
 			stickToBottom
 			resetKey={chat.data.id}
+			rail={(rail) => (
+				<ChapterRail
+					rail={rail}
+					chapters={chapters}
+					// A call's message is brought in far enough to be drawn, and the
+					// call, once it is, brings itself the rest of the way.
+					onChapter={(chapter) => {
+						ref.current?.scrollToIndex(chapter.index, "top");
+						if (chapter.type === "toolCall") focusToolCall(chapter.id);
+					}}
+				/>
+			)}
 		>
 			{messageList.map((message) => (
 				<Message key={message.id} message={message} compaction={compaction} />

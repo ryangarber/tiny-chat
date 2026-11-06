@@ -7,6 +7,7 @@ import {
 	zFolder,
 	zHiddenModels,
 	zMCPServers,
+	zTuiImages,
 } from "#core/features/data/types/user.ts";
 import { SettingsService } from "#server/features/user/services/SettingsService.ts";
 import { procedure, router } from "#server/index.ts";
@@ -74,6 +75,24 @@ export const settings = router({
 				update: (settings) => ({
 					...settings,
 					codeTheme: input.codeTheme,
+				}),
+			});
+		}),
+
+	setTuiImages: procedure
+		.input(
+			z.object({
+				tuiImages: zTuiImages,
+				project: ProjectLike.nullish(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			return SettingsService.setSettings({
+				user: ctx.session.user,
+				project: input.project,
+				update: (settings) => ({
+					...settings,
+					tuiImages: input.tuiImages,
 				}),
 			});
 		}),

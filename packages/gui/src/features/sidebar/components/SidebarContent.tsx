@@ -6,6 +6,7 @@ import {
 	Modal,
 	NavLink,
 	Overlay,
+	Popover,
 	ScrollArea,
 	Space,
 	Stack,
@@ -14,9 +15,11 @@ import {
 } from "@mantine/core";
 import { useMergedRef } from "@mantine/hooks";
 import {
+	CaretDownIcon,
+	CaretLeftIcon,
 	CaretRightIcon,
 	DotsThreeIcon,
-	PlusCircleIcon,
+	PlusIcon,
 	TrashIcon,
 } from "@phosphor-icons/react";
 import {
@@ -43,9 +46,6 @@ import scrollable from "#gui/core/styles/scrollable.module.css";
 import CommandSettings from "#gui/features/sidebar/components/CommandSettings.tsx";
 import ContextSettings from "#gui/features/sidebar/components/ContextSettings.tsx";
 import FolderSettings from "#gui/features/sidebar/components/FolderSettings.tsx";
-
-/** Projects shown before the rest are folded under "More". */
-const PROJECT_LIMIT = 3;
 
 type ChatDragHandlers = {
 	onDragEnd: () => void;
@@ -80,111 +80,6 @@ function ChatDropOverlay({ label, color }: { label: string; color: string }) {
 				{label}
 			</Text>
 		</Overlay>
-	);
-}
-
-function Project({
-	project,
-	setEditing,
-	dragHandlers,
-	dropActive,
-	onDragEnter,
-	onDragLeave,
-	onDragOver,
-	onDrop,
-}: {
-	project: ProjectState;
-	setEditing: Dispatch<SetStateAction<ProjectState | ChatState | null>>;
-	dragHandlers: ChatDragHandlers;
-	dropActive: boolean;
-	onDragEnter: (event: DragEvent<HTMLElement>) => void;
-	onDragLeave: (event: DragEvent<HTMLElement>) => void;
-	onDragOver: (event: DragEvent<HTMLElement>) => void;
-	onDrop: (event: DragEvent<HTMLElement>) => void;
-}) {
-	const isMobile = useAppStore((state) => state.isMobile);
-	const setPanel = useLayoutStore((state) => state.setPanel);
-	const currentProject = useChatStore((state) => state.active.project);
-	const hasChat = useChatStore((state) => !!state.active.chatId);
-	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
-
-	const [isExpanded, setExpanded] = useState(false);
-
-	const active = !hasChat && currentProject?.id === project.id;
-
-	return (
-		<Stack
-			gap={0}
-			pos="relative"
-			onDragEnter={onDragEnter}
-			onDragLeave={onDragLeave}
-			onDragOver={onDragOver}
-			onDrop={onDrop}
-		>
-			<NavLink
-				key={project.id}
-				label={project.title || "Untitled"}
-				h={40}
-				opened={isExpanded}
-				onChange={setExpanded}
-				className={`right-section-hover${active || isMobile ? " hover" : ""}`}
-				leftSection={
-					<CaretRightIcon
-						color="var(--mantine-color-dimmed)"
-						style={{
-							transform: `rotate(${isExpanded ? 90 : 0}deg)`,
-							transition: "transform 200ms ease",
-						}}
-					/>
-				}
-				rightSection={
-					<Group gap={10}>
-						<ActionIcon
-							size={24}
-							radius="xl"
-							variant="light"
-							onClick={(e) => {
-								e.stopPropagation();
-								setEditing(project);
-								setCurrentModal("edit-project");
-							}}
-						>
-							<DotsThreeIcon size={20} />
-						</ActionIcon>
-						<ActionIcon
-							c={active ? undefined : "dimmed"}
-							variant={active ? "filled" : "subtle"}
-							className="nav-link-like filled"
-							onClick={(event) => {
-								event.stopPropagation();
-								ChatService.newChat(project);
-								if (isMobile) setPanel("chats", false);
-							}}
-							data-active={active}
-						>
-							<PlusCircleIcon />
-						</ActionIcon>
-					</Group>
-				}
-				disableRightSectionRotation
-				defaultOpened
-			>
-				{project.chats.map((chat) => (
-					<Chat
-						key={chat.id}
-						chat={chat}
-						setEditing={setEditing}
-						dragHandlers={dragHandlers}
-					/>
-				))}
-			</NavLink>
-			{dropActive ? (
-				<ChatDropOverlay
-					label={`Move to ${project.title || "Untitled"}`}
-					color="blue"
-				/>
-			) : null}
-		</Stack>
 	);
 }
 
@@ -385,10 +280,23 @@ export default function SidebarContent() {
 	const [dropProjectId, setDropProjectId] = useState<string | null | undefined>(
 		undefined,
 	);
-	const [allProjects, setAllProjects] = useState(false);
+	const [picking, setPicking] = useState(false);
+	const project = useChatStore((state) => state.active.project);
 	const projectList =
 		projects.data?.pages.flatMap((page) => page.projects) ?? [];
-	const hiddenProjects = Math.max(0, projectList.length - PROJECT_LIMIT);
+	const chats =
+		projects.data?.pages.flatMap((page) =>
+			project
+				? page.projects
+						.filter((item) => item.id === project.id)
+						.flatMap((item) => item.chats)
+				: page.chats,
+		) ?? [];
+	const currentProject = projectList.find((item) => item.id === project?.id);
+	const selectProject = (next: ProjectState | null) => {
+		ChatService.newChat(next);
+		setPicking(false);
+	};
 
 	const dragHandlers: ChatDragHandlers = {
 		onDragStart: (event, dragged) => {
@@ -448,86 +356,142 @@ export default function SidebarContent() {
 
 	return (
 		<>
+			<Group gap={2} wrap="nowrap" mb="sm">
+				<ActionIcon
+					variant="subtle"
+					c="dimmed"
+					aria-label="Previous project"
+					onClick={() => ChatService.cycleProject(projectList, -1)}
+				>
+					<CaretLeftIcon />
+				</ActionIcon>
+				<Popover
+					opened={picking}
+					onChange={setPicking}
+					width={280}
+					position="bottom-start"
+				>
+					<Popover.Target>
+						<Button
+							variant="subtle"
+							color="gray"
+							flex={1}
+							miw={0}
+							rightSection={<CaretDownIcon />}
+							onClick={() => setPicking((value) => !value)}
+							onDragEnter={() => setPicking(true)}
+							aria-label="Switch project"
+							styles={{ label: { minWidth: 0 } }}
+						>
+							<Text component="span" inherit truncate>
+								{currentProject?.title ||
+									project?.title ||
+									(project ? "Untitled" : "no project")}
+							</Text>
+						</Button>
+					</Popover.Target>
+					<Popover.Dropdown p={4}>
+						<ScrollArea.Autosize mah={360}>
+							{[null, ...projectList].map((item) => (
+								<Stack
+									key={item?.id ?? ""}
+									gap={0}
+									pos="relative"
+									onDragEnter={(event) =>
+										handleDragEnter(event, item?.id ?? null)
+									}
+									onDragOver={(event) =>
+										handleDragOver(event, item?.id ?? null)
+									}
+									onDragLeave={handleDragLeave}
+									onDrop={(event) => {
+										handleDrop(event, item?.id ?? null);
+										setPicking(false);
+									}}
+								>
+									<NavLink
+										label={item ? item.title || "Untitled" : "no project"}
+										active={item?.id === project?.id}
+										onClick={() => selectProject(item)}
+										rightSection={
+											item ? (
+												<ActionIcon
+													size={24}
+													variant="subtle"
+													aria-label={`Edit ${item.title || "Untitled"}`}
+													onClick={(event) => {
+														event.stopPropagation();
+														setEditing(item);
+														setPicking(false);
+														useAppStore
+															.getState()
+															.setCurrentModal("edit-project");
+													}}
+												>
+													<DotsThreeIcon size={20} />
+												</ActionIcon>
+											) : undefined
+										}
+									/>
+									{dropProjectId === (item?.id ?? null) ? (
+										<ChatDropOverlay
+											label={`Move to ${item ? item.title || "Untitled" : "no project"}`}
+											color="blue"
+										/>
+									) : null}
+								</Stack>
+							))}
+						</ScrollArea.Autosize>
+						<Button
+							fullWidth
+							variant="subtle"
+							leftSection={<PlusIcon />}
+							loading={createProject.isPending}
+							onClick={() =>
+								createProject.mutate(undefined, {
+									onSuccess: (created) => {
+										setEditing({ ...created, chats: [] });
+										setPicking(false);
+										useAppStore.getState().setCurrentModal("edit-project");
+									},
+								})
+							}
+						>
+							New project
+						</Button>
+					</Popover.Dropdown>
+				</Popover>
+				<ActionIcon
+					variant="subtle"
+					c="dimmed"
+					aria-label="Next project"
+					onClick={() => ChatService.cycleProject(projectList, 1)}
+				>
+					<CaretRightIcon />
+				</ActionIcon>
+			</Group>
 			<ScrollArea
+				key={project?.id ?? ""}
 				flex={1}
 				viewportRef={mergedViewportRef}
-				styles={{
-					content: {
-						display: "flex",
-						flexDirection: "column",
-						minHeight: "100%",
-					},
-				}}
 			>
-				<Stack gap={10} flex={1}>
-					<Group justify="space-between" px="sm">
-						<Text size="sm" c="dimmed">
-							Projects
-						</Text>
-						<ActionIcon
-							c="dimmed"
-							variant="subtle"
-							className="nav-link-like"
-							loading={createProject.isPending}
-							disabled={createProject.isPending}
-							onClick={() => createProject.mutate()}
-						>
-							+
-						</ActionIcon>
-					</Group>
-					{(allProjects
-						? projectList
-						: projectList.slice(0, PROJECT_LIMIT)
-					).map((project) => (
-						<Project
-							key={project.id}
-							project={project}
+				<Stack gap={10}>
+					{chats.map((chat) => (
+						<Chat
+							key={chat.id}
+							chat={chat}
 							setEditing={setEditing}
 							dragHandlers={dragHandlers}
-							dropActive={dropProjectId === project.id}
-							onDragEnter={(event) => handleDragEnter(event, project.id)}
-							onDragLeave={handleDragLeave}
-							onDragOver={(event) => handleDragOver(event, project.id)}
-							onDrop={(event) => handleDrop(event, project.id)}
 						/>
 					))}
-					{hiddenProjects > 0 && (
-						<NavLink
-							h={32}
-							c="dimmed"
-							label={allProjects ? "Less" : `${hiddenProjects} more`}
-							leftSection={<DotsThreeIcon />}
-							onClick={() => setAllProjects((previous) => !previous)}
-						/>
-					)}
-					<Stack
-						gap={10}
-						flex={1}
-						mih={120}
-						pos="relative"
-						onDragEnter={(event) => handleDragEnter(event, null)}
-						onDragLeave={handleDragLeave}
-						onDragOver={(event) => handleDragOver(event, null)}
-						onDrop={(event) => handleDrop(event, null)}
-					>
+					{!chats.length && !projects.isPending ? (
 						<Text size="sm" c="dimmed" px="sm">
-							Recents
+							nothing here yet
 						</Text>
-						{projects.data?.pages
-							.flatMap((page) => page.chats)
-							.map((chat) => (
-								<Chat
-									key={chat.id}
-									chat={chat}
-									setEditing={setEditing}
-									dragHandlers={dragHandlers}
-								/>
-							))}
+					) : null}
+					{!project ? (
 						<Sentinel isFetching={projects.isFetching} ref={sentinelRef} />
-						{dropProjectId === null ? (
-							<ChatDropOverlay label="Move to Recents" color="grape" />
-						) : null}
-					</Stack>
+					) : null}
 				</Stack>
 			</ScrollArea>
 			{currentModal === "edit-chat" && (

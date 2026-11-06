@@ -4,6 +4,7 @@ import type {
 } from "#core/core/types/capability.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { SettingsUtils } from "#core/core/utils/SettingsUtils.ts";
+import { PlanService } from "#core/features/agent/services/PlanService.ts";
 import type {
 	zAgentContext,
 	zAgentMessage,
@@ -22,6 +23,7 @@ import {
 	FileUtils,
 } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
+import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
 import { VERBOSE } from "#core/logger.ts";
 
 /** Directory levels shown in an attached folder's XML tree. */
@@ -62,6 +64,8 @@ export const AgentMessagesService = {
 			// Each step is transformed on its own: tool results are only ever
 			// sorted within the step that called them.
 			const data: zDataPart[][] = [];
+			// Told to the model alongside the message rather than as part of it.
+			const extraContext: string[] = [];
 			for (const parts of message.data) {
 				const transformedParts: zDataPart[] = [];
 				for (const part of parts) {
@@ -71,10 +75,13 @@ export const AgentMessagesService = {
 						);
 					} else if (part.type === "quote") {
 						const model = part.model ? ` model="${part.model}"` : "";
+						const source = part.source
+							? ` source="${PathUtils.normalize({ path: part.source })}"`
+							: "";
 						transformedParts.push({
 							id: part.id,
 							type: "text",
-							value: `<quote${model}>\n${part.text}\n</quote>`,
+							value: `<quote${model}${source}>\n${part.text}\n</quote>`,
 						});
 					} else if (part.type === "paste") {
 						transformedParts.push({
@@ -93,6 +100,16 @@ export const AgentMessagesService = {
 									source: part.value.slice(6),
 								})),
 							);
+						} else if (part.name === PlanService.command) {
+							// The plan lives in the chat's directory, so a chat not
+							// yet saved has nowhere to keep one.
+							if (context.chat?.id)
+								extraContext.push(
+									PlanService.getContext({
+										path: PlanService.path(context.chat.id),
+										tool: edit_plan.name,
+									}),
+								);
 						} else if (part.name === "system-prompt") {
 							customInstructions = part.argument;
 							console.log(
@@ -124,6 +141,7 @@ export const AgentMessagesService = {
 					data,
 					timezone: context.timezone,
 					memories: memories?.at(i),
+					extraContext,
 				}),
 			);
 		}
@@ -336,25 +354,31 @@ export const AgentMessagesService = {
 		data,
 		timezone,
 		memories,
+		extraContext = [],
 	}: {
 		message: zAgentMessage;
 		previous?: zAgentMessage;
 		data: zDataPart[][];
 		timezone?: string;
 		memories?: MemorySearchResult[];
+		/** Blocks for the `<context>` beyond memories, such as a plan's. */
+		extraContext?: string[];
 	}): zAgentMessage => {
-		const context: zDataPart[] = memories?.length
+		const entries = [
+			...[...(memories ?? [])]
+				.sort((a, b) => a.id.localeCompare(b.id))
+				.map(
+					(memory) =>
+						`<memory id="${memory.id}" category="${memory.category}" stability="${memory.stability}" learned="${CommonUtils.formatDate({ date: memory.createdAt, timezone })}">\n${memory.fact}\n</memory>`,
+				),
+			...extraContext,
+		];
+		const context: zDataPart[] = entries.length
 			? [
 					{
 						id: CommonUtils.getRandomId(),
 						type: "text",
-						value: `<context>\n${[...memories]
-							.sort((a, b) => a.id.localeCompare(b.id))
-							.map(
-								(memory) =>
-									`<memory id="${memory.id}" category="${memory.category}" stability="${memory.stability}" learned="${CommonUtils.formatDate({ date: memory.createdAt, timezone })}">\n${memory.fact}\n</memory>`,
-							)
-							.join("\n")}\n</context>`,
+						value: `<context>\n${entries.join("\n")}\n</context>`,
 					},
 				]
 			: [];

@@ -26,16 +26,23 @@ import {
 	type RefAttributes,
 	Suspense,
 	useCallback,
+	useContext,
 	useEffect,
+	useId,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import { ClientContext } from "#client/client.ts";
+import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import type { PromiseOr } from "#core/core/types/common.ts";
+import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useZoom, type ZoomControls } from "#gui/core/hooks/useZoom.ts";
 import { ControlUtils } from "#gui/core/utils/ControlUtils.ts";
 import FindScope from "#gui/features/find/components/FindScope.tsx";
+import QuoteActions from "#gui/features/message/components/QuoteActions.tsx";
+import { useTextSelection } from "#gui/features/message/hooks/useMessageSelection.ts";
 
 export type ContentFormats<T extends string = string> = T[];
 
@@ -275,6 +282,7 @@ export default function Content<T extends string>({
 	disclosure: controlledDisclosure,
 	findLabel = "Block",
 	findText,
+	quote,
 	...props
 }: HTMLAttributes<HTMLDivElement> &
 	RefAttributes<HTMLDivElement> &
@@ -290,7 +298,18 @@ export default function Content<T extends string>({
 		findLabel?: string;
 		/** Its text, for content that hides some of what it draws. */
 		findText?: () => string[];
+		/**
+		 * What text selected in it is quoted as coming from, for content shown
+		 * on its own rather than in a message: a file's path, or `web:` and a URL.
+		 */
+		quote?: { source: string };
 	}) {
+	const client = useContext(ClientContext);
+	const scope = useId();
+	const selection = useTextSelection(
+		quote ? `[data-quote-scope="${scope}"]` : null,
+	);
+	const quoteScope = quote ? { "data-quote-scope": scope } : {};
 	const uncontrolledDisclosure = useDisclosure();
 	const [opened, { open, close }] =
 		controlledDisclosure ?? uncontrolledDisclosure;
@@ -323,6 +342,7 @@ export default function Content<T extends string>({
 						contentVisibility: "auto",
 						containIntrinsicSize: "auto 200px",
 					}}
+					{...quoteScope}
 					{...props}
 				>
 					<Box {...actionsProps} className="absolute top-1 right-1">
@@ -333,7 +353,9 @@ export default function Content<T extends string>({
 							open={open}
 						/>
 					</Box>
-					{children}
+					<ErrorBoundary label="this block" resetKey={children}>
+						{children}
+					</ErrorBoundary>
 				</FindScope>
 			</Suspense>
 			<Modal
@@ -373,6 +395,7 @@ export default function Content<T extends string>({
 						text={findText}
 						region
 						className="selectable"
+						{...quoteScope}
 						display="flex"
 						flex={1}
 						miw={0}
@@ -387,13 +410,29 @@ export default function Content<T extends string>({
 						>
 							<div ref={setFrame} style={frameStyle}>
 								<Box ref={setContent} p="md" style={contentStyle}>
-									{children}
+									<ErrorBoundary label="this block" resetKey={children}>
+										{children}
+									</ErrorBoundary>
 								</Box>
 							</div>
 						</Box>
 					</FindScope>
 				)}
 			</Modal>
+			{quote && (
+				<QuoteActions
+					selection={selection}
+					onQuote={() => {
+						const text = selection.getSelectedText();
+						if (text)
+							ComposerService.insertQuote({
+								client,
+								source: quote.source,
+								text,
+							});
+					}}
+				/>
+			)}
 		</>
 	);
 }

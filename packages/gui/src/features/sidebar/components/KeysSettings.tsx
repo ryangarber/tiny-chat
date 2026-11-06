@@ -1,6 +1,7 @@
 import {
 	ActionIcon,
 	Box,
+	Button,
 	Card,
 	Collapse,
 	Group,
@@ -83,12 +84,13 @@ function ProviderCard({
 	provider: ProviderState<ProviderStatus>;
 }) {
 	const { providerSettings } = useProviderSettings();
-	const { updateProviders, isUpdating } = useProviders();
+	const { updateProviders, isUpdating, signIn } = useProviders();
 
 	const [expanded, setExpanded] = useState(false);
 
 	const updating = isUpdating(provider.name);
-	const disabled = updating;
+	const signingIn = signIn.isPending;
+	const disabled = updating || signingIn;
 
 	return (
 		<Card withBorder padding={0}>
@@ -147,6 +149,22 @@ function ProviderCard({
 			</Box>
 			<Collapse expanded={expanded}>
 				<Stack px="xs" pb="xs" gap="xs">
+					{provider.signIn && (
+						<Button
+							size="xs"
+							variant="light"
+							loading={signingIn}
+							disabled={updating}
+							onClick={() => signIn.mutate(provider.name)}
+						>
+							Sign in to {provider.name}
+						</Button>
+					)}
+					{signIn.error && (
+						<Text size="xs" c="red">
+							{signIn.error.message}
+						</Text>
+					)}
 					{provider.settings.map((key) => {
 						const value = providerSettings?.[provider.name]?.[key] ?? "";
 						return (
@@ -173,7 +191,7 @@ function Providers({
 	return (
 		<Stack gap="xs">
 			{providers
-				.filter((provider) => provider.settings.length)
+				.filter((provider) => provider.settings.length || provider.signIn)
 				.map((provider) => (
 					<ProviderCard key={provider.name} provider={provider} />
 				))}

@@ -141,6 +141,9 @@ export interface ShellEnvironment {
 }
 
 export interface ShellCapability {
+	/** The OS temporary directory, as this shell spells it. */
+	tmpdir?: () => Promise<string>;
+
 	cwd?: () => Promise<string>;
 
 	chdir?: (_: { path: string }) => Promise<void>;
@@ -223,6 +226,15 @@ export interface ShellCapability {
 		path: string;
 		content: string;
 	}) => Promise<{ path: string; success: true }>;
+
+	/** Moves a file or directory to `to`, making its parent as needed. */
+	rename: (_: {
+		path: string;
+		to: string;
+	}) => Promise<{ path: string; success: true }>;
+
+	/** Deletes a file, or a directory and everything in it. */
+	remove: (_: { path: string }) => Promise<{ path: string; success: true }>;
 
 	/**
 	 * `onOutput` is called with output as it arrives, for shells that can

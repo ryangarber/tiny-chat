@@ -11,6 +11,7 @@ import { useShellSettings } from "#client/features/settings/hooks/useShellSettin
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import { ThemeUtils } from "#core/core/utils/ThemeUtils.ts";
 import { zConfig } from "#core/features/data/types/message.ts";
+import { zTuiImages } from "#core/features/data/types/user.ts";
 import type {
 	ModelProviderStatus,
 	zModelFeature,
@@ -57,9 +58,10 @@ const summarize = (provider: ProviderState<ProviderStatus>) => {
 export default function Settings() {
 	const client = useContext(ClientContext);
 
-	const { providers, updateProviders, isUpdating } = useProviders();
+	const { providers, updateProviders, isUpdating, signIn } = useProviders();
 
-	const { theme, setTheme, codeTheme, setCodeTheme } = useThemes();
+	const { theme, setTheme, codeTheme, setCodeTheme, tuiImages, setTuiImages } =
+		useThemes();
 	const {
 		useProviderCache,
 		setUseProviderCache,
@@ -84,6 +86,7 @@ export default function Settings() {
 	useWorkingStatus(
 		setTheme,
 		setCodeTheme,
+		setTuiImages,
 		setUseProviderCache,
 		setUseBrowserModels,
 		setPreferredWebProvider,
@@ -93,6 +96,7 @@ export default function Settings() {
 		setEmbeddingConfig,
 		setUseEmbeddingSearch,
 		updateProviders,
+		signIn,
 	);
 
 	// The pages open, root first. A provider's page is named `keys:<name>`.
@@ -141,6 +145,12 @@ export default function Settings() {
 						value: "code theme",
 						state: codeTheme,
 						route: "codeTheme",
+					},
+					{
+						name: "images",
+						value: "images",
+						state: tuiImages,
+						route: "tuiImages",
 					},
 				],
 			},
@@ -264,6 +274,7 @@ export default function Settings() {
 	}, [
 		theme,
 		codeTheme,
+		tuiImages,
 		useProviderCache,
 		useBrowserModels,
 		hiddenModels,
@@ -384,6 +395,11 @@ export default function Settings() {
 			setCodeTheme.mutate({ codeTheme: value as typeof codeTheme }),
 		);
 	}
+	if (route === "tuiImages") {
+		return choose(zTuiImages.options, tuiImages, (value) =>
+			setTuiImages.mutate({ tuiImages: value as typeof tuiImages }),
+		);
+	}
 	if (route === "providerCache") {
 		return choose(["on", "off"], onOff(useProviderCache), (value) =>
 			setUseProviderCache.mutate({ useProviderCache: value === "on" }),
@@ -472,7 +488,7 @@ export default function Settings() {
 
 	if (route === "keys") {
 		const keyed = (providers.data ?? []).filter(
-			(provider) => provider.settings.length,
+			(provider) => provider.settings.length || provider.signIn,
 		);
 		return (
 			<Choice<ChoiceItem & { provider: string }>
@@ -508,6 +524,36 @@ export default function Settings() {
 		const name = route.slice("keys:".length);
 		const provider = providers.data?.find((p) => p.name === name);
 		if (!provider) return null;
+		if (provider.signIn)
+			return (
+				<Choice
+					groups={[
+						{
+							items: [
+								{
+									name: signIn.isPending ? "Signing in…" : "Sign in",
+									value: "sign-in",
+								},
+							],
+						},
+					]}
+					before={
+						<Text>
+							{signIn.error?.message ??
+								provider.status.error ??
+								summarize(provider)}
+						</Text>
+					}
+					onSelect={() => {
+						if (!signIn.isPending) signIn.mutate(name);
+					}}
+					bindings={{
+						refresh: {
+							run: () => updateProviders.mutate({ providers: [name] }),
+						},
+					}}
+				/>
+			);
 		return (
 			<TextList
 				entries={provider.settings.map((key) => ({

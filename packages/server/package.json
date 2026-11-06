@@ -23,7 +23,7 @@
 		"@prisma/orm-extension-pgvector": "catalog:prisma",
 		"@prisma/orm-postgres": "catalog:prisma",
 		"@ryangarber/ai-sdk-antigravity-proxy": "^0.1.4",
-		"@ryangarber/prisma-orm-extension-zod": "catalog:prisma",
+		"prisma-orm-extension-zod": "catalog:prisma",
 		"chalk": "^6.0.1",
 		"core": "workspace:*",
 		"fflate": "^0.8.3",

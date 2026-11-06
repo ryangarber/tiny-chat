@@ -50,6 +50,13 @@ export const zHiddenModels = z.partialRecord(
 );
 export type zHiddenModels = z.infer<typeof zHiddenModels>;
 
+/**
+ * How the terminal UI draws images: `auto` picks the best protocol the
+ * terminal supports, `none` stands each image as a link that opens it.
+ */
+export const zTuiImages = z.enum(["auto", "none"]);
+export type zTuiImages = z.infer<typeof zTuiImages>;
+
 export const zSettings = z
 	.object({
 		instructions: z.array(z.string()),
@@ -66,6 +73,7 @@ export const zSettings = z
 		useBrowserModels: z.boolean(),
 		theme: z.enum(ThemeUtils.themes),
 		codeTheme: z.enum(ThemeUtils.codeThemes),
+		tuiImages: zTuiImages,
 		providers: z.record(z.string(), z.any()).optional(),
 		mcpServers: zMCPServers,
 		presets: z.record(z.string(), zConfig),

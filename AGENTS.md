@@ -68,7 +68,7 @@ Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE
   signs in a real anonymous test user against the live server. Don't spend time building a custom harness, fake
   client, or seeded user unless this genuinely can't cover the case. For server-only data, use the real `db`.
 - **Test model:** with no API key, `test-generate` replies with a greeting. `%bench [text|code|table|tools|tasks|thought|mixed] [words] [~ms]`
-  in a message streams deterministic content of that kind instead, and `%sub` calls `spawn_subagent`.
+  in a message streams deterministic content of that kind instead, `%sub` calls `spawn_subagent`, and `%plan` (with `/plan`) writes a plan with `edit_plan`.
 - **Unit:** Vitest (`*.test.ts`), only for logic that is actually pure.
 - **App UI:** drive it with Playwright (installed at the root, Chromium included) against `http://localhost:$VITE_WEB_PORT`.
 - **CLI:** always pass `--no-keyring` when testing so the CLI stores its session token in a plain-text OS temp file

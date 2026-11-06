@@ -52,6 +52,15 @@ interface ScrollViewRef {
 	scrollToIndex: (index: number, align?: ScrollAlign) => void;
 }
 
+/**
+ * What a rail beside the scrollbar is drawn from: the scrollbar's own
+ * measurements, and where each child sits in the content.
+ */
+export interface ScrollRail extends ScrollMetrics {
+	/** The row of the content each child starts on, by index. */
+	tops: number[];
+}
+
 export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 	ref?: RefObject<ScrollViewRef | null>;
 	children?: ReactNode;
@@ -80,6 +89,12 @@ export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 	 * @default true
 	 */
 	scrollbar?: boolean;
+	/**
+	 * Drawn over the column just inside the scrollbar, such as marks for where
+	 * each child sits — whether or not the content overflows. Children leave
+	 * that column clear for it.
+	 */
+	rail?: (rail: ScrollRail) => ReactNode;
 	/** Rows a single turn of the wheel moves. @default 3 */
 	wheelStep?: number;
 	/**
@@ -152,6 +167,54 @@ const held = (heights: ReadonlyMap<string, number>, keys: string[]) => {
 /** Rows a page moves through a viewport: all of it but two kept for context. */
 export const pageRows = (viewport: number) => Math.max(1, viewport - 2);
 
+/**
+ * How long wheel turns after the first are gathered into one scroll. A fast
+ * flick reports dozens of turns in a few milliseconds, and moving the view for
+ * each one is a run of commits with no gap between them that React ends by
+ * throwing "Maximum update depth exceeded". Ink draws at 30fps, so a turn
+ * held this long is never one that would have been seen on its own.
+ */
+const WHEEL_FRAME = 16;
+
+/**
+ * Rows the wheel has turned through that a view has yet to move by. The first
+ * turn moves it at once; any that follow within a frame are added up and moved
+ * by together at its end, and again each frame they keep coming.
+ */
+const createWheelBuffer = () => {
+	let rows = 0;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	// The latest turn's, so a frame's rows are moved by the view as it is now.
+	let move: (rows: number) => void = () => {};
+
+	const flush = () => {
+		timer = undefined;
+		if (!rows) return;
+		const total = rows;
+		rows = 0;
+		move(total);
+		timer = setTimeout(flush, WHEEL_FRAME);
+	};
+
+	return {
+		/** Rows turned through and not yet moved by. */
+		pending: () => rows,
+		push(delta: number, by: (rows: number) => void) {
+			move = by;
+			if (timer) rows += delta;
+			else {
+				by(delta);
+				timer = setTimeout(flush, WHEEL_FRAME);
+			}
+		},
+		cancel() {
+			clearTimeout(timer);
+			timer = undefined;
+			rows = 0;
+		},
+	};
+};
+
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(Math.max(value, min), Math.max(min, max));
 
@@ -213,6 +276,7 @@ export default function ScrollView({
 	resetKey,
 	wheel = true,
 	scrollbar = true,
+	rail,
 	wheelStep = 3,
 	paging = false,
 	onScroll,
@@ -371,6 +435,9 @@ export default function ScrollView({
 	const [nested] = useState(() => new Set<WheelHandler>());
 	const parent = useContext(ScrollContext);
 
+	const [wheelBuffer] = useState(createWheelBuffer);
+	useEffect(() => () => wheelBuffer.cancel(), [wheelBuffer]);
+
 	// The wheel turns over whatever the pointer is resting on, so views sitting
 	// side by side — a transcript under a list of completions — each answer for
 	// themselves without either having to be focused first. Like a browser, a
@@ -387,13 +454,24 @@ export default function ScrollView({
 				return false;
 			for (const handler of nested) if (handler(event)) return true;
 
-			const current = getScrollOffset();
+			// Turns still waiting to be moved by count towards the edge, so a view
+			// hands the wheel on at the edge it is about to reach, not a frame late.
+			const current = getScrollOffset() + wheelBuffer.pending();
 			if (event.deltaY < 0 ? current <= 0 : current >= getMaxOffset())
 				return false;
-			scrollBy(event.deltaY * wheelStep);
+			wheelBuffer.push(event.deltaY * wheelStep, scrollBy);
 			return true;
 		},
-		[wheel, rows, nested, getScrollOffset, getMaxOffset, scrollBy, wheelStep],
+		[
+			wheel,
+			rows,
+			nested,
+			getScrollOffset,
+			getMaxOffset,
+			scrollBy,
+			wheelStep,
+			wheelBuffer,
+		],
 	);
 
 	useEffect(() => {
@@ -423,6 +501,11 @@ export default function ScrollView({
 	// The scrollbar is drawn from what the layout effect below last measured,
 	// and only while there is something to scroll to.
 	const [metrics, setMetrics] = useState<ScrollMetrics | null>(null);
+	// The same for a rail, which is drawn whether or not there is anything to
+	// scroll to.
+	const [railMetrics, setRailMetrics] = useState<ScrollMetrics | null>(null);
+	// Where each child starts, for a rail, measured alongside the metrics.
+	const [tops, setTops] = useState<number[]>([]);
 	const trackRef = useRef<DOMElement | null>(null);
 	// The row of the handle the pointer took it by, while it is being dragged.
 	const grabRef = useRef<number | null>(null);
@@ -708,6 +791,28 @@ export default function ScrollView({
 		)
 			setMetrics(next);
 
+		const nextRail =
+			rail && viewportRows > 0
+				? { viewport: viewportRows, content, offset: getScrollOffset() }
+				: null;
+		if (
+			nextRail?.viewport !== railMetrics?.viewport ||
+			nextRail?.content !== railMetrics?.content ||
+			nextRail?.offset !== railMetrics?.offset
+		)
+			setRailMetrics(nextRail);
+
+		if (nextRail) {
+			const measuredTops = items.map(
+				(_, index) => getItemPosition(index)?.top ?? 0,
+			);
+			if (
+				measuredTops.length !== tops.length ||
+				measuredTops.some((top, index) => top !== tops[index])
+			)
+				setTops(measuredTops);
+		}
+
 		if (getViewportHeight() === 0 || content === 0) return;
 
 		const current = getScrollOffset();
@@ -811,6 +916,7 @@ export default function ScrollView({
 						})()}
 					</InkBox>
 				)}
+				{railMetrics && rail?.({ ...railMetrics, tops })}
 			</Box>
 		</Box>
 	);

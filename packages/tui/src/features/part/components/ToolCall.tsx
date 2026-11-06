@@ -1,4 +1,6 @@
 import chalk from "chalk";
+import { type DOMElement, measureElement } from "ink";
+import { useLayoutEffect, useRef } from "react";
 import {
 	useFindHidden,
 	useFindRevealed,
@@ -9,12 +11,14 @@ import {
 	useExpandScope,
 } from "#client/features/part/hooks/useAutoExpand.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
+import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import type { ToolStatusPart } from "#core/features/tool/types/display.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
+import { revealRow } from "#tui/core/components/ScrollView.tsx";
 import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
@@ -73,56 +77,68 @@ function ToolCallBody({
 	// opened in it apart from the parts around the call.
 	const scope = useExpandScope(part.id);
 
+	// Brought into view when gone to, such as from the chapter it marks.
+	const ref = useRef<DOMElement>(null);
+	const focused = useExpandStore((s) => s.focused === part.id);
+	useLayoutEffect(() => {
+		const node = ref.current;
+		if (!focused || !node) return;
+		useExpandStore.getState().focus(null);
+		revealRow(node, measureElement(node).y);
+	}, [focused]);
+
 	return (
-		<Task expanded={expanded} onToggle={toggle}>
-			<Box gap={1}>
-				<Task.Status
-					status={
-						display.active
-							? "pending"
-							: display.state === "error"
-								? "error"
-								: "success"
-					}
-					emoji="🔧"
-					parts={toStatusParts(display.status)}
-				/>
-				{interrupt && <Button label="stop" onClick={interrupt} />}
-			</Box>
-			{!empty && (
-				<Task.Details>
-					<ExpandScopeContext value={scope}>
-						<Tail follow={auto}>
-							<Box flexDirection="column" gap={1}>
-								{display.input.map((block, index) => (
-									<ToolBlock
-										// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
-										key={`input-${index}`}
-										block={block}
-										active={display.state === "input"}
-									/>
-								))}
-								{controls && message && (
-									<ToolControls
-										message={message}
-										part={part}
-										controls={controls}
-										answerable={answerable}
-									/>
-								)}
-								{display.output.map((block, index) => (
-									<ToolBlock
-										// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
-										key={`output-${index}`}
-										block={block}
-										active={display.state === "running"}
-									/>
-								))}
-							</Box>
-						</Tail>
-					</ExpandScopeContext>
-				</Task.Details>
-			)}
-		</Task>
+		<Box ref={ref} flexDirection="column" flexShrink={0}>
+			<Task expanded={expanded} onToggle={toggle}>
+				<Box gap={1}>
+					<Task.Status
+						status={
+							display.active
+								? "pending"
+								: display.state === "error"
+									? "error"
+									: "success"
+						}
+						emoji="🔧"
+						parts={toStatusParts(display.status)}
+					/>
+					{interrupt && <Button label="stop" onClick={interrupt} />}
+				</Box>
+				{!empty && (
+					<Task.Details>
+						<ExpandScopeContext value={scope}>
+							<Tail follow={auto}>
+								<Box flexDirection="column" gap={1}>
+									{display.input.map((block, index) => (
+										<ToolBlock
+											// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
+											key={`input-${index}`}
+											block={block}
+											active={display.state === "input"}
+										/>
+									))}
+									{controls && message && (
+										<ToolControls
+											message={message}
+											part={part}
+											controls={controls}
+											answerable={answerable}
+										/>
+									)}
+									{display.output.map((block, index) => (
+										<ToolBlock
+											// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
+											key={`output-${index}`}
+											block={block}
+											active={display.state === "running"}
+										/>
+									))}
+								</Box>
+							</Tail>
+						</ExpandScopeContext>
+					</Task.Details>
+				)}
+			</Task>
+		</Box>
 	);
 }

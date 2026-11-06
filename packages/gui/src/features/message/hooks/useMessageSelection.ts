@@ -51,6 +51,16 @@ function rectsEqual(a: SelectionRect | null, b: SelectionRect): boolean {
 export function useMessageSelection(
 	messageId: string,
 ): UseMessageSelectionReturn {
+	return useTextSelection(`[data-message-id="${messageId}"]`);
+}
+
+/**
+ * The same, within whatever element matches `selector` — a message, or a
+ * block of content offering to quote what is selected in it.
+ */
+export function useTextSelection(
+	selector: string | null,
+): UseMessageSelectionReturn {
 	const [rect, setRect] = useState<SelectionRect | null>(null);
 
 	// Stores the last non-empty selection string so the quote button can read it
@@ -62,13 +72,15 @@ export function useMessageSelection(
 	const rafRef = useRef<number>(0);
 
 	useEffect(() => {
+		if (!selector) return;
+
 		const isInMessage = (node: Node | null): boolean => {
 			if (!node) return false;
 			const el =
 				node.nodeType === Node.TEXT_NODE
 					? node.parentElement
 					: (node as Element);
-			return !!el?.closest(`[data-message-id="${messageId}"]`);
+			return !!el?.closest(selector);
 		};
 
 		const handleSelectionChange = () => {
@@ -115,7 +127,7 @@ export function useMessageSelection(
 			document.removeEventListener("selectionchange", handleSelectionChange);
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [messageId]);
+	}, [selector]);
 
 	/**
 	 * Call on `onMouseDown` / `onTouchStart` of the quote button.

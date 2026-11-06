@@ -1,9 +1,15 @@
+import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import * as Babel from "@babel/core";
 import { log, task } from "@ryangarber/utils";
 import chalk from "chalk";
 import { zClientEnv } from "#core/core/types/env.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
+
+/** The repo, whose own imports already resolve to a single copy of each package. */
+const REPO = fileURLToPath(new URL("../../../", import.meta.url));
+/** Where the app's own copies of shared peers resolve from. */
+const CLI = fileURLToPath(new URL("../", import.meta.url));
 
 const env = useEnv({ type: zClientEnv });
 export const environment = Object.fromEntries(
@@ -56,11 +62,31 @@ export async function compile({
 
 	try {
 		result = await Bun.build({
-			// the highlight worker is its own entrypoint so Shiki stays out of the
-			// main bundle; `client.ts` starts it from beside `index`
-			entrypoints: ["./src/index.ts", "./src/highlight.ts"],
+			// the highlight and image workers are their own entrypoints, kept out of
+			// the main bundle; `client.ts` and `main.tsx` start them from beside `index`
+			entrypoints: [
+				"./src/index.ts",
+				"./src/highlight.ts",
+				"./src/image-worker.ts",
+			],
 			banner: "globalThis.UPNG = undefined;",
 			plugins: [
+				// A package linked from outside the repo (`better-ink-picture`)
+				// resolves its peers from its own `node_modules`, and two Reacts or
+				// two Inks in one tree break every hook and context that crosses
+				// them. Its imports of them take the app's copies instead.
+				{
+					name: "linked-peers",
+					setup: (build) => {
+						build.onResolve(
+							{ filter: /^(react|react-reconciler|ink)(\/.*)?$/ },
+							(args) => {
+								if (!args.importer || args.importer.startsWith(REPO)) return;
+								return { path: Bun.resolveSync(args.path, CLI) };
+							},
+						);
+					},
+				},
 				// @afmize/node's library needs nothing here: its Bun entry imports
 				// it as a file, which Bun copies beside the bundle (or embeds in a
 				// compiled binary).

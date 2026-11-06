@@ -19,6 +19,8 @@ import {
 	useState,
 } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useChapters } from "#client/features/chapter/hooks/useChapters.ts";
+import type { Chapter } from "#client/features/chapter/types/chapter.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -33,6 +35,7 @@ import type { MessageState } from "#core/features/data/types/message.ts";
 import { useAutoScroll } from "#gui/core/hooks/useAutoScroll.ts";
 import { useVirtualList } from "#gui/core/hooks/useVirtualList.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
+import ChapterRail from "#gui/features/chapter/components/ChapterRail.tsx";
 import Actions from "#gui/features/chat/components/Actions.tsx";
 import ChatEffects from "#gui/features/chat/components/ChatEffects.tsx";
 import ChatHeader from "#gui/features/chat/components/ChatHeader.tsx";
@@ -166,6 +169,21 @@ export default function Chat() {
 		if (node) scrollToNode(node, "instant");
 	};
 
+	const { chapters, focusToolCall } = useChapters({ messages: messageList });
+	// A call's message is brought close enough to be drawn, and the call, once
+	// it is, brings itself the rest of the way.
+	const goToChapter = (chapter: Chapter) => {
+		const node = viewportNode.current?.querySelector(
+			`[data-message-slot="${CSS.escape(chapter.messageId)}"]`,
+		);
+		if (chapter.type === "message") {
+			if (node) scrollToNode(node);
+			return;
+		}
+		if (node) scrollToNode(node, "instant");
+		focusToolCall(chapter.id);
+	};
+
 	const messageOpacities = useMemo(() => {
 		const map = new Map<string, number>();
 		let hasHitEdit = false;
@@ -285,6 +303,15 @@ export default function Chat() {
 						</Box>
 					</Stack>
 				</ScrollArea>
+				{!isNewChat && !isMobile && (
+					<ChapterRail
+						viewport={viewport}
+						chapters={chapters}
+						top={isMobile ? 70 : 40}
+						bottom={inputHeight + inputEffectsHeight + 60}
+						onChapter={goToChapter}
+					/>
+				)}
 				<div
 					style={{
 						position: "absolute",

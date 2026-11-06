@@ -50,6 +50,18 @@ export const useProviders = () => {
 		},
 	});
 
+	const signIn = useMutation({
+		mutationFn: async (name: string) => {
+			const provider = providers.data?.find(
+				(provider) => provider.name === name,
+			);
+			if (!provider?.signIn)
+				throw new Error("Provider does not support sign-in");
+			await provider.signIn();
+			await updateProviders.mutateAsync({ providers: [name] });
+		},
+	});
+
 	const pendingUpdates = useMutationState({
 		filters: { mutationKey: providerCacheMutationKey, status: "pending" },
 		select: (mutation) =>
@@ -66,5 +78,5 @@ export const useProviders = () => {
 		[pendingUpdates],
 	);
 
-	return { providers, updateProviders, isUpdating };
+	return { providers, updateProviders, isUpdating, signIn };
 };

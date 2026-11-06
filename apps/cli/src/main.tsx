@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { detectTerminal, type WorkerLike } from "better-ink-picture";
 import { render } from "ink";
 import { client } from "#cli/client.ts";
 import { TokenService } from "#cli/core/services/TokenService.ts";
@@ -17,13 +18,28 @@ export async function main(options: AppOptions) {
 	if (truecolor === true) process.env.FORCE_COLOR = "3";
 	else if (truecolor === false) process.env.FORCE_COLOR = "2";
 
+	// Asked before Ink takes stdin, whose answers would otherwise arrive as keys.
+	const capabilities = await detectTerminal().catch(() => undefined);
+
 	const stdin = StdinUtils.filter(process.stdin);
 	const restoreStderr = StderrUtils.capture();
 
 	const instance = render(
 		<QueryClientProvider client={client.queryClient}>
 			<ClientContext value={client}>
-				<Root />
+				<Root
+					images={{
+						capabilities,
+						// Bun's Web Worker, built beside the bundle as `highlight.js` is
+						// (`scripts/compile.ts`). The CLI is typed against Node, not Bun.
+						worker: () => {
+							const { Worker } = globalThis as unknown as {
+								Worker: new (url: URL) => WorkerLike;
+							};
+							return new Worker(new URL("./image-worker.js", import.meta.url));
+						},
+					}}
+				/>
 			</ClientContext>
 		</QueryClientProvider>,
 		{

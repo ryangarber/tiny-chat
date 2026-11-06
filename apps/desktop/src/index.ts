@@ -10,6 +10,7 @@ import { ComputerHostService } from "#client/features/agent/services/ComputerHos
 import { AfmHostService } from "#desktop/core/services/AfmHostService.ts";
 import { ClaudeCodeHostService } from "#desktop/core/services/ClaudeCodeHostService.ts";
 import { CodexHostService } from "#desktop/core/services/CodexHostService.ts";
+import { CursorHostService } from "#desktop/core/services/CursorHostService.ts";
 import { McpHostService } from "#desktop/core/services/McpHostService.ts";
 import { ShellHostService } from "#desktop/core/services/ShellHostService.ts";
 import { UpdateHostService } from "#desktop/core/services/UpdateHostService.ts";
@@ -65,6 +66,7 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 			...AfmHostService.create({ send }),
 			...ClaudeCodeHostService.create({ send }),
 			...CodexHostService.create({ send }),
+			...CursorHostService.create({ send }),
 			...UpdateHostService.create({ send }),
 			computerCall: (request) => computer.call(request),
 			quit: async () => {

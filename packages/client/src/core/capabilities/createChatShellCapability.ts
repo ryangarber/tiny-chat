@@ -43,6 +43,16 @@ export const createChatShellCapability: CapabilityFactory<
 			return { path, success: true };
 		},
 
+		rename: async ({ path, to }) => ({
+			path: await client.api.file.rename.mutate({ ...spec, path, to }),
+			success: true,
+		}),
+
+		remove: async ({ path }) => ({
+			path: await client.api.file.remove.mutate({ ...spec, path }),
+			success: true,
+		}),
+
 		exec: async ({ command, abort }) => {
 			await client.workingDirectory.ready();
 			return await client.api.file.exec.mutate(

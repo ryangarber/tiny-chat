@@ -32,6 +32,8 @@ describe("WorkingDirectoryService", () => {
 			},
 			readDir: async () => [],
 			writeFile: async ({ path }) => ({ path, success: true }),
+			rename: async ({ to }) => ({ path: to, success: true }),
+			remove: async ({ path }) => ({ path, success: true }),
 		};
 	});
 	afterEach(async () => {

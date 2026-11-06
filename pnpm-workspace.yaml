@@ -23,13 +23,9 @@ minimumReleaseAgeExclude:
   - "@afmize/*"
   - "@prisma/*"
   - prisma
-  - "@crowecawcaw/xa11y-darwin-arm64@0.15.3"
-  - "@crowecawcaw/xa11y-darwin-x64@0.15.3"
-  - "@crowecawcaw/xa11y-linux-arm64-gnu@0.15.3"
-  - "@crowecawcaw/xa11y-linux-x64-gnu@0.15.3"
-  - "@crowecawcaw/xa11y-win32-arm64-msvc@0.15.3"
-  - "@crowecawcaw/xa11y-win32-x64-msvc@0.15.3"
-  - "@crowecawcaw/xa11y@0.15.3"
+  - better-ink-picture
+  - better-auth-prisma-orm
+  - prisma-orm-extension-zod
 peerDependencyRules:
   allowedVersions:
     "@browser-ai/web-llm>ai": "7"
@@ -41,10 +37,10 @@ peerDependencyRules:
     "@better-auth/prisma-adapter>prisma": "*"
 overrides:
   effect: "^4.0.5"
-  ink: "github:vadimdemedes/ink#1f40c53b151e2accaa5c32fd8c8e07651c1eb6bb"
+  ink: "github:vadimdemedes/ink#342afb4d218f92854841c76b1a402b628b0ad8a4"
 catalogs:
   typescript:
-    "typescript": "^7.0.2"
+    "typescript": "7.1.0-beta"
   react:
     "react": "^19.3.1"
     "react-dom": "^19.3.1"
@@ -53,25 +49,25 @@ catalogs:
     "react-devtools-core": "^8.0.0"
     "babel-plugin-react-compiler": "^1.0.0"
   prisma:
-    "prisma": 8.0.0-rc.29
-    "@prisma/orm-postgres": 8.0.0-rc.21
-    "@prisma/orm-extension-paradedb": 8.0.0-rc.21
-    "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.21
-    "@ryangarber/prisma-orm-extension-zod": 0.2.13
-    "@ryangarber/better-auth-adapter-prisma": 0.1.13
+    "prisma": 8.0.0-rc.33
+    "@prisma/orm-postgres": 8.0.0-rc.23
+    "@prisma/orm-extension-paradedb": 8.0.0-rc.23
+    "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.23
+    "prisma-orm-extension-zod": 0.3.0
+    "better-auth-prisma-orm": 0.2.0
   ai:
-    "ai": ^7.0.162
-    "@ai-sdk/amazon-bedrock": ^5.0.132
-    "@ai-sdk/anthropic": ^4.0.96
-    "@ai-sdk/azure": ^4.0.116
-    "@ai-sdk/google": ^4.0.111
-    "@ai-sdk/openai": ^4.0.108
-    "@ai-sdk/openai-compatible": ^3.0.84
-    "@ai-sdk/provider": "^4.0.35"
-    "@anthropic-ai/sdk": ^1.4.0
-    "openai": ^7.50.0
+    "ai": ^7.0.164
+    "@ai-sdk/amazon-bedrock": ^5.0.134
+    "@ai-sdk/anthropic": ^4.0.98
+    "@ai-sdk/azure": ^4.0.118
+    "@ai-sdk/google": ^4.0.113
+    "@ai-sdk/openai": ^4.0.110
+    "@ai-sdk/openai-compatible": ^3.0.86
+    "@ai-sdk/provider": ^4.0.36
+    "@anthropic-ai/sdk": ^1.6.0
+    "openai": ^7.53.0
     "voyage-ai-provider": "^5.0.0"
-    "@ryangarber/ai-sdk-providers": "^0.1.0"
+    "@ryangarber/ai-sdk-providers": ^0.1.2
     "@afmize/node": "^1.1.0"
     "@afmize/capacitor": "^1.1.0"
 patchedDependencies:

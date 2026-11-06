@@ -16,7 +16,7 @@ function QuoteNodeView({ node }: ReactNodeViewProps) {
 
 	return (
 		<NodeViewWrapper contentEditable={false} data-drag-handle>
-			<Quote model={quote.model} className="cursor-grab">
+			<Quote model={quote.model} source={quote.source} className="cursor-grab">
 				{quote.text}
 			</Quote>
 		</NodeViewWrapper>

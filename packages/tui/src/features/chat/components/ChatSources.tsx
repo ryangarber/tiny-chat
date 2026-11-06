@@ -1,11 +1,13 @@
 import { type DOMElement, useBoxMetrics, useInput, useWindowSize } from "ink";
 import {
 	type ReactNode,
+	useContext,
 	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import { ClientContext } from "#client/client.ts";
 import { useChatActions } from "#client/features/chat/hooks/useChatActions.ts";
 import { useChatMemories } from "#client/features/chat/hooks/useChatMemories.ts";
 import { useChatSources } from "#client/features/chat/hooks/useChatSources.ts";
@@ -24,6 +26,7 @@ import type {
 	GitRepo,
 } from "#client/features/chat/types/chatFiles.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
+import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useActions } from "#client/features/user/hooks/useActions.ts";
 import { useMemories } from "#client/features/user/hooks/useMemories.ts";
@@ -52,6 +55,10 @@ import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Image from "#tui/features/part/components/Image.tsx";
+import Selectable, {
+	type SelectionAction,
+	SelectionActionsContext,
+} from "#tui/features/selection/components/Selectable.tsx";
 
 type Preview =
 	| { type: "file"; file: ChatFile }
@@ -139,11 +146,18 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	if (content.data.image) {
 		return <Image src={content.data.image} alt={PathUtils.name(file)} />;
 	}
+	if (
+		typeof content.data.text === "string" &&
+		(content.data.extracted || FileTypeUtils.isMarkdown(file.path))
+	) {
+		return content.data.text.trim() ? (
+			<Markdown source={content.data.text} />
+		) : (
+			<Text color="textSubtle">nothing written yet</Text>
+		);
+	}
 	if (!content.data.text) {
 		return <Text color="textSubtle">could not decode file</Text>;
-	}
-	if (content.data.extracted) {
-		return <Markdown source={content.data.text} />;
 	}
 	return (
 		<Box flexDirection="column">
@@ -270,6 +284,31 @@ function PreviewPane({
 			? ChatSourcesUtils.changes({ path: preview.file.path, repos })
 			: undefined;
 
+	// Text selected in a file or a page is quoted into the message being
+	// written, as a passage of a reply is.
+	const client = useContext(ClientContext);
+	const source =
+		preview.type === "file"
+			? preview.file.path
+			: preview.type === "web"
+				? `web:${preview.source.url}`
+				: undefined;
+	const actions = useMemo<SelectionAction[]>(
+		() =>
+			source
+				? [
+						{
+							label: "quote",
+							onSelect: (text) => {
+								ComposerService.insertQuote({ client, source, text });
+								useAppStore.getState().setFocus("editor");
+							},
+						},
+					]
+				: [],
+		[client, source],
+	);
+
 	let title: ReactNode;
 	let body: ReactNode;
 	if (preview.type === "file") {
@@ -324,7 +363,9 @@ function PreviewPane({
 					overscan={Number.POSITIVE_INFINITY}
 				>
 					<ErrorBoundary label="this preview" resetKey={preview}>
-						{body}
+						<SelectionActionsContext value={actions}>
+							<Selectable flexDirection="column">{body}</Selectable>
+						</SelectionActionsContext>
 					</ErrorBoundary>
 				</ScrollView>
 			</WidthContext.Provider>

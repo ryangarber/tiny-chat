@@ -16,7 +16,7 @@ export default definePrismaConfig({
 			dir: "../core/prisma/migrations",
 		},
 		db: {
-			connection: `postgres://${process.env.PG_USER}:${process.env.PG_PASSWORD}@${process.env.PG_HOST}:${process.env.PG_PORT}/${process.env.PG_DATABASE}?schema=public&connection_limit=5&pool_timeout=100&socket_timeout=100`,
+			connection: `postgres://${process.env.PG_USER}:${process.env.PG_PASSWORD}@${process.env.PG_HOST}:${process.env.PG_PORT}/${process.env.PG_DATABASE}?schema=public&connection_limit=5&pool_timeout=100&socket_timeout=100&options=-c%20search_path%3Dpublic%2Cparadedb`,
 		},
 		extensions: [paradedb, pgvector, zod.control],
 	}),

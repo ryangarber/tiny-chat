@@ -7,6 +7,7 @@ import {
 	useMarkdown,
 } from "#client/features/message/hooks/useMarkdown.ts";
 import { useMarkdownBlocks } from "#client/features/message/hooks/useMarkdownBlocks.ts";
+import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import { MarkdownComponents } from "#gui/features/message/components/MarkdownComponents.tsx";
 import "katex/dist/katex.min.css";
 
@@ -83,15 +84,20 @@ export default function Markdown({
 		<StreamContext value={streaming}>
 			<Box className="space-y-4 wrap-break-word">
 				{blocks.map((block, index) => (
-					<MarkdownBlock
+					<ErrorBoundary
 						// biome-ignore lint/suspicious/noArrayIndexKey: blocks stay in order
 						key={index}
-						source={block}
-						streaming={streaming}
-						animating={streaming && index === blocks.length - 1}
-						remarkPlugins={remarkPlugins}
-						rehypePlugins={rehypePlugins}
-					/>
+						label="this markdown"
+						resetKey={block}
+					>
+						<MarkdownBlock
+							source={block}
+							streaming={streaming}
+							animating={streaming && index === blocks.length - 1}
+							remarkPlugins={remarkPlugins}
+							rehypePlugins={rehypePlugins}
+						/>
+					</ErrorBoundary>
 				))}
 			</Box>
 		</StreamContext>

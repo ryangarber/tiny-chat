@@ -1,4 +1,3 @@
-import { smoothStream } from "ai";
 import type { Client } from "#client/client.ts";
 import { ClientCapabilityService } from "#client/core/services/ClientCapabilityService.ts";
 import {
@@ -6,6 +5,7 @@ import {
 	ToolStreamService,
 } from "#client/core/services/StreamService.ts";
 import { ClientProviderService } from "#client/features/agent/services/ClientProviderService.ts";
+import { ChatSourcesService } from "#client/features/chat/services/ChatSourcesService.ts";
 import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQueueStore.ts";
 import { ToolFeedbackService } from "#client/features/part/services/ToolFeedbackService.ts";
 import { AgentService } from "#core/features/agent/services/AgentService.ts";
@@ -22,6 +22,7 @@ import type {
 } from "#core/features/provider/types/provider.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import { ToolService } from "#core/features/tool/services/ToolService.ts";
+import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 
@@ -137,7 +138,6 @@ export const ClientAgentService = {
 			env: client.providerEnv,
 			options: {
 				abortSignal: abort.signal,
-				experimental_transform: [smoothStream({ delayInMs: 20 })],
 			},
 			interjections: streamChat
 				? () => useMessageQueueStore.getState().drain(streamChat)
@@ -155,6 +155,10 @@ export const ClientAgentService = {
 				ToolStreamService.mutate(part.id, mutation);
 			},
 		});
+
+		// The plan opens in the chat's sources the first time it is written in a
+		// run, and is only refreshed after that, so closing it sticks.
+		let planShown = false;
 
 		try {
 			for await (const event of agent) {
@@ -178,6 +182,19 @@ export const ClientAgentService = {
 					}
 					if (event.value.type === "toolResult")
 						ToolFeedbackService.settle(event.value.id);
+					if (
+						event.value.type === "toolResult" &&
+						event.value.name === edit_plan.name &&
+						!event.value.error &&
+						chat.id
+					) {
+						void ChatSourcesService.showPlan({
+							client,
+							chatId: chat.id,
+							open: !planShown,
+						});
+						planShown = true;
+					}
 					if (
 						event.value.type === "toolResult" &&
 						// A call settles with this while it runs on in the background.

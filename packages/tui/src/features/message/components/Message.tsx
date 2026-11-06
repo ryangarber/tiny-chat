@@ -89,7 +89,9 @@ export default function Message({
 	);
 
 	return (
-		<Box flexDirection="column" paddingX={1} paddingY={1}>
+		// Two columns clear on the right: one for the transcript's scrollbar, and
+		// one for the chapters marked beside it.
+		<Box flexDirection="column" paddingLeft={1} paddingRight={2} paddingY={1}>
 			<Box
 				flexDirection="column"
 				backgroundColor={message.author === "USER" ? "interior" : undefined}

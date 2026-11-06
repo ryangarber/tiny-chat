@@ -30,10 +30,22 @@ export const useThemes = () => {
 		onSuccess: applySettings,
 	});
 
+	const tuiImages = useMemo(() => {
+		return SettingsUtils.defaults({ tuiImages: settings.data?.tuiImages })
+			.tuiImages;
+	}, [settings.data?.tuiImages]);
+
+	const setTuiImages = useMutation({
+		...client.query.settings.setTuiImages.mutationOptions(),
+		onSuccess: applySettings,
+	});
+
 	return {
 		theme,
 		setTheme,
 		codeTheme,
 		setCodeTheme,
+		tuiImages,
+		setTuiImages,
 	};
 };

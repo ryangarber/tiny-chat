@@ -50,7 +50,12 @@ export default function CodeLines({
 									tokenStyle["--sdm-tbg"] = value;
 									hasBg = true;
 								} else {
-									tokenStyle[key] = value;
+									// Shiki's are CSS names (`font-style`); React wants `fontStyle`
+									tokenStyle[
+										key.replace(/-([a-z])/g, (_, char: string) =>
+											char.toUpperCase(),
+										)
+									] = value;
 								}
 							}
 						}

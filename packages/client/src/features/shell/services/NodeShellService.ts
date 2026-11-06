@@ -1,7 +1,15 @@
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import {
+	readdir,
+	readFile,
+	realpath,
+	rename,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import type { HostShellPrimitives } from "#client/features/shell/services/HostShellService.ts";
 import { FileSystemUtils } from "#client/features/shell/utils/FileSystemUtils.ts";
@@ -112,6 +120,7 @@ export const NodeShellService = {
 					: process.platform === "darwin"
 						? "macos"
 						: "linux",
+			tmpdir: async () => tmpdir(),
 			cwd: async () => {
 				return process.cwd();
 			},
@@ -150,6 +159,21 @@ export const NodeShellService = {
 					path,
 					success: true,
 				};
+			},
+			rename: async ({ path, to }) => {
+				path = absolute(path);
+				to = absolute(to);
+				await stat(path);
+				mkdirSync(dirname(to), { recursive: true });
+				await rename(path, to);
+				return { path: to, success: true };
+			},
+			remove: async ({ path }) => {
+				path = absolute(path);
+				// Fails on a missing path rather than reporting it removed.
+				await stat(path);
+				await rm(path, { recursive: true });
+				return { path, success: true };
 			},
 			readFiles: async ({ paths, maxBytes }) =>
 				await FileSystemUtils.readFiles({

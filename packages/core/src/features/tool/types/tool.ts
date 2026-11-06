@@ -123,6 +123,12 @@ export interface Toolset<
 	tools: Tool<any, TCapabilities>[];
 	capabilities: TCapabilities;
 	status: ToolsetStatus;
+	/**
+	 * Turns the toolset on by what the chat holds rather than by the message's
+	 * `config.toolsets`, as the plan's is by `/plan`. Such a toolset is never
+	 * offered among those the user picks.
+	 */
+	when?: (context: zAgentContext) => boolean;
 }
 
 export type ToolsetFactory<T extends Toolset<any>> = (options: {

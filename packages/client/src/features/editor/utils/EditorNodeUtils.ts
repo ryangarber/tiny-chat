@@ -23,11 +23,20 @@ export const EditorNodeUtils = {
 		return { type: part.type, id: part.id };
 	},
 
-	quote: ({ model, text }: { model: string; text: string }): EditorNode =>
+	quote: ({
+		model,
+		source,
+		text,
+	}: {
+		model?: string;
+		source?: string;
+		text: string;
+	}): EditorNode =>
 		EditorNodeUtils.create({
 			id: CommonUtils.getRandomId(),
 			type: "quote",
-			model,
+			...(model ? { model } : {}),
+			...(source ? { source } : {}),
 			text,
 		}),
 

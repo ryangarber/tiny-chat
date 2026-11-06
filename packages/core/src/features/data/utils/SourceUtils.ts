@@ -10,12 +10,12 @@ import type {
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
-import { edit_file } from "#core/features/tool/tools/shell/edit_file.ts";
+import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { edit_files } from "#core/features/tool/tools/shell/edit_files.ts";
 import { grep_files } from "#core/features/tool/tools/shell/grep_files.ts";
 import { read_dir } from "#core/features/tool/tools/shell/read_dir.ts";
 import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
 import { search_files } from "#core/features/tool/tools/shell/search_files.ts";
-import { write_file } from "#core/features/tool/tools/shell/write_file.ts";
 import { search_web } from "#core/features/tool/tools/web/search_web.ts";
 import { view_web } from "#core/features/tool/tools/web/view_web.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
@@ -231,22 +231,20 @@ const fromToolCall = ({
 			},
 		}));
 	} else if (
-		ToolUtils.is(toolsets, part, write_file) ||
-		ToolUtils.is(toolsets, part, edit_file)
+		ToolUtils.is(toolsets, part, edit_files) ||
+		ToolUtils.is(toolsets, part, edit_plan)
 	) {
-		const output = ToolUtils.json<typeof write_file | typeof edit_file>(result);
-		return output[0]
-			? [
-					{
-						key: output[0].path,
-						type: "file",
-						value: {
-							path: output[0].path,
-							directory: false,
-						},
-					},
-				]
-			: [];
+		// What each step left behind: nothing of a deleted file, and a renamed
+		// one where it went.
+		return ToolUtils.json<typeof edit_files>(result).flatMap((output) =>
+			output.steps.flatMap((step): Source[] => {
+				if (step.error || step.action === "delete") return [];
+				const path = step.action === "rename" ? step.to : step.path;
+				return path
+					? [{ key: path, type: "file", value: { path, directory: false } }]
+					: [];
+			}),
+		);
 	}
 	return [];
 };

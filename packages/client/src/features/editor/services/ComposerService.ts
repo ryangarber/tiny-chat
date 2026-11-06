@@ -73,19 +73,22 @@ export const ComposerService = {
 	},
 
 	/** Quote a passage of a message into the message being written. */
+	/** Quote a model's reply, or a source by its path (see `zQuotePart`). */
 	insertQuote: ({
 		client,
 		model,
+		source,
 		text,
 	}: {
 		client: Client;
-		model: string;
+		model?: string;
+		source?: string;
 		text: string;
 	}) => {
 		if (!client.input) throw new Error("missing client input");
 		client.input.insertNode({
 			client,
-			node: EditorNodeUtils.quote({ model, text }),
+			node: EditorNodeUtils.quote({ model, source, text }),
 		});
 	},
 

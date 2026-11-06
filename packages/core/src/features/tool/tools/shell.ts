@@ -1,12 +1,11 @@
 import type { Capabilities } from "#core/core/types/capability.ts";
-import { createEditFileTool } from "#core/features/tool/tools/shell/edit_file.ts";
+import { createEditFilesTool } from "#core/features/tool/tools/shell/edit_files.ts";
 import { createGlobFilesTool } from "#core/features/tool/tools/shell/glob_files.ts";
 import { createGrepFilesTool } from "#core/features/tool/tools/shell/grep_files.ts";
 import { createReadDirTool } from "#core/features/tool/tools/shell/read_dir.ts";
 import { createReadFileTool } from "#core/features/tool/tools/shell/read_file.ts";
 import { createSearchFilesTool } from "#core/features/tool/tools/shell/search_files.ts";
 import { createShellExecTool } from "#core/features/tool/tools/shell/shell_exec.ts";
-import { createWriteFileTool } from "#core/features/tool/tools/shell/write_file.ts";
 import type {
 	Toolset,
 	ToolsetFactory,
@@ -22,8 +21,7 @@ export const createShellToolset: ToolsetFactory<
 		await createGlobFilesTool(options),
 		await createSearchFilesTool(options),
 		await createGrepFilesTool(options),
-		await createWriteFileTool(options),
-		await createEditFileTool(options),
+		await createEditFilesTool(options),
 		await createShellExecTool(options),
 	],
 	...options,

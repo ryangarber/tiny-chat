@@ -160,6 +160,10 @@ export const ToolUtils = {
 		return getIndex(toolsets).get(name) ?? { toolset: null, tool: null };
 	},
 
+	/** The toolsets the user turns on, leaving out those the chat does. */
+	selectable: <T extends Toolset<any>>(toolsets: T[]): T[] =>
+		toolsets.filter((toolset) => !toolset.when),
+
 	checkOne: ({
 		toolset,
 		config,

@@ -268,7 +268,7 @@ export default function ConfigEditor({
 
 		return [
 			model,
-			tools("Native tools", nativeTools.data ?? []),
+			tools("Native tools", ToolUtils.selectable(nativeTools.data ?? [])),
 			{
 				name: "MCP tools",
 				items: (mcpNamesKey ? mcpNamesKey.split(",") : []).map(mcpItem),

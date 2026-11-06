@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
 	useFindHidden,
 	useFindRevealed,
@@ -7,7 +8,9 @@ import { useMessageStore } from "#client/features/message/stores/useMessageStore
 import {
 	useAnyExpanded,
 	useAutoExpand,
+	useExpandKey,
 } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
@@ -58,14 +61,25 @@ export default function ToolGroup({
 	const revealing = useFindRevealing(parts.map((part) => part.id));
 	const revealed = useFindRevealed();
 	const opened = useAnyExpanded(parts.map((part) => part.id));
+	const groupKey = `group:${parts[0]?.id}`;
+	const scopedKey = useExpandKey(groupKey);
 	const { expanded, auto, toggle } = useAutoExpand(
-		`group:${parts[0]?.id}`,
+		groupKey,
 		group.pending || !!hold,
 		// Held open, too, around a call the user opened themselves — such as a
 		// lone call opened before the next call joined it into a run.
 		revealing || revealed || opened,
 	);
 	useFindHidden(!expanded && parts.length > 1);
+
+	// Opens to let a call in it that is being gone to be drawn.
+	const focusing = useExpandStore(
+		(s) => !!s.focused && parts.some((part) => part.id === s.focused),
+	);
+	useEffect(() => {
+		if (focusing && !expanded && parts.length > 1)
+			useExpandStore.getState().setOverride(scopedKey, true);
+	}, [focusing, expanded, scopedKey, parts.length]);
 
 	const items = parts.map((part) => (
 		<Box key={part.id} flexDirection="column">

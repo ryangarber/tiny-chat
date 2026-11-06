@@ -1,4 +1,4 @@
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { DesktopHandlers, DesktopSend } from "#desktop/core/types/rpc.ts";
 
@@ -17,6 +17,7 @@ export const ShellHostService = {
 		send: DesktopSend;
 	}): DesktopHandlers<
 		| "cwd"
+		| "tmpdir"
 		| "resolveDir"
 		| "locate"
 		| "readFile"
@@ -24,6 +25,8 @@ export const ShellHostService = {
 		| "readDir"
 		| "walk"
 		| "writeFile"
+		| "rename"
+		| "remove"
 		| "spawn"
 		| "kill"
 	> => {
@@ -32,6 +35,7 @@ export const ShellHostService = {
 
 		return {
 			cwd: async () => homedir(),
+			tmpdir: async () => tmpdir(),
 			resolveDir: (params) => shell.resolveDir(params),
 			locate: (params) => shell.locate(params),
 			readFile: async (params) => {
@@ -48,6 +52,8 @@ export const ShellHostService = {
 				return await shell.walk(params);
 			},
 			writeFile: (params) => shell.writeFile(params),
+			rename: (params) => shell.rename(params),
+			remove: (params) => shell.remove(params),
 			spawn: async ({ id, ...params }) => {
 				const abort = new AbortController();
 				running.set(id, abort);

@@ -16,6 +16,8 @@ const shell: ShellCapability = {
 	readFile: async ({ path }) => ({ path, data: readFileSync(path) }),
 	readDir: async () => [],
 	writeFile: async ({ path }) => ({ path, success: true }),
+	rename: async ({ to }) => ({ path: to, success: true }),
+	remove: async ({ path }) => ({ path, success: true }),
 	exec: async ({ command }) => {
 		const result = spawnSync(command, { shell: true, encoding: "utf8" });
 		return {

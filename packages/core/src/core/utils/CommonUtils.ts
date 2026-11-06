@@ -372,7 +372,7 @@ export const CommonUtils = {
 		} else if ((env.NO_WATCH ?? "").split(/[, ]/).includes(target)) {
 			watch = false;
 		}
-		if (!watch) console.log(`:: watch mode disabled for ${target}`);
+		if (!watch) console.log(`⁝ Watch mode disabled for ${target}`);
 		return {
 			watch,
 			argv: argv.filter((arg) => !arg.startsWith("--no-watch")),

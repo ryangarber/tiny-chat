@@ -4,7 +4,7 @@ import { type Components, useIsCodeFenceIncomplete } from "streamdown";
 import { ComponentUtils } from "#client/core/utils/ComponentUtils.ts";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
-import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
+import { ExpandService } from "#client/features/part/services/ExpandService.ts";
 import type { CodeLanguage } from "#core/core/utils/CodeUtils.ts";
 import { SourceUtils } from "#core/features/data/utils/SourceUtils.ts";
 import Popup from "#gui/core/components/Popup.tsx";
@@ -86,17 +86,6 @@ const CodeComponent: Components["code"] = ({
 	);
 };
 
-/** How long a call gone to is waited on to be drawn, before giving up on it. */
-const FOCUS_TIMEOUT = 2000;
-
-const focusToolCall = (id: string) => {
-	const { focus } = useExpandStore.getState();
-	focus(id);
-	setTimeout(() => {
-		if (useExpandStore.getState().focused === id) focus(null);
-	}, FOCUS_TIMEOUT);
-};
-
 const citationPillProps = {
 	size: "xs",
 	h: "auto",
@@ -130,7 +119,7 @@ const MarkComponent: Components["mark"] = ({ children, node }) => {
 							<Pill
 								{...citationPillProps}
 								style={{ cursor: "pointer" }}
-								onClick={() => focusToolCall(source.value.id)}
+								onClick={() => ExpandService.focusToolCall(source.value.id)}
 							>
 								{source.emoji}
 							</Pill>
@@ -196,8 +185,15 @@ const MarkComponent: Components["mark"] = ({ children, node }) => {
 };
 
 const BlockquoteComponent: Components["blockquote"] = ({ node, children }) => {
-	const { model } = ComponentUtils.props(node, { model: undefined });
-	return <Quote model={model}>{children}</Quote>;
+	const { model, source } = ComponentUtils.props(node, {
+		model: undefined,
+		source: undefined,
+	});
+	return (
+		<Quote model={model} source={source}>
+			{children}
+		</Quote>
+	);
 };
 
 const AComponent: Components["a"] = ({ href, children }) => {

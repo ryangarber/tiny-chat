@@ -244,7 +244,10 @@ export const AtomUtils = {
 		}
 
 		if (part.type === "quote") {
-			const model = part.model ?? "message";
+			const model =
+				part.model ??
+				(part.source ? PathUtils.name(part.source) : undefined) ??
+				"message";
 			return AtomUtils.register({
 				content,
 				kind: "quote",

@@ -5,11 +5,13 @@ import { createClient } from "#client/client.ts";
 import { ClaudeCodeRunService } from "#client/features/agent/services/ClaudeCodeRunService.ts";
 import { CodexRunService } from "#client/features/agent/services/CodexRunService.ts";
 import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
+import { CursorRunService } from "#client/features/agent/services/CursorRunService.ts";
 import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { CodeWorker } from "#core/core/utils/CodeUtils.ts";
 import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
 import { createCodexProvider } from "#core/features/provider/providers/model/CodexProvider.ts";
+import { createCursorProvider } from "#core/features/provider/providers/model/CursorProvider.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
 import { EditorInputService } from "#tui/features/editor/services/EditorInputService.ts";
 
@@ -17,6 +19,7 @@ import { EditorInputService } from "#tui/features/editor/services/EditorInputSer
 const claudeCode = createClaudeCodeProvider(ClaudeCodeRunService);
 /** Codex on the user's own sign-in, run in this process. */
 const codex = createCodexProvider(CodexRunService);
+const cursor = createCursorProvider(CursorRunService, CursorRunService.signIn);
 
 export const client = createClient({
 	env: {
@@ -47,11 +50,11 @@ export const client = createClient({
 	transports: NodeTransportService.create(),
 	providers: {
 		getModelProviders: async () => {
-			return [...AFMService.getProviders(), claudeCode, codex];
+			return [...AFMService.getProviders(), claudeCode, codex, cursor];
 		},
 		getProviderStates: async ({ user }) => {
 			return (await Promise.all(
-				[...AFMService.getProviders(), claudeCode, codex].map(
+				[...AFMService.getProviders(), claudeCode, codex, cursor].map(
 					async (provider) => ({
 						...provider,
 						status: await provider.getStatus({ user }),

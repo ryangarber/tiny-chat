@@ -16,12 +16,17 @@ import {
 	type CodexChannelMessage,
 	connectCodexHost,
 } from "@ryangarber/ai-sdk-providers/codex";
+import {
+	type CursorChannelMessage,
+	connectCursorHost,
+} from "@ryangarber/ai-sdk-providers/cursor";
 import { Electroview } from "electrobun/view";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createAFMProvider } from "#core/features/provider/providers/model/AFMProvider.ts";
 import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
 import { createCodexProvider } from "#core/features/provider/providers/model/CodexProvider.ts";
+import { createCursorProvider } from "#core/features/provider/providers/model/CursorProvider.ts";
 import type { DesktopRPC, McpServer } from "#desktop/core/types/rpc.ts";
 import type {
 	ClientRuntime,
@@ -44,6 +49,7 @@ const claudeCodeListeners = new Set<
 	(message: ClaudeCodeChannelMessage) => void
 >();
 /** Who listens for what the main process's Codex host sends. */
+const cursorListeners = new Set<(message: CursorChannelMessage) => void>();
 const codexListeners = new Set<(message: CodexChannelMessage) => void>();
 let updateListener: ((fraction: number) => void) | undefined;
 const urlListeners = new Set<(url: string) => void>();
@@ -72,6 +78,9 @@ function connect(): DesktopView {
 				afmEvent: ({ key, event }) => {
 					afmListeners.get(key)?.(event);
 					if (event.type === "finish") afmListeners.delete(key);
+				},
+				cursor: (message) => {
+					for (const listener of cursorListeners) listener(message);
 				},
 				claudeCode: (message) => {
 					for (const listener of claudeCodeListeners) listener(message);
@@ -142,7 +151,7 @@ function create(rpc: DesktopView): ClientRuntime {
 					reason: "platform-not-supported",
 				},
 			},
-		stream: (request, { signal } = {}) =>
+		stream: (request, options = {}) =>
 			createEventStream(async (onEvent) => {
 				const key = nextAfmKey++;
 				afmListeners.set(key, onEvent);
@@ -153,7 +162,7 @@ function create(rpc: DesktopView): ClientRuntime {
 					throw error;
 				}
 				return () => rpc.request.afmCancel({ key });
-			}, signal),
+			}, options.signal),
 	};
 	const AFMProvider = createAFMProvider(afmize);
 
@@ -178,6 +187,17 @@ function create(rpc: DesktopView): ClientRuntime {
 				return () => codexListeners.delete(handler);
 			},
 		}),
+	);
+
+	const CursorProvider = createCursorProvider(
+		connectCursorHost({
+			post: (message) => void rpc.request.cursor(message),
+			listen: (handler) => {
+				cursorListeners.add(handler);
+				return () => cursorListeners.delete(handler);
+			},
+		}),
+		() => rpc.request.cursorSignIn(),
 	);
 
 	const platform = window.__electrobunPlatform as RuntimePlatform;
@@ -210,10 +230,12 @@ function create(rpc: DesktopView): ClientRuntime {
 				: []),
 			ClaudeCodeProvider,
 			CodexProvider,
+			CursorProvider,
 		],
 		shell: {
 			os: platform === "windows" || platform === "linux" ? platform : "macos",
 			cwd: () => rpc.request.cwd(),
+			tmpdir: () => rpc.request.tmpdir(),
 			resolveDir: (params) => rpc.request.resolveDir(params),
 			locate: (params) => rpc.request.locate(params),
 			readFile: async (params) => {
@@ -231,6 +253,8 @@ function create(rpc: DesktopView): ClientRuntime {
 			readDir: (params) => rpc.request.readDir(params),
 			walk: (params) => rpc.request.walk(params),
 			writeFile: (params) => rpc.request.writeFile(params),
+			rename: (params) => rpc.request.rename(params),
+			remove: (params) => rpc.request.remove(params),
 			// Output arrives while it runs; the resolved value still carries all of
 			// it. It is stopped by the id it was started under.
 			spawn: async ({ program, args, cwd, env, stream, abort }) => {

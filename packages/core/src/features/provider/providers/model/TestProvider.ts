@@ -9,6 +9,7 @@ import type {
 import type { z } from "zod";
 import type { ModelProvider } from "#core/features/provider/types/model.ts";
 import { ModelProviderUtils } from "#core/features/provider/utils/ModelProviderUtils.ts";
+import type { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
 import type { spawn_subagent } from "#core/features/tool/tools/subagents/spawn_subagent.ts";
 
 export const TestProvider: ModelProvider<ProviderV4> = {
@@ -65,6 +66,7 @@ const BENCH_RE =
 	/%bench(?:\s+(text|code|table|tools|tasks|thought|mixed))?(?:\s+(\d+))?(?:\s*~(\d+))?/i;
 
 const SUB_RE = /%sub/;
+const PLAN_RE = /%plan/;
 
 async function emitText(
 	controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>,
@@ -171,6 +173,10 @@ function getSub(prompt: unknown): boolean {
 			return true;
 		}) === true
 	);
+}
+
+function getPlan(prompt: unknown): boolean {
+	return get(prompt, (text) => (PLAN_RE.test(text) ? true : null)) === true;
 }
 
 const WORDS =
@@ -304,8 +310,16 @@ async function runBench({
 		console.log("[TestProvider] path:", path);
 		await emitToolCall(
 			controller,
-			"write_file",
-			{ path: `${path}${n}.txt`, content: `Hello, world!` },
+			"edit_files",
+			{
+				steps: [
+					{
+						action: "write",
+						path: `${path}${n}.txt`,
+						content: `Hello, world!`,
+					},
+				],
+			},
 			delay > 0 ? () => sleep(delay) : undefined,
 		);
 		await emitToolCall(
@@ -337,8 +351,11 @@ async function runBench({
 		if (!answered) {
 			await emitToolCall(
 				controller,
-				"write_file",
-				{ path: "0.txt", content: "Hello, world!", background: true },
+				"edit_files",
+				{
+					steps: [{ action: "write", path: "0.txt", content: "Hello, world!" }],
+					background: true,
+				},
 				delay > 0 ? () => sleep(delay) : undefined,
 			);
 			await emitToolCall(
@@ -395,6 +412,45 @@ async function runSub({
 	}
 }
 
+/** Writes a plan with `edit_plan`, then asks for the go-ahead. */
+async function runPlan({
+	controller,
+	toolResult,
+}: {
+	controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+	toolResult?: LanguageModelV4ToolResultPart;
+}) {
+	if (!toolResult) {
+		await emitToolCall(controller, "edit_plan", {
+			steps: [
+				{
+					action: "write",
+					content: [
+						"# Plan",
+						"",
+						"Greet the user, then say how to add an API key.",
+						"",
+						"## Steps",
+						"",
+						"- [ ] Say hello.",
+						"- [ ] Point to Settings for an API key.",
+						"",
+						"## Checking",
+						"",
+						"Read the reply back.",
+						"",
+					].join("\n"),
+				},
+			],
+		} satisfies z.infer<typeof edit_plan.input>);
+	} else {
+		await emitText(
+			controller,
+			"The plan is written. Say the word and I'll carry it out.",
+		);
+	}
+}
+
 function createTestProvider(): ProviderV4 {
 	return {
 		specificationVersion: "v4",
@@ -438,6 +494,8 @@ function createTestProvider(): ProviderV4 {
 								});
 							} else if (sub) {
 								await runSub({ options, controller, toolResult });
+							} else if (getPlan(options.prompt)) {
+								await runPlan({ controller, toolResult });
 							} else {
 								controller.enqueue({
 									type: "text-start",

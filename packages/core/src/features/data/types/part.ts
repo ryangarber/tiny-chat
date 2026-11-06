@@ -195,7 +195,10 @@ export type zCommandPart = z.infer<typeof zCommandPart>;
 
 export const zQuotePart = _zDataPart.extend({
 	type: z.literal("quote"),
+	/** The model whose reply it was quoted from. */
 	model: z.string().optional(),
+	/** The source it was quoted from: a file's path, or `web:` and a URL. */
+	source: z.string().optional(),
 	text: z.string(),
 });
 export type zQuotePart = z.infer<typeof zQuotePart>;

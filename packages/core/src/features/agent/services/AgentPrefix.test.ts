@@ -159,7 +159,7 @@ const files = ({
 	status: { valid: true },
 	tools: (
 		[
-			["write_file", 30],
+			["edit_files", 30],
 			["read_dir", 5],
 		] as const
 	).map(
@@ -313,7 +313,7 @@ describe("AgentService prompt prefix", () => {
 	it("keeps the prefix while a background call runs and reports in", async () => {
 		const { provider, requests } = recording();
 		await chat(provider).send("%bench tasks ~0", {
-			toolset: files({ background: ["write_file"] }),
+			toolset: files({ background: ["edit_files"] }),
 		});
 
 		// Calls, the answer with the write still running, then its report.
@@ -341,7 +341,7 @@ describe("AgentService prompt prefix", () => {
 	it("keeps the prefix when a call waits on the user and the reply resumes", async () => {
 		const { provider, requests } = recording();
 		const { send, resume } = chat(provider);
-		const toolset = files({ approval: ["write_file"] });
+		const toolset = files({ approval: ["edit_files"] });
 
 		// Nobody answers, so the reply stops with the write unsettled.
 		await send("%bench tools 1 ~0", { toolset });
@@ -386,13 +386,13 @@ describe("AgentService prompt prefix", () => {
 		const { send, resume, messages } = chat(provider);
 
 		await send("%bench tasks ~0", {
-			toolset: files({ background: ["write_file"] }),
+			toolset: files({ background: ["edit_files"] }),
 		});
 		await send("%bench tools 2 ~0", {
 			toolset: files(),
 			interjections: interjecting("Make it quick"),
 		});
-		const toolset = files({ approval: ["write_file"] });
+		const toolset = files({ approval: ["edit_files"] });
 		await send("%bench tools 1 ~0", { toolset });
 		await resume({ toolset, toolFeedback: async () => ({ approved: true }) });
 		await send("%bench mixed 8 ~0", { toolset: files() });

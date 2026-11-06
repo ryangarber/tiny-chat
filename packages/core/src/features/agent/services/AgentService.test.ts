@@ -141,13 +141,15 @@ describe("AgentService", () => {
 			if (part?.type === "toolCall" && part.partial) seen.push(part.input);
 		}
 
-		// The input is readable while it is still being written.
+		// The input is readable while it is still being written: the file's
+		// path, as the first call (a write) or the second (a listing) has it.
+		type Input = { path?: string; steps?: { path?: string }[] };
+		const pathOf = (input: unknown) =>
+			(input as Input).path ?? (input as Input).steps?.[0]?.path;
 		expect(seen.length).toBeGreaterThan(1);
-		expect(seen.some((input) => !!(input as { path?: string }).path)).toBe(
-			true,
-		);
+		expect(seen.some((input) => !!pathOf(input))).toBe(true);
 		for (const input of seen) {
-			const path = (input as { path?: string }).path;
+			const path = pathOf(input);
 			if (path !== undefined)
 				expect("/mnt/chat/123/").toContain(
 					path.slice(0, "/mnt/chat/123/".length),
@@ -186,7 +188,7 @@ describe("AgentService", () => {
 		/** The calls the test model makes, never settling or looking at a signal. */
 		const hang = () => {
 			let started = 0;
-			const tools = ["write_file", "read_dir"].map(
+			const tools = ["edit_files", "read_dir"].map(
 				(name) =>
 					({
 						name,
@@ -285,7 +287,7 @@ describe("AgentService", () => {
 		}) => {
 			const log: string[] = [];
 			const gates = new Map<string, () => void>();
-			const tools = ["write_file", "read_dir"].map(
+			const tools = ["edit_files", "read_dir"].map(
 				(name) =>
 					({
 						name,
@@ -386,14 +388,14 @@ describe("AgentService", () => {
 
 			// The second finishes first, which it only can if both are running.
 			await release("read_dir");
-			await release("write_file");
+			await release("edit_files");
 			await done;
 
 			expect(log).toEqual([
-				"start write_file",
+				"start edit_files",
 				"start read_dir",
 				"end read_dir",
-				"end write_file",
+				"end edit_files",
 			]);
 			// Results are put back in the order of the calls.
 			const step = data.find((parts) =>
@@ -406,32 +408,32 @@ describe("AgentService", () => {
 					)
 					.map((part) => `${part.type} ${"name" in part ? part.name : ""}`),
 			).toEqual([
-				"toolCall write_file",
+				"toolCall edit_files",
 				"toolCall read_dir",
-				"toolResult write_file",
+				"toolResult edit_files",
 				"toolResult read_dir",
 			]);
 		});
 
 		it("runs a sequential call alone", async () => {
-			const { toolset, log, release } = gated({ sequential: ["write_file"] });
+			const { toolset, log, release } = gated({ sequential: ["edit_files"] });
 			const { events } = generate("%bench tools 1", toolset);
 			const done = drain(events);
 
-			await release("write_file");
+			await release("edit_files");
 			await release("read_dir");
 			await done;
 
 			expect(log).toEqual([
-				"start write_file",
-				"end write_file",
+				"start edit_files",
+				"end edit_files",
 				"start read_dir",
 				"end read_dir",
 			]);
 		});
 
 		it("carries on while a background call runs, then reports it", async () => {
-			const { toolset, log, release } = gated({ background: ["write_file"] });
+			const { toolset, log, release } = gated({ background: ["edit_files"] });
 			const { data, events } = generate("%bench tasks", toolset);
 			const done = drain(events);
 
@@ -440,7 +442,7 @@ describe("AgentService", () => {
 			while (!data.flat().some((part) => part.type === "text" && !!part.value))
 				await new Promise((r) => setTimeout(r, 5));
 			expect(log).toEqual([
-				"start write_file",
+				"start edit_files",
 				"start read_dir",
 				"end read_dir",
 			]);
@@ -453,12 +455,12 @@ describe("AgentService", () => {
 			await new Promise((r) => setTimeout(r, 50));
 			expect(ended).toBe(false);
 
-			await release("write_file");
+			await release("edit_files");
 			await done;
 
 			const parts = data.flat();
 			const placeholder = parts.find(
-				(part) => part.type === "toolResult" && part.name === "write_file",
+				(part) => part.type === "toolResult" && part.name === "edit_files",
 			);
 			expect(
 				placeholder?.type === "toolResult" &&
@@ -468,9 +470,9 @@ describe("AgentService", () => {
 				(part): part is zInterjectionPart =>
 					part.type === "interjection" && !!part.task,
 			);
-			expect(report?.task?.name).toBe("write_file");
+			expect(report?.task?.name).toBe("edit_files");
 			expect(report?.value).toMatchObject([
-				{ type: "text", value: "write_file done" },
+				{ type: "text", value: "edit_files done" },
 			]);
 			// The model answers once more, after it has been told.
 			expect(parts.at(-1)?.type).toBe("text");
@@ -481,7 +483,7 @@ describe("AgentService", () => {
 		});
 
 		it("stops background calls with the generation", async () => {
-			const { toolset, release } = gated({ background: ["write_file"] });
+			const { toolset, release } = gated({ background: ["edit_files"] });
 			const abort = new AbortController();
 			const { data, events } = generate("%bench tasks", toolset, abort.signal);
 			const done = drain(events);
@@ -533,7 +535,7 @@ describe("AgentService", () => {
 					.find((part) => part.type === "toolResult" && part.name === name);
 
 			it("takes an answer while another call runs, and carries on", async () => {
-				const { toolset, log, release } = gated({ approval: ["write_file"] });
+				const { toolset, log, release } = gated({ approval: ["edit_files"] });
 				const { toolFeedback, answer } = answering();
 				const { data, events } = generate(
 					"%bench tools 1",
@@ -546,19 +548,19 @@ describe("AgentService", () => {
 				const done = drain(events);
 
 				// Answered with the other call still running, so it starts at once.
-				await answer("write_file", { approved: true });
-				await release("write_file");
+				await answer("edit_files", { approved: true });
+				await release("edit_files");
 				await release("read_dir");
 				await done;
 
 				expect(log).toEqual([
 					"start read_dir",
-					"start write_file",
-					"end write_file",
+					"start edit_files",
+					"end edit_files",
 					"end read_dir",
 				]);
-				expect(result(data, "write_file")).toMatchObject({
-					output: [{ type: "text", value: "write_file done" }],
+				expect(result(data, "edit_files")).toMatchObject({
+					output: [{ type: "text", value: "edit_files done" }],
 				});
 				// No stop for the user: the model goes on after the results.
 				expect(data.flat().at(-1)?.type).toBe("text");
@@ -567,7 +569,7 @@ describe("AgentService", () => {
 			it("takes an answer while a background call runs", async () => {
 				const { toolset, log, release } = gated({
 					approval: ["read_dir"],
-					background: ["write_file"],
+					background: ["edit_files"],
 				});
 				const { toolFeedback, answer } = answering();
 				const { data, events } = generate("%bench tasks", toolset, undefined, {
@@ -583,12 +585,12 @@ describe("AgentService", () => {
 				)
 					await new Promise((r) => setTimeout(r, 5));
 				expect(log).toEqual([
-					"start write_file",
+					"start edit_files",
 					"start read_dir",
 					"end read_dir",
 				]);
 
-				await release("write_file");
+				await release("edit_files");
 				await done;
 				expect(result(data, "read_dir")).toMatchObject({
 					output: [{ type: "text", value: "read_dir done" }],
@@ -596,7 +598,7 @@ describe("AgentService", () => {
 			});
 
 			it("rejects a call the user denies", async () => {
-				const { toolset, log, release } = gated({ approval: ["write_file"] });
+				const { toolset, log, release } = gated({ approval: ["edit_files"] });
 				const { toolFeedback, answer } = answering();
 				const { data, events } = generate(
 					"%bench tools 1",
@@ -608,12 +610,12 @@ describe("AgentService", () => {
 				);
 				const done = drain(events);
 
-				await answer("write_file", { approved: false });
+				await answer("edit_files", { approved: false });
 				await release("read_dir");
 				await done;
 
 				expect(log).toEqual(["start read_dir", "end read_dir"]);
-				const rejected = result(data, "write_file");
+				const rejected = result(data, "edit_files");
 				expect(
 					rejected?.type === "toolResult" &&
 						ToolCallUtils.isRejection(rejected.output),
@@ -622,7 +624,7 @@ describe("AgentService", () => {
 			});
 
 			it("stops waiting once nothing else runs, and ends", async () => {
-				const { toolset, release } = gated({ approval: ["write_file"] });
+				const { toolset, release } = gated({ approval: ["edit_files"] });
 				const { toolFeedback, waits } = answering();
 				const { data, events } = generate(
 					"%bench tools 1",
@@ -637,20 +639,20 @@ describe("AgentService", () => {
 				await release("read_dir");
 				await done;
 
-				expect(waits.get("write_file")?.signal.aborted).toBe(true);
-				expect(result(data, "write_file")).toBeUndefined();
+				expect(waits.get("edit_files")?.signal.aborted).toBe(true);
+				expect(result(data, "edit_files")).toBeUndefined();
 				expect(result(data, "read_dir")).toBeDefined();
 				expect(data.flat().at(-1)?.type).toBe("toolResult");
 			});
 
 			it("resumes with an answer given ahead, and runs the call", async () => {
-				const { toolset, log, release } = gated({ approval: ["write_file"] });
+				const { toolset, log, release } = gated({ approval: ["edit_files"] });
 				const data: zData = [
 					[
 						{
 							type: "toolCall",
 							id: "write",
-							name: "write_file",
+							name: "edit_files",
 							input: { path: "/a" },
 							validation: { approval: true },
 						},
@@ -674,10 +676,10 @@ describe("AgentService", () => {
 				});
 				const done = drain(events);
 
-				await release("write_file");
+				await release("edit_files");
 				await done;
 
-				expect(log).toEqual(["start write_file", "end write_file"]);
+				expect(log).toEqual(["start edit_files", "end edit_files"]);
 				// Results stay after the calls, in their order, before the reply.
 				expect(
 					data[0].map((part) =>

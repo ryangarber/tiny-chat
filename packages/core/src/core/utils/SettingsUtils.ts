@@ -111,6 +111,8 @@ export const SettingsUtils = {
 				from?.codeTheme && codeThemes.includes(from.codeTheme)
 					? from.codeTheme
 					: codeThemes[0],
+			// Drawing large images (screenshots, mostly) stalls the terminal UI.
+			tuiImages: from?.tuiImages ?? "none",
 			instructions: from?.instructions ?? [],
 			commands: from?.commands ?? [],
 			folders: from?.folders ?? [],

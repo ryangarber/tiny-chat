@@ -82,7 +82,7 @@ export default function ConfigPanel({
 	const toolItems = useMemo(
 		(): CapabilityMenuItem[] =>
 			config
-				? toolsets.map((toolset) => {
+				? ToolUtils.selectable(toolsets).map((toolset) => {
 						const name = ToolUtils.name({ toolset });
 						return {
 							key: name,

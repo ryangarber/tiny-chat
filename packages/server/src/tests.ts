@@ -1,8 +1,6 @@
 import "./db.ts";
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-
-import { inferPrismaClient } from "@ryangarber/better-auth-adapter-prisma/client";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createAuthClient } from "better-auth/client";
@@ -10,6 +8,7 @@ import {
 	anonymousClient,
 	inferAdditionalFields,
 } from "better-auth/client/plugins";
+import { inferPrismaClient } from "better-auth-prisma-orm/client";
 import { beforeAll } from "vitest";
 import { JsonService } from "#core/core/services/JsonService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";

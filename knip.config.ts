@@ -17,7 +17,7 @@ export default {
 		"events",
 		"ink-testing-library",
 		"babel-plugin-react-compiler",
-		"@ryangarber/prisma-orm-extension-zod",
+		"prisma-orm-extension-zod",
 		"playwright",
 		"@capawesome/capacitor-assets",
 	],

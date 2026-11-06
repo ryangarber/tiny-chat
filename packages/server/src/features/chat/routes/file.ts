@@ -56,6 +56,18 @@ export const file = router({
 			await FileService.writeFile({ user: ctx.session.user, ...input });
 		}),
 
+	rename: procedure
+		.input(Filesystem.extend({ path: PathLike, to: PathLike }))
+		.mutation(async ({ ctx, input }) => {
+			return await FileService.rename({ user: ctx.session.user, ...input });
+		}),
+
+	remove: procedure
+		.input(Filesystem.extend({ path: PathLike }))
+		.mutation(async ({ ctx, input }) => {
+			return await FileService.remove({ user: ctx.session.user, ...input });
+		}),
+
 	exec: procedure
 		.input(Filesystem.extend({ command: z.string() }))
 		// The signal fires when the client drops the request, which is how a

@@ -11,17 +11,17 @@ types {
 
 namespace public {
   model User {
-    id            String       @id(map: "user_pkey")
+    id            String               @id(map: "user_pkey")
     name          String
     email         String
-    emailVerified Boolean      @default(false)
+    emailVerified Boolean              @default(false)
     image         String?
-    createdAt     Timestamp(3) @default(now())
-    updatedAt     Timestamp(3)
-    isAnonymous   Boolean?     @default(false)
-    settings      zSettings    @default(sql`'{}'::jsonb`)
-    cache         zCache       @default(sql`'{}'::jsonb`)
-    isEphemeral   Boolean?     @default(false)
+    createdAt     TimestampTemporal(3) @default(now())
+    updatedAt     TimestampTemporal(3)
+    isAnonymous   Boolean?             @default(false)
+    settings      zSettings            @default(sql`'{}'::jsonb`)
+    cache         zCache               @default(sql`'{}'::jsonb`)
+    isEphemeral   Boolean?             @default(false)
     accounts      Account[]
     actions       Action[]
     chats         Chat[]
@@ -39,50 +39,50 @@ namespace public {
   }
 
   model Account {
-    id                    String        @id(map: "account_pkey")
+    id                    String                @id(map: "account_pkey")
     accountId             String
     providerId            String
     userId                String
     accessToken           String?
     refreshToken          String?
     idToken               String?
-    accessTokenExpiresAt  Timestamp(3)?
-    refreshTokenExpiresAt Timestamp(3)?
+    accessTokenExpiresAt  TimestampTemporal(3)?
+    refreshTokenExpiresAt TimestampTemporal(3)?
     scope                 String?
     password              String?
-    createdAt             Timestamp(3)  @default(now())
-    updatedAt             Timestamp(3)
-    user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "account_userId_fkey")
+    createdAt             TimestampTemporal(3)  @default(now())
+    updatedAt             TimestampTemporal(3)
+    user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "account_userId_fkey")
 
     @@index([userId], map: "account_userId_idx")
     @@map("account")
   }
 
   model Project {
-    id        String       @id(map: "project_pkey")
+    id        String               @id(map: "project_pkey")
     userId    String
     title     String?
-    createdAt Timestamp(3) @default(now())
+    createdAt TimestampTemporal(3) @default(now())
     chats     Chat[]
-    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "project_userId_fkey")
-    settings  zSettings    @default(sql`'{}'::jsonb`)
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "project_userId_fkey")
+    settings  zSettings            @default(sql`'{}'::jsonb`)
 
     @@index([userId], map: "project_userId_idx")
     @@map("project")
   }
 
   model Chat {
-    id        String       @id(map: "chat_pkey")
+    id        String               @id(map: "chat_pkey")
     userId    String
     projectId String?
     title     String?
-    createdAt Timestamp(3) @default(now())
-    temporary Boolean      @default(false)
-    incognito Boolean      @default(false)
+    createdAt TimestampTemporal(3) @default(now())
+    temporary Boolean              @default(false)
+    incognito Boolean              @default(false)
     files     File[]
     messages  Message[]
-    project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "chat_projectId_fkey")
-    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "chat_userId_fkey")
+    project   Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "chat_projectId_fkey")
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "chat_userId_fkey")
 
     @@index([projectId], map: "chat_projectId_idx")
     @@index([userId], map: "chat_userId_idx")
@@ -102,7 +102,7 @@ namespace public {
   }
 
   model Message {
-    id         String          @id(map: "message_pkey")
+    id         String                @id(map: "message_pkey")
     userId     String
     chatId     String
     previousId String?
@@ -111,17 +111,17 @@ namespace public {
     data       zData
     metadata   zMetadata
     embedding  Embedding?
-    createdAt  Timestamp(3)    @default(now())
-    updatedAt  Timestamp(3)?
+    createdAt  TimestampTemporal(3)  @default(now())
+    updatedAt  TimestampTemporal(3)?
     actions    Action[]
     dreams     Dream[]
     memories   Memory[]
     subagents  Subagent[]
-    chat       Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "message_chatId_fkey")
-    previous   Message?        @relation(name: "message_previousId_fkey", fields: [previousId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "message_previousId_fkey")
-    next       Message[]       @relation(name: "message_previousId_fkey")
-    user       User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "message_userId_fkey")
-    context    Memory[]        @relation("MessageContext")
+    chat       Chat                  @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "message_chatId_fkey")
+    previous   Message?              @relation(name: "message_previousId_fkey", fields: [previousId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "message_previousId_fkey")
+    next       Message[]             @relation(name: "message_previousId_fkey")
+    user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "message_userId_fkey")
+    context    Memory[]              @relation("MessageContext")
 
     @@index([chatId], map: "message_chatId_idx")
     @@index([previousId], map: "message_previousId_key")
@@ -130,18 +130,18 @@ namespace public {
   }
 
   model Action {
-    id        String        @id(map: "action_pkey")
+    id        String                @id(map: "action_pkey")
     userId    String
     schedule  String
     config    zConfig
     data      zData
     embedding Embedding?
-    createdAt Timestamp(3)  @default(now())
+    createdAt TimestampTemporal(3)  @default(now())
     messageId String
-    lastRanAt Timestamp(3)?
+    lastRanAt TimestampTemporal(3)?
     timezone  String
-    message   Message       @relation(fields: [messageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "action_messageId_fkey")
-    user      User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "action_userId_fkey")
+    message   Message               @relation(fields: [messageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "action_messageId_fkey")
+    user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "action_userId_fkey")
 
     @@index([messageId], map: "action_messageId_idx")
     @@index([userId], map: "action_userId_idx")
@@ -149,14 +149,14 @@ namespace public {
   }
 
   model Dream {
-    id        String       @id(map: "dream_pkey")
+    id        String               @id(map: "dream_pkey")
     userId    String
     data      zData
     metadata  zMetadata
-    createdAt Timestamp(3) @default(now())
+    createdAt TimestampTemporal(3) @default(now())
     config    zConfig
     messages  Message[]
-    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "dream_userId_fkey")
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "dream_userId_fkey")
 
     @@index([userId], map: "dream_userId_idx")
     @@map("dream")
@@ -175,33 +175,33 @@ namespace public {
   }
 
   model Upload {
-    id        String              @id(map: "upload_pkey")
+    id        String               @id(map: "upload_pkey")
     userId    String
     name      String
-    createdAt Timestamp(3)        @default(now())
+    createdAt TimestampTemporal(3) @default(now())
     kind      pg.enum(UploadKind)
     thumbnail Bytes?
     files     File[]
-    user      User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "upload_userId_fkey")
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "upload_userId_fkey")
 
     @@index([userId], map: "upload_userId_idx")
     @@map("upload")
   }
 
   model File {
-    id        String        @id(map: "file_pkey")
+    id        String                @id(map: "file_pkey")
     userId    String
     uploadId  String?
     path      String[]
     mime      String
     data      Bytes
     embedding Embedding?
-    createdAt Timestamp(3)  @default(now())
-    updatedAt Timestamp(3)?
+    createdAt TimestampTemporal(3)  @default(now())
+    updatedAt TimestampTemporal(3)?
     chatId    String?
-    chat      Chat?         @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_chatId_fkey")
-    upload    Upload?       @relation(fields: [uploadId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_uploadId_fkey")
-    user      User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_userId_fkey")
+    chat      Chat?                 @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_chatId_fkey")
+    upload    Upload?               @relation(fields: [uploadId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_uploadId_fkey")
+    user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "file_userId_fkey")
 
     @@index([chatId], map: "file_chatId_idx")
     @@index([uploadId], map: "file_uploadId_idx")
@@ -219,8 +219,8 @@ namespace public {
     evidence   String[]
     confidence Float
     embedding  Embedding?
-    createdAt  Timestamp(3)             @default(now())
-    updatedAt  Timestamp(3)?
+    createdAt  TimestampTemporal(3)     @default(now())
+    updatedAt  TimestampTemporal(3)?
     messageId  String?
     message    Message?                 @relation(fields: [messageId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "memory_messageId_fkey")
     user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "memory_userId_fkey")
@@ -232,15 +232,15 @@ namespace public {
   }
 
   model Session {
-    id        String       @id(map: "session_pkey")
-    expiresAt Timestamp(3)
+    id        String               @id(map: "session_pkey")
+    expiresAt TimestampTemporal(3)
     token     String
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3)
+    createdAt TimestampTemporal(3) @default(now())
+    updatedAt TimestampTemporal(3)
     ipAddress String?
     userAgent String?
     userId    String
-    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "session_userId_fkey")
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "session_userId_fkey")
 
     @@index([token], map: "session_token_key", unique: true)
     @@index([userId], map: "session_userId_idx")
@@ -248,13 +248,13 @@ namespace public {
   }
 
   model Subagent {
-    id        String       @id(map: "subagent_pkey")
-    createdAt Timestamp(3) @default(now())
+    id        String               @id(map: "subagent_pkey")
+    createdAt TimestampTemporal(3) @default(now())
     data      zData
     messages  Message[]
     metadata  zMetadata
     userId    String
-    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "subagent_userId_fkey")
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "subagent_userId_fkey")
     partId    String
 
     @@index([partId], map: "subagent_partId_key", unique: true)
@@ -275,12 +275,12 @@ namespace public {
   }
 
   model Verification {
-    id         String       @id(map: "verification_pkey")
+    id         String               @id(map: "verification_pkey")
     identifier String
     value      String
-    expiresAt  Timestamp(3)
-    createdAt  Timestamp(3) @default(now())
-    updatedAt  Timestamp(3)
+    expiresAt  TimestampTemporal(3)
+    createdAt  TimestampTemporal(3) @default(now())
+    updatedAt  TimestampTemporal(3)
 
     @@index([identifier], map: "verification_identifier_idx")
     @@map("verification")

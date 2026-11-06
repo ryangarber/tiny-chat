@@ -1,4 +1,5 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import SharedErrorBoundary from "#client/core/components/ErrorBoundary.tsx";
 import Text from "#tui/core/components/Text.tsx";
 
 type ErrorBoundaryProps = {
@@ -9,51 +10,28 @@ type ErrorBoundaryProps = {
 	children?: ReactNode;
 };
 
-type ErrorBoundaryState = { error: Error | null; resetKey: unknown };
-
 /**
  * Keeps one piece of the UI that fails to draw from taking the app down with
  * it. Ink unmounts everything over an error that reaches its root — with the
- * alternate screen, the whole app simply vanishes — so content that comes
- * from outside (markdown, tool output, sources) is drawn inside one of these,
- * and a failure there leaves a note in its place instead.
+ * alternate screen, the whole app simply vanishes — so a failure leaves a
+ * one-line note in its place instead.
  */
-export default class ErrorBoundary extends Component<
-	ErrorBoundaryProps,
-	ErrorBoundaryState
-> {
-	state: ErrorBoundaryState = { error: null, resetKey: this.props.resetKey };
-
-	static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
-		return {
-			error: error instanceof Error ? error : new Error(String(error)),
-		};
-	}
-
-	static getDerivedStateFromProps(
-		props: ErrorBoundaryProps,
-		state: ErrorBoundaryState,
-	): Partial<ErrorBoundaryState> | null {
-		if (Object.is(props.resetKey, state.resetKey)) return null;
-		return { error: null, resetKey: props.resetKey };
-	}
-
-	componentDidCatch(error: unknown, info: ErrorInfo) {
-		console.error(
-			`[ErrorBoundary] failed to draw ${this.props.label ?? "content"}`,
-			error,
-			info.componentStack,
-		);
-	}
-
-	render() {
-		const { error } = this.state;
-		if (!error) return this.props.children;
-
-		return (
-			<Text color="red" wrap="truncate-end">
-				⚠ Couldn’t draw {this.props.label ?? "this"}: {error.message}
-			</Text>
-		);
-	}
+export default function ErrorBoundary({
+	label,
+	resetKey,
+	children,
+}: ErrorBoundaryProps) {
+	return (
+		<SharedErrorBoundary
+			label={label}
+			resetKey={resetKey}
+			fallback={({ error }) => (
+				<Text color="red" wrap="truncate-end">
+					⚠ Couldn’t draw {label ?? "this"}: {error.message}
+				</Text>
+			)}
+		>
+			{children}
+		</SharedErrorBoundary>
+	);
 }

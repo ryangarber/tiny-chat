@@ -1,8 +1,8 @@
-import type { CodecTypes } from "@ryangarber/prisma-orm-extension-zod/codec-types";
+import type { CodecTypes } from "prisma-orm-extension-zod/codec-types";
 import {
 	createZodExtension,
 	defineZodSchema,
-} from "@ryangarber/prisma-orm-extension-zod/column-types";
+} from "prisma-orm-extension-zod/column-types";
 import { zConfig } from "#core/features/data/types/message.ts";
 import { zData, zMetadata } from "#core/features/data/types/part.ts";
 import { zCache, zSettings } from "#core/features/data/types/user.ts";

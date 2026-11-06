@@ -950,7 +950,9 @@ export default function Capabilities() {
 				<Tabs.Panel value="tools:native">
 					<ScrollArea type="auto" offsetScrollbars h={400}>
 						<Stack gap="xs">
-							<ToolsetView toolsets={nativeTools.data ?? []} />
+							<ToolsetView
+								toolsets={ToolUtils.selectable(nativeTools.data ?? [])}
+							/>
 						</Stack>
 					</ScrollArea>
 				</Tabs.Panel>

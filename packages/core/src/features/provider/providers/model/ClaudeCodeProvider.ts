@@ -464,12 +464,12 @@ const readEvent = (event: TextStreamPart<any>): zAgentEvent[] | undefined => {
 	) {
 		const output = event.type === "tool-result" ? event.output : event.error;
 		// A subagent's work so far, shown inside its call while it runs.
-		if (event.type === "tool-result" && event.preliminary) {
-			const progress = output as ClaudeCodeSubagentProgress | undefined;
-			return progress?.type === "subagent"
-				? [{ type: "toolStream", id: event.toolCallId, data: toData(progress) }]
-				: [];
-		}
+		// `ai` drops `preliminary` from a provider's results: its shape tells.
+		const progress = output as ClaudeCodeSubagentProgress | undefined;
+		if (event.type === "tool-result" && progress?.type === "subagent")
+			return [
+				{ type: "toolStream", id: event.toolCallId, data: toData(progress) },
+			];
 		const result: zToolResultPart = {
 			type: "toolResult",
 			id: event.toolCallId,
@@ -486,7 +486,8 @@ const readEvent = (event: TextStreamPart<any>): zAgentEvent[] | undefined => {
 	}
 
 	if (event.type === "custom") {
-		// Work in the background ended, as Tiny Chat's own background calls do.
+		// Work in the background ended, as Tiny Chat's own background calls do:
+		// a subagent with its report, a shell with what it printed.
 		if (event.kind === "claude-code.task-notification" && metadata?.toolCallId)
 			return [
 				{
@@ -496,14 +497,21 @@ const readEvent = (event: TextStreamPart<any>): zAgentEvent[] | undefined => {
 						type: "interjection",
 						task: {
 							id: String(metadata.toolCallId),
-							name: "Agent",
+							name:
+								typeof metadata.toolName === "string"
+									? metadata.toolName
+									: "Agent",
 							error: metadata.status !== "completed" || undefined,
 						},
 						value: [
 							{
 								id: CommonUtils.getRandomId(),
 								type: "text",
-								value: String(metadata.summary ?? ""),
+								value: String(
+									typeof metadata.output === "string" && metadata.output.trim()
+										? metadata.output
+										: (metadata.summary ?? ""),
+								),
 							},
 						],
 						signature: { model: NAME },

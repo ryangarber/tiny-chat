@@ -1,6 +1,6 @@
 import { bundledLanguagesInfo } from "shiki/langs";
 import { bundledThemesInfo } from "shiki/themes";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	type CodeRequest,
 	CodeUtils,
@@ -150,5 +150,33 @@ describe("CodeUtils", () => {
 			await CodeUtils.highlight(first);
 			expect(CodeUtils.peek(request("start\nmiddle two\nend"))).toBeNull();
 		});
+	});
+
+	it("starts a new worker a while after one fails", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			let started = 0;
+			CodeUtils.setWorker(() => {
+				started++;
+				const instance = createEchoWorker();
+				if (started === 1)
+					instance.postMessage = () =>
+						setTimeout(() => instance.onerror?.({ message: "load failed" }));
+				return instance;
+			});
+
+			expect(await CodeUtils.highlight(request("const x = 1;"))).toBeNull();
+			// still cooling down
+			expect(await CodeUtils.highlight(request("const y = 2;"))).toBeNull();
+			expect(started).toBe(1);
+
+			vi.setSystemTime(Date.now() + 10_000);
+			expect(await CodeUtils.highlight(request("const z = 3;"))).not.toBeNull();
+			expect(started).toBe(2);
+		} finally {
+			vi.useRealTimers();
+			CodeUtils.setWorker(undefined);
+			CodeUtils.clear();
+		}
 	});
 });

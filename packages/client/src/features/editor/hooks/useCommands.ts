@@ -22,6 +22,7 @@ import { usePresets } from "#client/features/settings/hooks/usePresets.ts";
 import { useProviderSettings } from "#client/features/settings/hooks/useProviderSettings.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import { ThemeUtils } from "#core/core/utils/ThemeUtils.ts";
+import { PlanService } from "#core/features/agent/services/PlanService.ts";
 import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 import type { ModelProviderStatus } from "#core/features/provider/types/model.ts";
 import type { ProviderState } from "#core/features/provider/types/provider.ts";
@@ -457,6 +458,8 @@ export const useCommands = ({
 						choices: presetChoices,
 					},
 					{ name: "system-prompt", value: "system-prompt", dynamic: true },
+					// Asks for a plan before the work, kept as a file in the chat.
+					{ name: PlanService.command, value: PlanService.command },
 					...userData,
 					...uploads,
 					...shell,

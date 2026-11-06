@@ -152,10 +152,15 @@ ${actions?.map((action) => `<action id="${action.id}" schedule="${action.schedul
 </actions>`;
 			}
 
-			if (enabledToolsets.length) {
+			// A toolset with nothing to say — the plan's, whose instructions go
+			// with the message that asked for it — leaves the prompt as it was.
+			const instructed = enabledToolsets.filter(
+				(toolset) => toolset.instructions,
+			);
+			if (instructed.length) {
 				instructions += `\n
 <toolsets>
-${enabledToolsets.map((toolset) => `<toolset name="${ToolUtils.name({ toolset })}">\n${toolset.instructions}\n</toolset>`).join("\n")}
+${instructed.map((toolset) => `<toolset name="${ToolUtils.name({ toolset })}">\n${toolset.instructions}\n</toolset>`).join("\n")}
 </toolsets>`;
 			}
 

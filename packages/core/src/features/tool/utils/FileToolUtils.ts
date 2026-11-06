@@ -41,7 +41,8 @@ const contains = (folderPath: string, path: string): boolean => {
 export const FileToolUtils = {
 	/**
 	 * Writes skip approval inside `/mnt/chat` (the chat's own scratch tree), or
-	 * inside a writable folder from the merged settings (last matching folder wins).
+	 * inside the OS temporary directory, or a writable folder from the merged
+	 * settings (last matching folder wins).
 	 * Folders are compared as the local `shell` spells paths, which is how the
 	 * model names them.
 	 */
@@ -49,20 +50,33 @@ export const FileToolUtils = {
 		path,
 		context,
 		shell,
+		tmpdir,
+		cwd,
 	}: {
 		path: string;
 		context: zAgentContext;
 		shell?: ShellCapability;
+		tmpdir?: string;
+		cwd?: string;
 	}): boolean => {
-		const normalized = normalizeAbsolutePath(path);
+		const localPath = shell?.toShellPath?.({ path }) ?? path;
+		const normalized =
+			normalizeAbsolutePath(localPath) ??
+			(cwd && !/^(?:[\\/]|[A-Za-z]:)/.test(localPath)
+				? normalizeAbsolutePath(`${cwd}/${localPath}`)
+				: null);
 		if (
 			normalized &&
 			PathUtils.fromMount({ path: normalized })?.mount === "chat"
 		)
 			return false;
 
+		if (tmpdir && contains(tmpdir, normalized ?? localPath)) return false;
+
 		const { folders } = SettingsUtils.of(context.user, context.chat?.project);
 		const local = shell ? ShellUtils.toShellFolders(shell, folders) : folders;
-		return !local.findLast((folder) => contains(folder.path, path))?.whitelist;
+		return !local.findLast((folder) =>
+			contains(folder.path, normalized ?? localPath),
+		)?.whitelist;
 	},
 } as const;

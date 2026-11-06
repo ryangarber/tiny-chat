@@ -1,17 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useContext, useMemo } from "react";
 import { ClientContext } from "#client/client.ts";
-import { FileOperationService } from "#core/features/file/services/FileOperationService.ts";
-import { FileSearchService } from "#core/features/file/services/FileSearchService.ts";
+import { SkillService } from "#client/features/agent/services/SkillService.ts";
+import { useChat } from "#client/features/chat/hooks/useChat.ts";
+import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
+import { useSettings } from "#client/features/settings/hooks/useSettings.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import { SkillUtils } from "#core/features/skill/utils/SkillUtils.ts";
-
-/** Where local skills live, a directory each. */
-const LOCAL_SKILLS_PATH = "~/.agents/skills";
-
-/** Bytes of a SKILL.md read; only its frontmatter is parsed. */
-const MAX_SKILL_MD_BYTES = 256_000;
 
 export const localSkillsQueryKey = ["skills", "local"] as const;
 export const nativeSkillsQueryKey = ["skills", "native"] as const;
@@ -19,90 +15,30 @@ export const nativeSkillsQueryKey = ["skills", "native"] as const;
 export const useSkills = () => {
 	const client = useContext(ClientContext);
 
+	const { nextChat } = useChat();
+	const { settings } = useSettings();
+	const chatId = useChatStore((state) => state.active.chatId);
+	const projectId = useChatStore((state) => state.active.project?.id ?? null);
+
 	const localSkills = useQuery({
-		queryKey: localSkillsQueryKey,
+		queryKey: [
+			...localSkillsQueryKey,
+			chatId,
+			projectId,
+			nextChat.project?.settings?.folders,
+			settings.data?.folders,
+		],
 		queryFn: async () => {
 			const shell = client.shell;
 			if (!shell) return [];
 
-			// One walk and one read, rather than a `readDir` per directory and a
-			// `readFile` per file: only each skill's SKILL.md is parsed.
-			let walked: Awaited<ReturnType<typeof FileSearchService.walk>>;
-			try {
-				walked = await FileSearchService.walk({
-					shell,
-					path: LOCAL_SKILLS_PATH,
-					scope: "listing",
-					includeDirectories: true,
-					gitignore: false,
-				});
-			} catch {
-				// No skills directory, so no local skills.
-				return [];
-			}
-
-			// Each directory under the root is a skill; its SKILL.md is the
-			// shallowest one in it.
-			const found = new Map<
-				string,
-				{ path: string; skillMd?: { path: string; depth: number } }
-			>();
-			for (const entry of walked.entries) {
-				const [name, ...rest] = PathUtils.split(
-					PathUtils.relative({ base: walked.root, path: entry.path }),
-				);
-				if (!name) continue;
-				if (!rest.length) {
-					if (entry.is_dir) found.set(name, { path: entry.path });
-					continue;
-				}
-				const skill = found.get(name);
-				if (
-					!skill ||
-					entry.is_dir ||
-					rest.at(-1)?.toLowerCase() !== "skill.md" ||
-					(skill.skillMd && skill.skillMd.depth <= rest.length)
-				)
-					continue;
-				skill.skillMd = { path: entry.path, depth: rest.length };
-			}
-
-			const local = [...found.values()];
-			const reads = local.flatMap(({ skillMd }) =>
-				skillMd ? [skillMd.path] : [],
-			);
-			const data = await FileOperationService.readFiles({
+			// Activation resolves the primary folder on this device and moves the
+			// shell there. Never discover relative to the previous chat's folder.
+			await client.workingDirectory.ready();
+			return SkillService.discover({
 				shell,
-				paths: reads,
-				maxBytes: MAX_SKILL_MD_BYTES,
+				primaryFolder: await shell.cwd?.(),
 			});
-			const read = new Map(reads.map((path, index) => [path, data[index]]));
-
-			const skills: zSkill[] = [];
-			for (const { path, skillMd } of local) {
-				let skill: zSkill | null = null;
-				const file = skillMd && read.get(skillMd.path);
-				if (skillMd && file) {
-					try {
-						skill = SkillUtils.buildSkill({
-							files: [{ path: skillMd.path, data: file.data }],
-						});
-					} catch (error) {
-						console.warn("failed to build local skill:", error);
-					}
-				}
-				skills.push(
-					skill ?? {
-						path,
-						name: "",
-						description: "Error: unrecognized format",
-						attributes: {},
-					},
-				);
-			}
-
-			console.log("[useSkills] built local skills:", skills);
-			return skills;
 		},
 		staleTime: Infinity,
 		refetchOnWindowFocus: false,

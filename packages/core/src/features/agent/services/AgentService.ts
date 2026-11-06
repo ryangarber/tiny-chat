@@ -10,6 +10,7 @@ import {
 	AgentTokensService,
 	type CompactionResult,
 } from "#core/features/agent/services/AgentTokensService.ts";
+import { PlanService } from "#core/features/agent/services/PlanService.ts";
 import type {
 	zAgentContext,
 	zAgentEvent,
@@ -66,7 +67,9 @@ export const AgentService = {
 		const enabledToolsets = toolsets.filter(
 			(toolset) =>
 				toolset.status.valid &&
-				prompt?.config?.toolsets?.includes(ToolUtils.name({ toolset })),
+				(toolset.when
+					? toolset.when(context)
+					: prompt?.config?.toolsets?.includes(ToolUtils.name({ toolset }))),
 		);
 		if (VERBOSE) console.log("[AgentService] enabled tools:", enabledToolsets);
 		const enabledSkills = skills.filter(
@@ -251,6 +254,15 @@ export const AgentService = {
 		const instructions =
 			[builtInstructions, extraInstructions].filter(Boolean).join("\n\n") ||
 			undefined;
+
+		// A plan is a file from the moment it is asked for, so it is in the
+		// chat's sources and an edit has something to land on.
+		const chatId = context.chat?.id;
+		if (chatId && PlanService.isActive(context.messages)) {
+			await PlanService.ensure({ capabilities, chatId }).catch((error) =>
+				console.warn("[AgentService] could not create the plan:", error),
+			);
+		}
 
 		if (!config) throw new Error("missing config");
 		const supportsTools = (

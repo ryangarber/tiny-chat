@@ -1,4 +1,3 @@
-import { inferAuthClient } from "@ryangarber/better-auth-adapter-prisma/client";
 import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
@@ -7,6 +6,7 @@ import {
 	inferAdditionalFields,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
+import { inferAuthClient } from "better-auth-prisma-orm/client";
 import { createContext } from "react";
 import type { ClientTransports } from "#client/features/agent/types/transport.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";

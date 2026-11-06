@@ -1,0 +1,93 @@
+/* Beside the scrollbar, which Mantine draws 12px wide at the right edge. */
+.rail {
+	position: absolute;
+	top: 0;
+	right: 14px;
+	width: 14px;
+	pointer-events: none;
+	z-index: calc(var(--mantine-z-index-app) + 1);
+}
+
+.mark {
+	position: absolute;
+	right: 0;
+	width: 14px;
+	height: 8px;
+	margin-top: -4px;
+	padding: 0;
+	border: 0;
+	background: none;
+	cursor: pointer;
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.mark::after {
+	content: "";
+	display: block;
+	height: 2px;
+	border-radius: 1px;
+	width: 6px;
+	background: var(--mantine-color-default-border);
+	transition:
+		width 120ms ease,
+		background-color 120ms ease;
+}
+
+.mark[data-type="message"]::after {
+	width: 10px;
+	background: var(--mantine-color-dimmed);
+	opacity: 0.6;
+}
+
+.mark[data-current]::after {
+	background: var(--mantine-color-blue-filled);
+	opacity: 1;
+}
+
+.mark:hover::after,
+.mark:focus-visible::after {
+	width: 14px;
+	background: var(--mantine-color-blue-filled);
+	opacity: 1;
+}
+
+.mark:focus-visible {
+	outline: none;
+}
+
+/* A call still going: a dot. */
+.mark[data-type="toolCall"]::after {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	margin-right: 2px;
+	opacity: 1;
+	background: var(--mantine-color-orange-filled);
+	animation: chapter-pulse 1.6s ease-in-out infinite;
+}
+
+.mark[data-type="toolCall"][data-state="feedback"]::after {
+	background: var(--mantine-color-yellow-filled);
+}
+
+.mark[data-type="toolCall"]:hover::after,
+.mark[data-type="toolCall"]:focus-visible::after {
+	width: 8px;
+	height: 8px;
+	margin-right: 1px;
+}
+
+@keyframes chapter-pulse {
+	50% {
+		opacity: 0.35;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mark[data-type="toolCall"]::after {
+		animation: none;
+	}
+}

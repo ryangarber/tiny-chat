@@ -15,10 +15,13 @@ export interface ProviderStatus {
 
 export interface Provider<T extends ProviderStatus = ProviderStatus>
 	extends zProvider {
+	/** Interactive sign-in on the local host; resolves after credentials are saved. */
+	signIn?: () => Promise<void>;
 	getStatus: ({ user }: { user: zUser }) => Promise<T>;
 }
 
 export interface ProviderState<T extends ProviderStatus = ProviderStatus>
-	extends zProvider {
+	extends zProvider,
+		Pick<Provider, "signIn"> {
 	status: T;
 }

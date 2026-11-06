@@ -191,6 +191,10 @@ export const FileTypeUtils = {
 		return extension ?? fallback;
 	},
 
+	/** Whether a file is written in Markdown, so reads as prose. */
+	isMarkdown: (path: string) =>
+		/\.(md|markdown|mdx)$/i.test(PathUtils.name({ path })),
+
 	getLanguage: ({
 		mime,
 		name,

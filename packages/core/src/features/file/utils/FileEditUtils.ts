@@ -218,7 +218,7 @@ export const FileEditUtils = {
 	}: FileEdit): FileEditResult => {
 		if (!old_string.length) {
 			throw new Error(
-				"old_string is empty. Use write_file to create a file or fill in the text to replace.",
+				"old_string is empty. Use a write step to create a file or fill in the text to replace.",
 			);
 		}
 		if (old_string === new_string) {

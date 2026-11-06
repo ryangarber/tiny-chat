@@ -5,6 +5,7 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useDocument } from "#client/features/part/hooks/useDocument.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { ToolBlock as ToolBlockType } from "#core/features/tool/types/display.ts";
+import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import Code from "#gui/features/code/components/Code.tsx";
 import Diff from "#gui/features/code/components/Diff.tsx";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
@@ -54,19 +55,27 @@ function Document({
 	);
 }
 
+type ToolBlockProps = {
+	block: ToolBlockType;
+	/** Whether the call is still streaming or running. */
+	active: boolean;
+};
+
+/** Each block on its own, so one that fails to draw leaves the rest of the call. */
+export default function ToolBlock(props: ToolBlockProps) {
+	return (
+		<ErrorBoundary label={`this ${props.block.type}`} resetKey={props.block}>
+			<ToolBlockBody {...props} />
+		</ErrorBoundary>
+	);
+}
+
 /**
  * Draws one piece of tool content. This is the whole of the app's knowledge
  * of tools: each tool describes itself in these blocks, so a new tool needs no
  * code here.
  */
-export default function ToolBlock({
-	block,
-	active,
-}: {
-	block: ToolBlockType;
-	/** Whether the call is still streaming or running. */
-	active: boolean;
-}) {
+function ToolBlockBody({ block, active }: ToolBlockProps) {
 	switch (block.type) {
 		case "text":
 			return (

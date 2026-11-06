@@ -38,6 +38,16 @@ export const createChatShellCapability: CapabilityFactory<
 			return { path, success: true };
 		},
 
+		rename: async ({ path, to }) => ({
+			path: await FileService.rename({ user, ...spec, path, to }),
+			success: true,
+		}),
+
+		remove: async ({ path }) => ({
+			path: await FileService.remove({ user, ...spec, path }),
+			success: true,
+		}),
+
 		exec: async ({ command, abort }) => {
 			return await FileService.exec({ user, ...spec, command, abort });
 		},
