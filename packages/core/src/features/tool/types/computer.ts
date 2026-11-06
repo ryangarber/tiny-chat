@@ -207,6 +207,11 @@ export const zComputerStatus = z.object({
 	input: z.boolean().optional(),
 	/** Permissions the user still has to grant: `accessibility`, `screen`. */
 	missing: z.array(z.string()).optional(),
+	/**
+	 * Whether the screen can be captured: not where permission is missing, nor
+	 * where the platform has no way to (no screenshot portal, say).
+	 */
+	screen: z.boolean().optional(),
 });
 export type zComputerStatus = z.infer<typeof zComputerStatus>;
 

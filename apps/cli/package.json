@@ -20,9 +20,10 @@
 		"smoketest": "bun ./scripts/smoketest.ts"
 	},
 	"dependencies": {
-		"@babel/core": "^8.0.10",
+		"@afmize/node": "catalog:ai",
+		"@babel/core": "^8.1.0",
 		"@napi-rs/keyring": "^2.1.2",
-		"@tanstack/react-query": "^5.105.0",
+		"@tanstack/react-query": "^5.105.3",
 		"client": "workspace:*",
 		"core": "workspace:*",
 		"ink": "^8.0.0",

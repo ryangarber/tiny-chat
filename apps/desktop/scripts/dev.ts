@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
+import { mkdir } from "node:fs/promises";
+import { proc } from "@ryangarber/utils";
 import { concurrently } from "concurrently";
 import { zClientEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
-import { spawn } from "../../../scripts/spawn.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 import { useServer } from "../../../scripts/use-server.ts";
-import { buildNative } from "./native.ts";
 
 /**
  * The desktop app against the dev server. By default the window loads the
@@ -20,19 +20,18 @@ const dist = process.argv.includes("--dist");
 const env = useEnv({ type: zClientEnv });
 const cleanup = await useServer({ execPath: "node", quiet: true });
 
-await spawn({
+await proc({
+	title: "Preparing Electrobun",
 	command: ["pnpm", "exec", "electrobun", "prepare"],
-	label: ["electrobun prepare", "preparing electrobun"],
-	output: "tail",
 });
-await buildNative("debug");
+// What `electrobun.config.ts` copies, which a dev build with HMR leaves empty.
+await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
 
 try {
 	if (dist) {
-		await spawn({
+		await proc({
+			title: "Building GUI",
 			command: ["pnpm", "exec", "vite", "build"],
-			label: ["gui build", "building gui"],
-			output: "tail",
 		});
 		await concurrently(
 			[

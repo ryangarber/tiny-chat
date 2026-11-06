@@ -4,7 +4,10 @@ import {
 	useFindRevealing,
 } from "#client/features/find/hooks/useFindScope.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
-import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
+import {
+	useAnyExpanded,
+	useAutoExpand,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
@@ -54,10 +57,13 @@ export default function ToolGroup({
 	// inside a segment, such as a subagent's.
 	const revealing = useFindRevealing(parts.map((part) => part.id));
 	const revealed = useFindRevealed();
+	const opened = useAnyExpanded(parts.map((part) => part.id));
 	const { expanded, auto, toggle } = useAutoExpand(
 		`group:${parts[0]?.id}`,
 		group.pending || !!hold,
-		revealing || revealed,
+		// Held open, too, around a call the user opened themselves — such as a
+		// lone call opened before the next call joined it into a run.
+		revealing || revealed || opened,
 	);
 	useFindHidden(!expanded && parts.length > 1);
 

@@ -3,13 +3,10 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { watch } from "node:fs/promises";
 import { resolve } from "node:path";
+import { log } from "@ryangarber/utils";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { useServer } from "../../../scripts/use-server.ts";
-import {
-	print,
-	setExitHandler,
-	setPassthrough,
-} from "../../../scripts/use-stdout.ts";
+import { setExitHandler, setPassthrough } from "../../../scripts/use-stdout.ts";
 import { compile } from "./compile.ts";
 
 const { watch: watchMode, argv } = CommonUtils.getWatchMode("cli");
@@ -36,12 +33,12 @@ async function run() {
 		({ path }) => path.split("/").at(-1) === "index.js",
 	);
 	if (!entrypoint) {
-		print({ level: "warning", message: "no entrypoint found" });
+		log({ level: "warning", message: "No entrypoint found" });
 		return null;
 	}
 
 	const args = ["bun", entrypoint.path, ...argv.slice(2)];
-	print({ message: "running", details: `> ${args.join(" ")}` });
+	log({ message: "Running", details: `> ${args.join(" ")}` });
 
 	const started = spawn(args[0], args.slice(1), {
 		stdio: "inherit",
@@ -55,11 +52,11 @@ async function run() {
 		child = undefined;
 		setPassthrough(false);
 
-		if (watchMode) print({ message: "waiting for changes" });
+		if (watchMode) log({ message: "Waiting for changes" });
 	});
 
 	if (!result?.metafile) {
-		print({ level: "warning", message: "no metafile found" });
+		log({ level: "warning", message: "No metafile found" });
 		return null;
 	}
 
@@ -77,11 +74,11 @@ async function reload(inputs: string[] | null) {
 		lastInputs = inputs;
 
 		if (!inputs) {
-			print({ level: "warning", message: "nothing to watch" });
+			log({ level: "warning", message: "nothing to watch" });
 			return;
 		}
 
-		print({ message: `watching ${inputs.length} files` });
+		log({ message: `Watching ${inputs.length} files` });
 		const event = await Promise.any(
 			inputs.map(async (input) => {
 				return watch(input, { signal: abort.signal })
@@ -90,7 +87,7 @@ async function reload(inputs: string[] | null) {
 			}),
 		);
 
-		print({ message: `↻ changes: ${event.value?.filename}` });
+		log({ message: `↻ Changes: ${event.value?.filename}` });
 		const newInputs = await run();
 		await reload(newInputs);
 	} finally {

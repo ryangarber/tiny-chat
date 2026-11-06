@@ -43,7 +43,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # FoundationModels (afmize-host) needs the macOS 27 SDK.
           - platform: "xcode-27"
           - platform: "ubuntu-latest"
           - platform: "windows-latest"
@@ -59,7 +58,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || inputs.version || github.ref }}
-          submodules: recursive
 
       # What Electrobun's Linux webview and tray need to run.
       - name: Install packages
@@ -105,14 +103,6 @@ jobs:
           path: ~/.hutch
           key: ${{ runner.os }}-${{ runner.arch }}-hutch-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-hutch-
-
-      - name: Cache SwiftPM
-        if: runner.os == 'macOS'
-        uses: actions/cache@v6
-        with:
-          path: apps/desktop/afmize-host/.build
-          key: ${{ runner.os }}-${{ runner.arch }}-afmize-host-${{ hashFiles('apps/desktop/afmize-host/**/*.swift', 'vendor/afmize/Package.swift', 'vendor/afmize/Package.resolved', 'vendor/afmize/Sources/**') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-afmize-host-
 
       - name: Build app
         run: pnpm build:desktop

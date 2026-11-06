@@ -93,11 +93,9 @@ export default function Attachments({
 			}}
 			onInput={({ item, key }) => {
 				if (key.return && item) {
-					void AttachmentService.create({ client, item })
-						.then((node) =>
-							apply(AttachmentUtils.apply({ content, query, node })),
-						)
-						.catch((error) => console.warn("Failed to attach item", error));
+					// In at once, read in the background.
+					const node = AttachmentService.create({ client, item });
+					apply(AttachmentUtils.apply({ content, query, node }));
 				}
 				if (key.tab && item) {
 					apply(AttachmentUtils.complete({ content, query, item }));

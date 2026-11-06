@@ -50,7 +50,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || inputs.version || github.ref }}
-          submodules: recursive
 
       - name: Create cache key
         id: toolchain
@@ -66,7 +65,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-${{ hashFiles('apps/mobile/ios/App/CapApp-SPM/Package.resolved', 'vendor/afmize/Package.resolved') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-${{ hashFiles('apps/mobile/ios/App/CapApp-SPM/Package.resolved') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-
 
       - name: Install dependencies
@@ -99,10 +98,10 @@ jobs:
         if: env.DRY_RUN == 'true' && inputs.version
         run: pnpm pkg set "version=${{ inputs.version }}"
 
-      - name: Build iOS archive
+      - name: Build IPA
         run: pnpm build:ios
 
-      - name: Package app
+      - name: Package IPA
         run: |
           APP_PATH=$(find "$RUNNER_TEMP/App.xcarchive/Products/Applications" \
             -maxdepth 1 -name "*.app" | head -1)

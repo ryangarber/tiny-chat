@@ -1,10 +1,10 @@
-import { Box, Collapse, Group, Text } from "@mantine/core";
 import { ClipboardTextIcon } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
 import {
 	useFindHidden,
 	useFindRevealed,
 } from "#client/features/find/hooks/useFindScope.ts";
+import Task from "#gui/features/part/components/Task.tsx";
 
 export default function Paste({
 	lines,
@@ -23,32 +23,20 @@ export default function Paste({
 	const label = lines ? `${lines} pasted lines` : "Pasted";
 
 	return (
-		<Box my={10}>
-			<Group
-				onClick={() => {
-					setOpen(!expanded);
-				}}
-				style={{ cursor: grabbable ? "grab" : "pointer" }}
-				gap="xs"
-				wrap="nowrap"
-			>
-				<ClipboardTextIcon size={24} color="var(--mantine-color-dimmed)" />
-				<Text truncate="end">{label}</Text>
-			</Group>
-			<Collapse expanded={expanded}>
-				{expanded && (
-					<Box
-						style={{
-							borderLeft: "2px solid var(--mantine-color-default-border)",
-						}}
-						px="lg"
-						py="xs"
-						ml={8}
-					>
-						{children}
-					</Box>
-				)}
-			</Collapse>
-		</Box>
+		<Task expanded={expanded} onToggle={() => setOpen(!expanded)} my={10}>
+			<Task.Status
+				icon={
+					<ClipboardTextIcon
+						size={20}
+						color="var(--mantine-color-dimmed)"
+						className="shrink-0"
+					/>
+				}
+				status="success"
+				parts={[{ text: label }]}
+				style={grabbable ? { cursor: "grab" } : undefined}
+			/>
+			<Task.Details>{children}</Task.Details>
+		</Task>
 	);
 }

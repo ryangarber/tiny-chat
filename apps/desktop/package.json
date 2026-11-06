@@ -18,6 +18,8 @@
 		"electrobun": "electrobun"
 	},
 	"dependencies": {
+		"@afmize/node": "catalog:ai",
+		"@ryangarber/ai-sdk-providers": "catalog:ai",
 		"client": "workspace:*",
 		"core": "workspace:*",
 		"electrobun": "^2.0.5",

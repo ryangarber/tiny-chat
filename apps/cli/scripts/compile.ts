@@ -1,10 +1,9 @@
-import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import * as Babel from "@babel/core";
+import { log, task } from "@ryangarber/utils";
 import chalk from "chalk";
 import { zClientEnv } from "#core/core/types/env.ts";
-import { buildAfmize } from "../../../scripts/build-afmize.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
-import { create, print } from "../../../scripts/use-stdout.ts";
 
 const env = useEnv({ type: zClientEnv });
 export const environment = Object.fromEntries(
@@ -25,19 +24,12 @@ type BuildResult = Omit<BuildOutput, "logs"> & {
 	logs: (BuildOutput["logs"][number] | { error: unknown })[];
 };
 
-/** The stub `AFMLibrary.ts` that `afmize` stands in for once it is built. */
-const AFM_LIBRARY = fileURLToPath(
-	new URL("../src/core/services/AFMLibrary.ts", import.meta.url),
-);
-
 export async function compile({
 	dev = false,
 	...options
 }: Partial<Parameters<typeof Bun.build>[0]> & {
 	dev?: boolean;
 } = {}): Promise<BuildResult | null> {
-	const afmize = await buildAfmize(dev ? "debug" : "release");
-
 	const define = Object.fromEntries(
 		Object.entries(environment).flatMap(([key, value]) => {
 			if (key === "process.env.DEV") {
@@ -53,13 +45,12 @@ export async function compile({
 	define["process.env.NODE_ENV"] = JSON.stringify(
 		dev ? "development" : "production",
 	);
-	print({
-		message: `environment${dev ? " · dev" : ""}`,
+	log({
+		message: `Environment${dev ? " · dev" : ""}`,
 		details: Object.keys(define).join(", "),
-		level: "verbose",
 	});
 
-	const update = create("compiling");
+	const status = await task("Compiling");
 
 	let result: BuildResult | null = null;
 
@@ -70,22 +61,9 @@ export async function compile({
 			entrypoints: ["./src/index.ts", "./src/highlight.ts"],
 			banner: "globalThis.UPNG = undefined;",
 			plugins: [
-				{
-					// Embedded as a file: in a compiled binary, Bun extracts it for
-					// `dlopen`; in `dist/`, it is copied beside the bundle.
-					name: "afmize",
-					setup: (build) => {
-						if (!afmize) return;
-						build.onLoad({ filter: /[\\/]AFMLibrary\.ts$/ }, (args) =>
-							args.path === AFM_LIBRARY
-								? {
-										contents: `import library from ${JSON.stringify(afmize)} with { type: "file" };\nexport default library;`,
-										loader: "ts",
-									}
-								: undefined,
-						);
-					},
-				},
+				// @afmize/node's library needs nothing here: its Bun entry imports
+				// it as a file, which Bun copies beside the bundle (or embeds in a
+				// compiled binary).
 				{
 					name: "react-compiler",
 					setup: (build) => {
@@ -122,23 +100,32 @@ export async function compile({
 			outputs: [],
 		};
 	} finally {
-		update(
-			result?.success ? "compiled" : "failed to compile",
-			!result?.success ? "error" : undefined,
-		);
+		if (result?.success) {
+			await status.complete({ status: "Compiled" });
+		} else {
+			await status.fail({ status: "Failed to compile" });
+		}
 		if (result) {
-			print({
-				details: result.outputs.map(
-					(output) =>
-						`${output.path.split("/").at(-1)} ${chalk.gray(`@ ${(output.size / 1024 / 1024).toFixed(1)} MB`)}`,
-				),
+			log({
+				details: result.outputs
+					.map(
+						(output) =>
+							`${output.path.split("/").at(-1)} ${chalk.gray(`@ ${(output.size / 1024 / 1024).toFixed(1)} MB`)}`,
+					)
+					.join("\n"),
 			});
 		}
-		for (const log of result?.logs ?? []) {
-			if ("error" in log) {
-				print({ details: log.error });
+		for (const entry of result?.logs ?? []) {
+			if ("error" in entry) {
+				log({ message: inspect(entry.error), level: "error" });
 			} else {
-				print(log);
+				log({
+					message: entry.message,
+					level:
+						entry.level === "error" || entry.level === "warning"
+							? entry.level
+							: "info",
+				});
 			}
 		}
 	}

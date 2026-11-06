@@ -16,27 +16,10 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		94536B04307E0601004E39B9 /* Icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 94536B03307E0601004E39B9 /* Icon.icon */; };
-		949515E2307B7389008F0E7A /* AfmizePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949515E1307B737F008F0E7A /* AfmizePlugin.swift */; };
 		949515E9307B7F31008F0E7A /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949515E8307B7F27008F0E7A /* ViewController.swift */; };
-		949515F4307B8D77008F0E7A /* dynafmize in Frameworks */ = {isa = PBXBuildFile; productRef = 949515F3307B8D77008F0E7A /* dynafmize */; };
-		949515F5307B8D85008F0E7A /* dynafmize in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 949515F3307B8D77008F0E7A /* dynafmize */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		949515F7307C0A19008F0E7A /* KeyboardPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949515F6307C0A11008F0E7A /* KeyboardPlugin.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		949515F1307B8C69008F0E7A /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				949515F5307B8D85008F0E7A /* dynafmize in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -49,7 +32,6 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		94536B03307E0601004E39B9 /* Icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon.icon; sourceTree = "<group>"; };
-		949515E1307B737F008F0E7A /* AfmizePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AfmizePlugin.swift; sourceTree = "<group>"; };
 		949515E8307B7F27008F0E7A /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		949515F6307C0A11008F0E7A /* KeyboardPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardPlugin.swift; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -61,7 +43,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				949515F4307B8D77008F0E7A /* dynafmize in Frameworks */,
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -90,7 +71,6 @@
 			isa = PBXGroup;
 			children = (
 				949515E8307B7F27008F0E7A /* ViewController.swift */,
-				949515E1307B737F008F0E7A /* AfmizePlugin.swift */,
 				949515F6307C0A11008F0E7A /* KeyboardPlugin.swift */,
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -116,7 +96,6 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
-				949515F1307B8C69008F0E7A /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -125,7 +104,6 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
-				949515F3307B8D77008F0E7A /* dynafmize */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -159,7 +137,6 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
-				949515F2307B8D77008F0E7A /* XCLocalSwiftPackageReference "../../../../vendor/afmize" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -193,7 +170,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
-				949515E2307B7389008F0E7A /* AfmizePlugin.swift in Sources */,
 				949515F7307C0A19008F0E7A /* KeyboardPlugin.swift in Sources */,
 				949515E9307B7F31008F0E7A /* ViewController.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
@@ -416,10 +392,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		949515F2307B8D77008F0E7A /* XCLocalSwiftPackageReference "../../../../vendor/afmize" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../../../vendor/afmize;
-		};
 		D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "CapApp-SPM";
@@ -431,10 +403,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
-		};
-		949515F3307B8D77008F0E7A /* dynafmize */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = dynafmize;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

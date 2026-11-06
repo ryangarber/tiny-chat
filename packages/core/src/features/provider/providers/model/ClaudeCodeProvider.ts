@@ -1,44 +1,71 @@
-import type { ProviderV4 } from "@ai-sdk/provider";
+import {
+	type ClaudeCodeHost,
+	type ClaudeCodeOptions,
+	type ClaudeCodeProvider as ClaudeCodeSdk,
+	type ClaudeCodeStatus,
+	type ClaudeCodeSubagentProgress,
+	type ClaudeCodeToolOutput,
+	createClaudeCode,
+} from "@ryangarber/ai-sdk-providers/claude";
+import type { Tool as SdkTool, TextStreamPart } from "ai";
+import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { SettingsUtils } from "#core/core/utils/SettingsUtils.ts";
 import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
 import type {
-	zFileChanges,
-	zInterjectionPart,
-	zToolCallPart,
+	zData,
+	zDataSimplePart,
 	zToolResultPart,
 } from "#core/features/data/types/part.ts";
-import {
-	CLAUDE_CODE_EFFORTS,
-	CLAUDE_CODE_PERMISSION_MODES,
-	type ClaudeCodeBridge,
-	type ClaudeCodeEvent,
-	type ClaudeCodeHandlers,
-	type ClaudeCodeModel,
-	type ClaudeCodeRequest,
-	type ClaudeCodeSettings,
-	type ClaudeCodeStatus,
-	type ClaudeCodeThinkingConfig,
-} from "#core/features/provider/types/claude.ts";
 import type {
 	ModelProvider,
 	zModel,
 	zModelArg,
 } from "#core/features/provider/types/model.ts";
-import { ClaudeCodeUtils } from "#core/features/provider/utils/ClaudeCodeUtils.ts";
-import { AskQuestionUtils } from "#core/features/tool/tools/questions/ask_question.ts";
-import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
-import { ModelProviderUtils } from "../../utils/ModelProviderUtils.ts";
+import { ModelProviderUtils } from "#core/features/provider/utils/ModelProviderUtils.ts";
+import {
+	AskQuestionUtils,
+	ask_question,
+	askQuestionDisplay,
+} from "#core/features/tool/tools/questions/ask_question.ts";
+import type { ToolDisplay } from "#core/features/tool/types/display.ts";
+import type { Tool } from "#core/features/tool/types/tool.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 
 const NAME = "claude-code";
+/** What `providerOptions` and metadata are keyed by. */
+const KEY = "claudeCode";
+
+export const CLAUDE_CODE_EFFORTS = [
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+] as const;
+
+/** Claude Code's own permission modes. */
+export const CLAUDE_CODE_PERMISSION_MODES = [
+	"default",
+	"acceptEdits",
+	"plan",
+	"auto",
+	"dontAsk",
+	"bypassPermissions",
+] as const;
 
 /**
- * Claude Code's model aliases, which follow its newest models: offered until
- * `claude` says what it offers the account.
+ * How the user set Claude Code up, from the provider's settings. Strings, as
+ * every provider setting is.
  */
-const MODELS: ClaudeCodeModel[] = ["haiku", "sonnet", "opus"].map((value) => ({
-	value,
-	efforts: [...CLAUDE_CODE_EFFORTS],
-}));
+export interface ClaudeCodeSettings {
+	/** The `claude` to run, in place of the one found on the login shell's path. */
+	executable?: string;
+	/**
+	 * Settings above all of those files, as Claude Code's `settings.json` takes
+	 * them: a JSON object, or the path of a file holding one.
+	 */
+	settings?: string;
+}
 
 /** Its settings, in the order they are shown. */
 const SETTINGS = [
@@ -46,64 +73,170 @@ const SETTINGS = [
 	"settings",
 ] as const satisfies (keyof ClaudeCodeSettings)[];
 
+/**
+ * Claude Code's model aliases, which follow its newest models: offered until
+ * `claude` says what it offers the account.
+ */
+const MODELS: NonNullable<ClaudeCodeStatus["models"]> = [
+	"haiku",
+	"sonnet",
+	"opus",
+].map((value) => ({ value, efforts: [...CLAUDE_CODE_EFFORTS] }));
+
 /** Its own tools that start a subagent, which the user can stop on its own. */
 const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 
-/** How often a run checks for messages the user queued. */
-const QUEUE_MS = 1000;
+/** The file types Claude reads as they are; others are sent as text. */
+const SUPPORTED_FILES = [
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
+	"application/pdf",
+];
 
 /** One of `values` that `value` is, if it is one. */
 const pick = <T extends string>(values: readonly T[], value: unknown) =>
 	values.find((v) => v === value);
 
-/** Pulls a run's events in order, as a host pushes them. */
-const createQueue = <T>() => {
-	const items: T[] = [];
-	let wake: (() => void) | undefined;
-	return {
-		push: (item: T) => {
-			items.push(item);
-			wake?.();
-		},
-		next: async (): Promise<T> => {
-			while (!items.length) await new Promise<void>((r) => (wake = r));
-			wake = undefined;
-			return items.shift() as T;
-		},
-	};
+/** A setting holding JSON, or nothing if it is empty or unreadable. */
+const parseJson = (value: string) => {
+	try {
+		return JSON.parse(value) as Record<string, unknown>;
+	} catch {
+		console.warn("[ClaudeCodeProvider] settings are not valid JSON");
+		return undefined;
+	}
 };
+
+/** What one of Claude Code's own tools returned, as Tiny Chat's parts. */
+const toParts = (output: unknown): zDataSimplePart[] => {
+	const id = () => CommonUtils.getRandomId();
+	if (typeof output === "string")
+		return output ? [{ id: id(), type: "text", value: output }] : [];
+	if (!Array.isArray(output)) return [];
+	return (output as Exclude<ClaudeCodeToolOutput, string>).flatMap(
+		(block): zDataSimplePart[] => {
+			if (block.type === "text")
+				return [{ id: id(), type: "text", value: block.text }];
+			return [
+				{
+					id: id(),
+					type: "file",
+					mime: block.mediaType,
+					data: block.data,
+					...(block.type === "document" &&
+						block.title && { name: block.title }),
+				},
+			];
+		},
+	);
+};
+
+/** A subagent's conversation so far, as the steps of a reply. */
+const toData = ({ messages }: ClaudeCodeSubagentProgress): zData => {
+	const data: zData = [];
+	for (const message of messages) {
+		if (message.role === "assistant") {
+			data.push(
+				message.content.map((part) =>
+					part.type === "tool-call"
+						? {
+								type: "toolCall" as const,
+								id: part.toolCallId,
+								name: part.toolName,
+								input: part.input,
+							}
+						: {
+								id: CommonUtils.getRandomId(),
+								type:
+									part.type === "text"
+										? ("text" as const)
+										: ("thought" as const),
+								value: part.text,
+							},
+				),
+			);
+		} else {
+			const step = data.at(-1);
+			if (!step) continue;
+			for (const result of message.content)
+				step.push({
+					type: "toolResult",
+					id: result.toolCallId,
+					name: result.toolName,
+					output: toParts(result.output),
+					...(result.isError && { error: true }),
+				});
+		}
+	}
+	return data;
+};
+
+/** What a part keeps of this provider's metadata: where its session was left. */
+const signatureMetadata = (metadata: Record<string, unknown>) => {
+	const kept: Record<string, string> = {};
+	for (const key of ["sessionId", "cursor"])
+		if (typeof metadata[key] === "string") kept[key] = metadata[key] as string;
+	return kept;
+};
+
+/** This provider's metadata on a part or event, if it has any. */
+const metadataOf = (event: unknown) =>
+	(event as { providerMetadata?: Record<string, Record<string, unknown>> })
+		?.providerMetadata?.[KEY];
+
+/**
+ * Claude Code's `AskUserQuestion`, answered as Tiny Chat's own questions are:
+ * the user fills in its fields, and Claude Code reads the answers.
+ */
+const askUserQuestion = {
+	...ask_question,
+	name: "AskUserQuestion",
+	display: askQuestionDisplay as ToolDisplay<typeof ask_question>,
+	execute: async ({ input, feedback }) => [
+		{
+			type: "json",
+			value: { answers: AskQuestionUtils.getAnswers(input, feedback) },
+		},
+	],
+} as Tool<typeof ask_question, void> as Tool<any, any>;
 
 /**
  * Claude Code on the user's own subscription, through their installed and
- * signed-in `claude`, running its own agent loop. Its own tools and prompt and
- * Tiny Chat's, over MCP, are each switched on or off: its own go through its
- * permission flow in the mode picked, Tiny Chat's through Tiny Chat's. The
- * host supplies only the {@link ClaudeCodeBridge}.
+ * signed-in `claude`, as a model: one step of its own agent loop at a time,
+ * picked up again from its session with the next. Its own tools and prompt,
+ * and Tiny Chat's tools over MCP, are each switched on or off; its own run
+ * through its permission flow, answered in Tiny Chat. The host runs `claude`:
+ * in this process, or another one over a channel.
  */
 export const createClaudeCodeProvider = (
-	bridge: ClaudeCodeBridge,
-): ModelProvider<ProviderV4> => {
+	host: ClaudeCodeHost | (() => ClaudeCodeHost | Promise<ClaudeCodeHost>),
+): ModelProvider<ClaudeCodeSdk> => {
+	const sdk = createClaudeCode({ host });
+
 	/** What `claude` last said it offers, which the models' args follow. */
 	let offered: ClaudeCodeStatus | undefined;
 
 	const getModel = (name: string) =>
 		(offered?.models ?? MODELS).find((model) => model.value === name);
 
+	/** Whether a step runs with Claude Code's own tools and prompt. */
+	const isNative = (config: {
+		model: string;
+		args?: Record<string, unknown>;
+	}) => (config.args?.["native-mode"] ?? "off") !== "off";
+
 	return {
 		name: NAME,
 		type: "model",
 		settings: [...SETTINGS],
+		keepsContext: true,
 
-		getSdk() {
-			return null;
-		},
+		getSdk: () => sdk,
 
-		getSdkOptions() {
-			return {};
-		},
-
-		getLanguageModel() {
-			return null;
+		getLanguageModel({ model }) {
+			return sdk(model);
 		},
 
 		getEmbeddingModel() {
@@ -111,11 +244,11 @@ export const createClaudeCodeProvider = (
 		},
 
 		async getStatus({ user }) {
-			let status: Awaited<ReturnType<ClaudeCodeBridge["status"]>>;
 			const settings: ClaudeCodeSettings | undefined =
 				user?.settings?.providers?.[NAME];
+			let status: ClaudeCodeStatus;
 			try {
-				status = await bridge.status({ executable: settings?.executable });
+				status = await sdk.status({ executable: settings?.executable });
 			} catch (error) {
 				console.error("[ClaudeCodeProvider] status failed:", error);
 				return {
@@ -191,245 +324,194 @@ export const createClaudeCodeProvider = (
 				});
 
 			if (model?.fastMode)
-				args.push({
-					type: "toggle",
-					name: "fast-mode",
-					default: false,
-				});
+				args.push({ type: "toggle", name: "fast-mode", default: false });
 
 			return args;
 		},
 
-		async *runAgent({
-			context,
-			config,
-			messages,
-			system,
-			tools,
-			folders,
-			executeTool,
-			approve,
-			answer,
-			stream,
-			signal,
-			interjections,
-			abortSignal,
-		}) {
-			const resume = ClaudeCodeUtils.getSession(messages);
-
+		/**
+		 * `native-mode` is Tiny Chat's: off, Claude Code runs bare, with only
+		 * Tiny Chat's prompt and tools; on, with its own prompt, tools and setup,
+		 * its tools asking for approval as the mode says.
+		 */
+		getSdkOptions({ user, config, context, folders }) {
 			const model = getModel(config.model);
 			const { args } = ModelProviderUtils.applyDefaultArgs({
 				config: { ...config },
 				args: this.getModelArgs({ model: config.model }),
 			});
+			const native = isNative({ model: config.model, args });
+			const settings: ClaudeCodeSettings | undefined = SettingsUtils.of(
+				context?.user ?? user,
+				context?.chat?.project,
+			).providers?.[NAME];
 
-			const request: ClaudeCodeRequest = {
-				model: config.model,
+			// A settings file is read by Claude Code itself, which can't merge it.
+			const file = settings?.settings?.trim();
+			const flags: Record<string, unknown> = {
+				...(file?.startsWith("{") ? parseJson(file) : undefined),
+				// Without its own setup, it brings none of the user's connectors.
+				...(!native && { disableClaudeAiConnectors: true }),
+			};
+			const [cwd, ...additionalDirectories] = folders ?? [];
+
+			const options: ClaudeCodeOptions = {
+				executable: settings?.executable?.trim() || undefined,
+				cwd,
+				additionalDirectories,
+				systemPromptPreset: native ? "claude_code" : null,
+				builtinTools: native ? "claude_code" : [],
+				settingSources: native ? ["user", "project", "local"] : [],
+				strictMcpConfig: native ? undefined : true,
+				permissionMode: native
+					? pick(CLAUDE_CODE_PERMISSION_MODES, args["native-mode"])
+					: undefined,
 				effort: pick(model?.efforts ?? [], args.effort),
 				thinking:
 					args.thinking === "disabled"
-						? { type: args.thinking }
-						: ({
-								type: args.thinking as "adaptive" | "enabled",
+						? { type: "disabled" }
+						: {
+								type: args.thinking === "enabled" ? "enabled" : "adaptive",
 								display: "summarized",
-							} satisfies ClaudeCodeThinkingConfig),
-				claudeCode: args["native-mode"] !== "off",
-				permissions:
-					pick(CLAUDE_CODE_PERMISSION_MODES, args["native-mode"]) ?? "default",
+							},
 				fastMode: model?.fastMode ? args["fast-mode"] === true : undefined,
-				schema: config.schema ?? undefined,
-				settings: SettingsUtils.of(context.user, context.chat?.project)
-					.providers?.[NAME],
-				system,
-				prompt: await ClaudeCodeUtils.getPrompt(messages),
-				resume,
-				history: ClaudeCodeUtils.getHistory(messages),
-				folders,
-				tools: tools.map((tool) => {
-					const { inputSchema } = ToolUtils.getPromptDefinition(tool);
-					return {
-						name: tool.name,
-						description: tool.description,
-						inputSchema,
-					};
+				settings: file && !file.startsWith("{") ? file : flags,
+			};
+			return { [KEY]: JSON.parse(JSON.stringify(options)) };
+		},
+
+		getSdkTools({ config }): Record<string, SdkTool> {
+			return isNative(config)
+				? { AskUserQuestion: sdk.tools.askUserQuestion({}) }
+				: {};
+		},
+
+		/** Natively, its own tools run without Tiny Chat. */
+		runsTools({ config }) {
+			return isNative(config);
+		},
+
+		getTools({ config }) {
+			return isNative(config) ? [askUserQuestion] : [];
+		},
+
+		async getPartTransformed({ part }) {
+			// What Claude Code told Tiny Chat, it already knows.
+			if (part.type === "interjection" && part.signature?.model === NAME)
+				return [];
+			if (part.type !== "file") return undefined;
+			return [
+				await ModelProviderUtils.getPartTransformed({
+					part,
+					supportedFileTypes: SUPPORTED_FILES,
 				}),
+			];
+		},
+
+		getPartSignature({ event }) {
+			const metadata = metadataOf(event);
+			if (typeof metadata?.sessionId !== "string") return undefined;
+			return {
+				model: NAME,
+				item: metadata.sessionId,
+				metadata: signatureMetadata(metadata),
 			};
+		},
 
-			const reader = ClaudeCodeUtils.createReader({
-				onSubagent: (id, data) => {
-					const part = reader.getCall(id);
-					if (part) stream?.(part, data);
-				},
-			});
+		getPartSignatureReturn({ part }) {
+			if (part.signature?.model !== NAME || !part.signature.metadata)
+				return undefined;
+			return { [KEY]: part.signature.metadata };
+		},
 
-			const queue = createQueue<
-				| ClaudeCodeEvent
-				/** A call now asks the user something: shown again, so it says so. */
-				| { type: "refresh"; id: string }
-				/** Tiny Chat answered one of its own calls. */
-				| { type: "answered"; result: zToolResultPart }
-				/** A message the user queued, now sent to the session. */
-				| { type: "interjection"; part: zInterjectionPart }
-			>();
+		getEventTransformed({ event }) {
+			return readEvent(event);
+		},
 
-			/** Asks the user for what one of Claude Code's own calls needs. */
-			const ask = async (
-				part: zToolCallPart,
-			): Promise<Awaited<ReturnType<ClaudeCodeHandlers["canUseTool"]>>> => {
-				if (part.name === "AskUserQuestion") {
-					queue.push({ type: "refresh", id: part.id });
-					const feedback = await answer(part);
-					if (!feedback)
-						return { allow: false, message: "The user did not answer." };
-					// Replaced whole, so the call shows its answers.
-					part.input = {
-						...part.input,
-						answers: AskQuestionUtils.getAnswers(part.input, feedback),
-					};
-					queue.push({ type: "refresh", id: part.id });
-					return { allow: true, updatedInput: part.input };
-				}
+		shouldContinue({ events }) {
+			const finish = events.findLast((event) => event.type === "finish");
+			const awaiting = metadataOf(finish)?.awaiting;
+			// Its work in the background reports in as a turn of its own.
+			return Array.isArray(awaiting) && awaiting.includes("background");
+		},
 
-				part.validation = { ...part.validation, approval: true };
-				queue.push({ type: "refresh", id: part.id });
-
-				return (await approve(part))
-					? { allow: true }
-					: { allow: false, message: "The user rejected this tool call." };
-			};
-
-			/** Stops a subagent on its own once the user stops its call. */
-			const watch = (part: zToolCallPart) => {
-				if (!SUBAGENT_TOOLS.has(part.name)) return;
-				signal?.(part)?.addEventListener(
-					"abort",
-					() => void bridge.stopTask(id, part.id),
-					{ once: true },
-				);
-			};
-
-			/** What Claude Code's own calls changed, and their results, by call. */
-			const changes = new Map<string, zFileChanges>();
-			const results = new Map<string, zToolResultPart>();
-
-			const id = await bridge.run(request, {
-				onEvent: queue.push,
-
-				async callTool({ name, input, toolUseId }) {
-					const part = (toolUseId && reader.getCall(toolUseId)) || {
-						type: "toolCall" as const,
-						id: toolUseId ?? crypto.randomUUID(),
-						name,
-						input,
-					};
-					reader.answer(part.id);
-
-					const result = await executeTool(part);
-					queue.push({ type: "answered", result });
-
-					return {
-						content: ClaudeCodeUtils.toToolContent(result),
-						isError: result.error,
-					};
-				},
-
-				async canUseTool({ toolUseId }) {
-					const part = reader.getCall(toolUseId);
-					if (!part) return { allow: false, message: "Unknown tool call" };
-
-					return ask(part);
-				},
-			});
-
-			/**
-			 * Sends what the user queued into the session, which reads it at its next
-			 * step. Returns whether there was anything.
-			 */
-			let closed = false;
-
-			const sendQueued = async () => {
-				if (closed) return false;
-
-				const parts = (await interjections?.()) ?? [];
-				for (const part of parts) {
-					queue.push({ type: "interjection", part });
-					await bridge.send(id, await ClaudeCodeUtils.getBlocksOf(part.value));
-				}
-				return parts.length > 0;
-			};
-
-			const close = () => {
-				if (closed) return;
-				closed = true;
-				void bridge.close(id);
-			};
-
-			const polling = interjections
-				? setInterval(() => void sendQueued(), QUEUE_MS)
-				: undefined;
-
-			// A cancelled run may not report its end.
-			const cancel = () => {
-				closed = true;
-				void bridge.cancel(id);
-				queue.push({ type: "end" });
-			};
-			if (abortSignal?.aborted) cancel();
-			else abortSignal?.addEventListener("abort", cancel, { once: true });
-
-			try {
-				while (true) {
-					const event = await queue.next();
-					if (event.type === "end") break;
-					if (event.type === "error") throw new Error(event.message);
-					if (event.type === "refresh") {
-						const part = reader.getCall(event.id);
-						// A subagent's call shows again through its conversation.
-						if (part && !reader.refresh(event.id))
-							yield { type: "data", value: part } satisfies zAgentEvent;
-					} else if (event.type === "answered") {
-						yield {
-							type: "data",
-							value: { ...event.result, signature: reader.signature() },
-						};
-					} else if (event.type === "interjection") {
-						yield { type: "data", value: event.part };
-					} else if (event.type === "changes") {
-						// Usually ahead of the result it goes with; if not, the
-						// result is shown again with it.
-						changes.set(event.toolUseId, event.changes);
-						const result = results.get(event.toolUseId);
-						if (result)
-							yield {
-								type: "data",
-								value: { ...result, changes: event.changes },
-							};
-					} else {
-						for (let read of reader.read(event.message)) {
-							if (read.type === "data" && read.value.type === "toolCall")
-								watch(read.value);
-							if (read.type === "data" && read.value.type === "toolResult") {
-								const changed = changes.get(read.value.id);
-								if (changed)
-									read = {
-										...read,
-										value: { ...read.value, changes: changed },
-									};
-								results.set(read.value.id, read.value as zToolResultPart);
-							}
-							yield read;
-						}
-						// Done, unless the user queued more meanwhile: the session goes on
-						// with it, and the run ends once it has answered everything.
-						if (event.message.type === "result" && !(await sendQueued()))
-							close();
-					}
-				}
-			} finally {
-				clearInterval(polling);
-				abortSignal?.removeEventListener("abort", cancel);
-				close();
-			}
+		async stopToolCall({ part }) {
+			const session = part.signature?.item;
+			if (session && SUBAGENT_TOOLS.has(part.name))
+				await sdk.stopTask(session, part.id);
 		},
 	};
+};
+
+/** Claude Code's own events, as Tiny Chat's; undefined for any other. */
+const readEvent = (event: TextStreamPart<any>): zAgentEvent[] | undefined => {
+	const metadata = metadataOf(event);
+	const signature =
+		typeof metadata?.sessionId === "string"
+			? {
+					model: NAME,
+					item: metadata.sessionId,
+					metadata: signatureMetadata(metadata),
+				}
+			: undefined;
+
+	if (event.type === "tool-approval-request")
+		return [{ type: "approval", id: event.toolCall.toolCallId }];
+
+	if (
+		(event.type === "tool-result" || event.type === "tool-error") &&
+		event.providerExecuted
+	) {
+		const output = event.type === "tool-result" ? event.output : event.error;
+		// A subagent's work so far, shown inside its call while it runs.
+		if (event.type === "tool-result" && event.preliminary) {
+			const progress = output as ClaudeCodeSubagentProgress | undefined;
+			return progress?.type === "subagent"
+				? [{ type: "toolStream", id: event.toolCallId, data: toData(progress) }]
+				: [];
+		}
+		const result: zToolResultPart = {
+			type: "toolResult",
+			id: event.toolCallId,
+			name: event.toolName,
+			providerExecuted: true,
+			// Still running: its answer comes once it ends, as a notification.
+			output: metadata?.background
+				? ToolCallUtils.getBackground({ id: event.toolCallId })
+				: toParts(output),
+			...(event.type === "tool-error" && { error: true }),
+			signature,
+		};
+		return [{ type: "data", value: result }];
+	}
+
+	if (event.type === "custom") {
+		// Work in the background ended, as Tiny Chat's own background calls do.
+		if (event.kind === "claude-code.task-notification" && metadata?.toolCallId)
+			return [
+				{
+					type: "data",
+					value: {
+						id: CommonUtils.getRandomId(),
+						type: "interjection",
+						task: {
+							id: String(metadata.toolCallId),
+							name: "Agent",
+							error: metadata.status !== "completed" || undefined,
+						},
+						value: [
+							{
+								id: CommonUtils.getRandomId(),
+								type: "text",
+								value: String(metadata.summary ?? ""),
+							},
+						],
+						signature: { model: NAME },
+					},
+				},
+			];
+		return [];
+	}
+
+	return undefined;
 };

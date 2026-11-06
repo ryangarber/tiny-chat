@@ -32,6 +32,7 @@ Chain whatever you can predict in one call — navigate, wait, click, type, read
 		title: z.string(),
 		steps: z.array(zBrowserStepResult),
 		skipped: z.number().optional(),
+		notice: z.string().optional(),
 	}),
 } as const satisfies ToolDefinition;
 
@@ -43,13 +44,17 @@ const getSummary = (steps: Partial<zBrowserStep>[] = []) =>
 			const detail =
 				step.action === "navigate"
 					? (step.url ?? "").replace(/^https?:\/\//, "").replace(/\/$/, "")
-					: "ref" in step && step.ref
-						? step.ref
-						: "selector" in step && step.selector
-							? step.selector
-							: step.action === "press"
-								? step.keys
-								: "";
+					: step.action === "resize"
+						? step.reset
+							? "to default"
+							: `to ${step.width ?? "?"}×${step.height ?? "?"}`
+						: "ref" in step && step.ref
+							? step.ref
+							: "selector" in step && step.selector
+								? step.selector
+								: step.action === "press"
+									? step.keys
+									: "";
 			return [step.action, detail].filter(Boolean).join(" ");
 		})
 		.filter(Boolean)

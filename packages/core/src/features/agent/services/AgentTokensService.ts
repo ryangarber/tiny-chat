@@ -9,6 +9,7 @@ import type {
 	zTextPart,
 	zToolResultPart,
 } from "#core/features/data/types/part.ts";
+import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import type { ToolDefinition } from "#core/features/tool/types/tool.ts";
@@ -122,6 +123,8 @@ const getPartLength = (part: zDataPart | zDataSimplePart): number => {
 	if (part.type === "attachment") return getSerializedLength(part.content);
 	if (part.type === "quote" || part.type === "paste") return part.text.length;
 	if (part.type === "command") return EditorPartUtils.toText(part).length;
+	if (part.type === "abort" && part.reason === "checkpoint")
+		return DataUtils.getCheckpointNotice().length;
 	return 0;
 };
 

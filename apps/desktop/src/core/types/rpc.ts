@@ -1,38 +1,13 @@
 // biome-ignore-all lint/suspicious/noConfusingVoidType: a request that answers nothing
 
+import type { AfmAvailability, AfmEvent, AfmRequest } from "@afmize/node";
 import type { JSONRPCMessage } from "@modelcontextprotocol/client";
+import type { ClaudeCodeChannelMessage } from "@ryangarber/ai-sdk-providers/claude";
+import type { CodexChannelMessage } from "@ryangarber/ai-sdk-providers/codex";
 import type { RPCSchema } from "electrobun/view";
-import type {
-	AFMEvent,
-	AFMRequest,
-} from "#core/features/provider/types/afm.ts";
-import type {
-	ClaudeCodeBlock,
-	ClaudeCodeEvent,
-	ClaudeCodeHandlers,
-	ClaudeCodeRequest,
-	ClaudeCodeStatus,
-} from "#core/features/provider/types/claude.ts";
 
 /** A file's bytes, base64 encoded, since RPC carries JSON. */
 type Bytes = string;
-
-/** What a Claude Code run asks of the webview while it goes. */
-export type ClaudeCodeQuestion =
-	| ({ type: "tool" } & Parameters<ClaudeCodeHandlers["callTool"]>[0])
-	| ({ type: "permission" } & Parameters<ClaudeCodeHandlers["canUseTool"]>[0]);
-
-/** The webview's answer to a {@link ClaudeCodeQuestion}; `none` once it can't give one. */
-export type ClaudeCodeAnswer =
-	| {
-			type: "tool";
-			result: Awaited<ReturnType<ClaudeCodeHandlers["callTool"]>>;
-	  }
-	| {
-			type: "permission";
-			result: Awaited<ReturnType<ClaudeCodeHandlers["canUseTool"]>>;
-	  }
-	| { type: "none" };
 
 /** An MCP server for the main process to connect to. */
 export type McpServer =
@@ -129,41 +104,27 @@ export type DesktopRPC = {
 			};
 			mcpClose: { params: { id: string }; response: void };
 
-			/** afmize's availability report, or null where it is not built in. */
-			afmAvailability: { params: undefined; response: string | null };
-			/** Events arrive as `afmEvent` under `key`; returns the stream's id. */
+			/** afmize's availability report, or null where it cannot run. */
+			afmAvailability: { params: undefined; response: AfmAvailability | null };
+			/** Events arrive as `afmEvent` under `key`, `finish` last. */
 			afmStream: {
-				params: { key: number; request: AFMRequest };
-				response: number;
+				params: { key: number; request: AfmRequest };
+				response: void;
 			};
-			afmCancel: { params: { id: number }; response: void };
+			/** The stream's `finish` still arrives. */
+			afmCancel: { params: { key: number }; response: void };
 
-			claudeCodeStatus: {
-				params: { executable?: string };
-				response: ClaudeCodeStatus;
-			};
 			/**
-			 * Events arrive as `claudeCodeEvent` and questions as
-			 * `claudeCodeQuestion`, under `key`; returns the run's id.
+			 * A message to the Claude Code host the main process serves; its
+			 * own arrive as `claudeCode`.
 			 */
-			claudeCodeRun: {
-				params: { key: number; request: ClaudeCodeRequest };
-				response: string;
-			};
-			claudeCodeCancel: { params: { id: string }; response: void };
-			claudeCodeStopTask: {
-				params: { id: string; toolUseId: string };
-				response: void;
-			};
-			claudeCodeSend: {
-				params: { id: string; prompt: ClaudeCodeBlock[] };
-				response: void;
-			};
-			claudeCodeClose: { params: { id: string }; response: void };
-			claudeCodeAnswer: {
-				params: { id: string; answer: ClaudeCodeAnswer };
-				response: void;
-			};
+			claudeCode: { params: ClaudeCodeChannelMessage; response: void };
+
+			/**
+			 * A message to the Codex host the main process serves; its own
+			 * arrive as `codex`.
+			 */
+			codex: { params: CodexChannelMessage; response: void };
 
 			/** `ComputerHostService`'s raw `{ ok, result }` or `{ ok, error }`. */
 			computerCall: {
@@ -196,9 +157,9 @@ export type DesktopRPC = {
 			mcpStderr: { id: string; text: string };
 			mcpError: { id: string; message: string };
 			mcpClose: { id: string };
-			afmEvent: { key: number; event: AFMEvent };
-			claudeCodeEvent: { key: number; event: ClaudeCodeEvent };
-			claudeCodeQuestion: { key: number; id: string } & ClaudeCodeQuestion;
+			afmEvent: { key: number; event: AfmEvent };
+			claudeCode: ClaudeCodeChannelMessage;
+			codex: CodexChannelMessage;
 			updateProgress: { fraction: number };
 			openUrl: { url: string };
 		};

@@ -1,4 +1,3 @@
-import { Box, Collapse } from "@mantine/core";
 import { StackIcon } from "@phosphor-icons/react";
 import { useEffect } from "react";
 import {
@@ -7,7 +6,11 @@ import {
 	useFindRevealing,
 } from "#client/features/find/hooks/useFindScope.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
-import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
+import {
+	useAnyExpanded,
+	useAutoExpand,
+	useExpandKey,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
@@ -15,8 +18,8 @@ import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 import CompactionBadge from "#gui/features/message/components/CompactionBadge.tsx";
 import Tail from "#gui/features/part/components/Tail.tsx";
+import Task from "#gui/features/part/components/Task.tsx";
 import ToolCall from "#gui/features/part/components/ToolCall.tsx";
-import ToolHeader from "#gui/features/part/components/ToolHeader.tsx";
 
 /** Height the run is held to while it is open on its own. */
 const TAIL_HEIGHT = 400;
@@ -44,14 +47,18 @@ export default function ToolGroup({
 
 	const group = ToolCallUtils.getGroup({ parts, toolsets });
 	const groupKey = `group:${parts[0]?.id}`;
+	const scopedKey = useExpandKey(groupKey);
 	// Open for find showing a match in one of its calls, or in a run of them
 	// inside a segment, such as a subagent's.
 	const revealing = useFindRevealing(parts.map((part) => part.id));
 	const revealed = useFindRevealed();
+	const opened = useAnyExpanded(parts.map((part) => part.id));
 	const { expanded, auto, toggle } = useAutoExpand(
 		groupKey,
 		group.pending || !!hold,
-		revealing || revealed,
+		// Held open, too, around a call the user opened themselves — such as a
+		// lone call opened before the next call joined it into a run.
+		revealing || revealed || opened,
 	);
 	useFindHidden(!expanded && parts.length > 1);
 
@@ -61,54 +68,53 @@ export default function ToolGroup({
 	);
 	useEffect(() => {
 		if (focusing && !expanded && parts.length > 1)
-			useExpandStore.getState().setOverride(groupKey, true);
-	}, [focusing, expanded, groupKey, parts.length]);
-
-	// A lone call is its own header.
-	if (parts.length === 1)
-		return (
-			<div>
-				<CompactionBadge compaction={compaction} id={parts[0].id} />
-				<ToolCall
-					message={message}
-					part={parts[0]}
-					answerable={pendingFeedbackIds.includes(parts[0].id)}
-					hold={hold}
-				/>
-			</div>
-		);
+			useExpandStore.getState().setOverride(scopedKey, true);
+	}, [focusing, expanded, scopedKey, parts.length]);
 
 	return (
-		<Box my={10}>
-			<ToolHeader
-				icon={
-					<StackIcon
-						size={20}
-						color="var(--mantine-color-dimmed)"
-						className="shrink-0"
+		<Task.Group>
+			{parts.length === 1 ? (
+				// A lone call is its own header.
+				<div>
+					<CompactionBadge compaction={compaction} id={parts[0].id} />
+					<ToolCall
+						message={message}
+						part={parts[0]}
+						answerable={pendingFeedbackIds.includes(parts[0].id)}
+						hold={hold}
 					/>
-				}
-				status={group.status}
-				active={group.pending}
-				expanded={expanded}
-				onToggle={toggle}
-			/>
-			<Collapse expanded={expanded} keepMounted={false}>
-				<Tail follow={auto} height={TAIL_HEIGHT} content={parts}>
-					<Box pl="md" ml={9} mt={4}>
-						{parts.map((part) => (
-							<div key={part.id}>
-								<CompactionBadge compaction={compaction} id={part.id} />
-								<ToolCall
-									message={message}
-									part={part}
-									answerable={pendingFeedbackIds.includes(part.id)}
-								/>
-							</div>
-						))}
-					</Box>
-				</Tail>
-			</Collapse>
-		</Box>
+				</div>
+			) : (
+				<Task expanded={expanded} onToggle={toggle} my={10}>
+					<Task.Status
+						icon={
+							<StackIcon
+								size={20}
+								color="var(--mantine-color-dimmed)"
+								className="shrink-0"
+							/>
+						}
+						status={group.pending ? "pending" : "success"}
+						parts={group.status}
+					>
+						<Task.Thumbnails images={group.images} />
+					</Task.Status>
+					<Task.Details py={0}>
+						<Tail follow={auto} height={TAIL_HEIGHT} content={parts}>
+							{parts.map((part) => (
+								<div key={part.id}>
+									<CompactionBadge compaction={compaction} id={part.id} />
+									<ToolCall
+										message={message}
+										part={part}
+										answerable={pendingFeedbackIds.includes(part.id)}
+									/>
+								</div>
+							))}
+						</Tail>
+					</Task.Details>
+				</Task>
+			)}
+		</Task.Group>
 	);
 }

@@ -16,6 +16,9 @@ export default {
 		mainProcess: "bun",
 		bun: {
 			entrypoint: "src/index.ts",
+			// So packages resolve their Bun entries: @afmize/node's carries its
+			// library beside the bundle.
+			target: "bun",
 			// The GUI's Vite server while `scripts/dev.ts` runs it with HMR.
 			define: {
 				"process.env.DESKTOP_DEV_URL": JSON.stringify(
@@ -23,15 +26,13 @@ export default {
 				),
 			},
 		},
-		// Made by `scripts/dev.ts` and `scripts/build.ts`: the GUI, and
-		// afmize's library where the host could build it. (Hutch loads this
-		// file without the file system, so both always exist, if empty.)
+		// Made by `scripts/dev.ts` and `scripts/build.ts`: the GUI. (Hutch loads
+		// this file without the file system, so it always exists, if empty.)
 		copy: {
 			dist: "views/main",
-			native: "native",
 		},
 		// The scripts rebuild these themselves.
-		watchIgnore: ["dist/**", "native/**", "src/client-runtime.ts"],
+		watchIgnore: ["dist/**", "src/client-runtime.ts"],
 		mac: {
 			codesign: false,
 			notarize: false,
@@ -39,7 +40,8 @@ export default {
 			icons: "assets/icon.icon",
 		},
 		linux: {
-			bundleCEF: false,
+			bundleCEF: true,
+			defaultRenderer: "cef",
 			icon: "assets/icon.png",
 		},
 		win: {

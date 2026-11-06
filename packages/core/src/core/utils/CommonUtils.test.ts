@@ -73,7 +73,7 @@ describe("CommonUtils.parseSchedule", () => {
 			now,
 		});
 		expect(schedule).toBe(
-			"DTSTART:20261008T143700Z\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+			"DTSTART;TZID=America/New_York:20261008T143700\nRRULE:FREQ=WEEKLY;BYHOUR=9;BYMINUTE=0;BYSECOND=0;BYDAY=MO,TU,WE,TH,FR",
 		);
 		// Started at 2:37pm New York time, so it runs at 9am the next weekday.
 		expect(
@@ -106,10 +106,73 @@ describe("CommonUtils.parseSchedule", () => {
 				timezone,
 				now,
 			}),
-		).toBe("DTSTART:20260101T080000Z\nRRULE:FREQ=DAILY;BYSECOND=0");
+		).toBe(
+			"DTSTART;TZID=America/New_York:20260101T080000\nRRULE:FREQ=DAILY;BYSECOND=0",
+		);
 		expect(
 			CommonUtils.parseSchedule({ text: "FREQ=HOURLY", timezone, now }),
-		).toBe("DTSTART:20261008T143700Z\nRRULE:FREQ=HOURLY;BYSECOND=0");
+		).toBe(
+			"DTSTART;TZID=America/New_York:20261008T143700\nRRULE:FREQ=HOURLY;BYSECOND=0",
+		);
+	});
+
+	it("keeps a start given in another timezone", () => {
+		expect(
+			CommonUtils.parseSchedule({
+				text: "DTSTART;TZID=Europe/London:20260101T080000\nRRULE:FREQ=DAILY",
+				timezone,
+				now,
+			}),
+		).toBe(
+			"DTSTART;TZID=Europe/London:20260101T080000\nRRULE:FREQ=DAILY;BYSECOND=0",
+		);
+	});
+
+	it.each([
+		["daily", "FREQ=DAILY;BYSECOND=0"],
+		[
+			"every other day at noon",
+			"FREQ=DAILY;INTERVAL=2;BYHOUR=12;BYMINUTE=0;BYSECOND=0",
+		],
+		["every 2 hours", "FREQ=HOURLY;INTERVAL=2;BYSECOND=0"],
+		[
+			"every monday and friday at 5:30 pm",
+			"FREQ=WEEKLY;BYHOUR=17;BYMINUTE=30;BYSECOND=0;BYDAY=MO,FR",
+		],
+		[
+			"every week on tue, thu at 9am",
+			"FREQ=WEEKLY;BYHOUR=9;BYMINUTE=0;BYSECOND=0;BYDAY=TU,TH",
+		],
+		[
+			"every weekend at 10am and 6pm",
+			"FREQ=WEEKLY;BYHOUR=10,18;BYMINUTE=0;BYSECOND=0;BYDAY=SA,SU",
+		],
+		[
+			"monthly on the 1st and last day at 08:00",
+			"FREQ=MONTHLY;BYHOUR=8;BYMINUTE=0;BYSECOND=0;BYMONTHDAY=1,-1",
+		],
+		[
+			"every year in march on the 15th",
+			"FREQ=YEARLY;BYSECOND=0;BYMONTH=3;BYMONTHDAY=15",
+		],
+		[
+			"every day at 9am for 5 times",
+			"FREQ=DAILY;COUNT=5;BYHOUR=9;BYMINUTE=0;BYSECOND=0",
+		],
+	])("reads %j", (text, rule) => {
+		expect(
+			CommonUtils.parseSchedule({ text, timezone, now })?.split("\n")[1],
+		).toBe(`RRULE:${rule}`);
+	});
+
+	it("reads an end date as the end of that day", () => {
+		const schedule = CommonUtils.parseSchedule({
+			text: "every day at 9am until december 31",
+			timezone,
+			now,
+		});
+		// 23:59:59 in New York is 04:59:59 UTC the next day.
+		expect(schedule).toContain("UNTIL=20270101T045959Z");
 	});
 
 	it("rejects what isn't a schedule", () => {
@@ -120,6 +183,13 @@ describe("CommonUtils.parseSchedule", () => {
 		expect(
 			CommonUtils.parseSchedule({ text: "FREQ=NOPE", timezone, now }),
 		).toBeNull();
+		for (const text of [
+			"every day at 9:15 and 10:30",
+			"every day at 25",
+			"every monday at noon please",
+		]) {
+			expect(CommonUtils.parseSchedule({ text, timezone, now })).toBeNull();
+		}
 	});
 });
 
@@ -140,5 +210,39 @@ describe("CommonUtils.formatCount", () => {
 		[-1700, "-1.7K"],
 	])("writes %d as %s", (value, expected) => {
 		expect(CommonUtils.formatCount(value)).toBe(expected);
+	});
+});
+
+describe("CommonUtils.formatDate", () => {
+	it.each([
+		[-30 * 1000, "30 seconds ago"],
+		[-5 * 60 * 1000, "5 minutes ago"],
+		[-26 * 60 * 60 * 1000, "yesterday"],
+		[3 * 60 * 60 * 1000 + 1000, "in 3 hours"],
+		[-400 * 24 * 60 * 60 * 1000, "last year"],
+	])("writes %d ms from now as %s", (offset, expected) => {
+		expect(
+			CommonUtils.formatDate({
+				date: new Date(Date.now() + offset),
+				relative: true,
+			}),
+		).toBe(expected);
+	});
+});
+
+describe("CommonUtils.formatTimespan", () => {
+	it("writes the largest whole unit, either way round", () => {
+		const from = new Date("2026-10-08T14:00:00Z");
+		const to = new Date("2026-10-08T14:15:30Z");
+		expect(CommonUtils.formatTimespan({ from, to })).toBe("15 minutes");
+		expect(CommonUtils.formatTimespan({ from: to, to: from })).toBe(
+			"15 minutes",
+		);
+		expect(
+			CommonUtils.formatTimespan({
+				from,
+				to: new Date("2026-10-09T15:00:00Z"),
+			}),
+		).toBe("1 day");
 	});
 });

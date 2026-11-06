@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import FastifyStatic from "@fastify/static";
+import { task } from "@ryangarber/utils";
 import { config } from "dotenv";
 import Fastify from "fastify";
-import { create } from "../../../scripts/use-stdout.ts";
 
 config({ path: "../../.env", quiet: true });
 
@@ -12,7 +12,7 @@ fastify.register(FastifyStatic, {
 	root: resolve(import.meta.dirname, "../dist"),
 });
 
-const update = create("starting web");
+const status = await task("Starting web");
 
 export const server = {
 	fastify,
@@ -25,7 +25,7 @@ export const server = {
 					fastify.log.error(err);
 					process.exit(1);
 				}
-				update(`web live at: ${address}`);
+				status.complete({ status: `Web live at: ${address}` });
 			},
 		);
 	},

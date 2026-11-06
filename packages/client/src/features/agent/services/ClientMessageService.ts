@@ -6,6 +6,7 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQueueStore.ts";
 import { MessageQueryService } from "#client/features/message/services/MessageQueryService.ts";
+import { useToolFeedbackStore } from "#client/features/part/stores/useToolFeedbackStore.ts";
 import { UserService } from "#client/features/user/services/UserService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { TypeUtils } from "#core/core/utils/TypeUtils.ts";
@@ -33,6 +34,12 @@ import type { Toolset } from "#core/features/tool/types/tool.ts";
  * stream shows it running.
  */
 const generations = new Map<string, Set<Promise<void>>>();
+
+/**
+ * How often a reply being generated is saved as it stands, so a generation the
+ * app never gets to finish leaves what it had rather than nothing.
+ */
+const CHECKPOINT_INTERVAL_MS = 3000;
 
 /** Resolves once the chat's agent stream is cleared. */
 const streamCleared = (chatId: string) =>
@@ -220,6 +227,7 @@ export const ClientMessageService = {
 			};
 			// Only this generation's: the server adds it to what is stored.
 			const metadata: zMetadata = [];
+			const checkpoints = ClientMessageService._checkpoints(client, working);
 			try {
 				try {
 					await ClientAgentService.runAgent({
@@ -242,6 +250,7 @@ export const ClientMessageService = {
 						skills,
 						streamKey: response.id,
 						streamChat: chat.id,
+						onData: checkpoints.schedule,
 					});
 					failed = false;
 				} catch (error) {
@@ -250,10 +259,13 @@ export const ClientMessageService = {
 					console.error("[ClientMessageService] generation failed:", error);
 					ClientMessageService._abort(working.data, error);
 				}
+				// No checkpoint lands after the reply is saved as it ends.
+				await checkpoints.stop();
 				await ClientMessageService._finalize(client, working, metadata);
 			} catch (error) {
 				failed = true;
 				console.error("[ClientMessageService] could not save reply:", error);
+				await checkpoints.stop();
 				await ClientMessageService._saveFailed(client, working, error);
 			} finally {
 				useMessageQueueStore.getState().finish(chat.id, working.data, failed);
@@ -351,6 +363,60 @@ export const ClientMessageService = {
 					createdAt: message.createdAt,
 				}),
 			),
+		};
+	},
+
+	/**
+	 * Saves `working` as it stands every so often while it generates, ending
+	 * on a `checkpoint` abort, which only the save as it ends takes away. The
+	 * cache takes each one too, so what reads it — the token estimate among
+	 * them — keeps up with the reply; the stream's overlay hides the abort
+	 * while it runs.
+	 */
+	_checkpoints: (client: Client, working: MessageState) => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let saving = Promise.resolve();
+		let stopped = false;
+
+		const save = () => {
+			timer = undefined;
+			if (stopped) return;
+			// Taken now: the generation goes on writing into `working.data`.
+			const { awaiting } = useToolFeedbackStore.getState();
+			const data = DataUtils.getCheckpoint({
+				data: working.data,
+				awaiting: (id) => awaiting.has(id),
+			});
+			saving = saving.then(async () => {
+				if (stopped) return;
+				try {
+					const saved = await client.api.message.updateMessage.mutate({
+						message: working.id,
+						author: working.author,
+						config: working.config,
+						data,
+						truncate: false,
+					});
+					if (!stopped) await MessageQueryService.write(client, saved);
+				} catch (error) {
+					console.warn("[ClientMessageService] could not checkpoint:", error);
+				}
+			});
+		};
+
+		return {
+			/** Saves within the interval, unless a save is already due. */
+			schedule: () => {
+				if (!stopped && !timer)
+					timer = setTimeout(save, CHECKPOINT_INTERVAL_MS);
+			},
+			/** No more saves; resolves once one under way is done. */
+			stop: async () => {
+				stopped = true;
+				clearTimeout(timer);
+				timer = undefined;
+				await saving;
+			},
 		};
 	},
 

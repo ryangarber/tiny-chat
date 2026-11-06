@@ -22,6 +22,7 @@ import type {
 	Toolset,
 } from "#core/features/tool/types/tool.ts";
 import { ClaudeCodeToolUtils } from "#core/features/tool/utils/ClaudeCodeToolUtils.ts";
+import { CodexToolUtils } from "#core/features/tool/utils/CodexToolUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 import { ToolOutputUtils } from "#core/features/tool/utils/ToolOutputUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
@@ -33,6 +34,10 @@ export interface ToolCallStatus {
 	pieces: ToolStatusPiece[];
 	pending: boolean;
 }
+
+/** How an agent's own tool (Claude Code's, Codex's) is shown, if it is one. */
+const getAgentDisplay = (name: string) =>
+	ClaudeCodeToolUtils.getDisplay(name) ?? CodexToolUtils.getDisplay(name);
 
 /** Shown for tools without a display of their own, such as MCP tools. */
 const fallback = (name: string): ToolDisplay<ToolDefinition> => ({
@@ -69,6 +74,19 @@ const statusCache = new WeakMap<
 	Toolset<any>[],
 	Map<string, StatusCacheEntry>
 >();
+
+/** An image a call produced, ready to draw. */
+export interface ToolCallImage {
+	src: string;
+	name?: string;
+}
+
+/**
+ * Images found in a result, keyed by the result, which is replaced whole and
+ * never mutated, so a screenshot's data URL is built once rather than on every
+ * render of its status line.
+ */
+const imageCache = new WeakMap<object, ToolCallImage[]>();
 
 const __rejection = {
 	type: "text",
@@ -122,6 +140,24 @@ export const ToolCallUtils = {
 				...__interruption,
 			},
 		];
+	},
+
+	/**
+	 * Whether what a call changes in the user's repositories is looked for:
+	 * as its tool says, as an agent's own tool's display says, and otherwise
+	 * yes, since a tool nothing is known about (an MCP server's, through an
+	 * agent) may change anything.
+	 */
+	tracksChanges: ({
+		tool,
+		name,
+	}: {
+		tool: Tool<any, any> | null | undefined;
+		name: string;
+	}): boolean => {
+		if (tool) return !!tool.tracksChanges;
+		const display = getAgentDisplay(name);
+		return display ? !!display.tracksChanges : true;
 	},
 
 	/** Whether a call asks to run in the background, and its tool can. */
@@ -195,12 +231,13 @@ export const ToolCallUtils = {
 			if (ToolCallUtils.isRejection(part.result.output)) return "rejected";
 			return "success";
 		}
-		// A call with fields to fill in waits on them, even without a tool of
-		// Tiny Chat's behind it, as with Claude Code's own questions.
+		// A call with fields to fill in waits on them.
 		const asks =
-			tool?.feedback ||
-			(!tool && !!ClaudeCodeToolUtils.getDisplay(part.name)?.fields);
-		if ((asks || part.validation?.approval) && !running) return "feedback";
+			tool?.feedback || (!tool && !!getAgentDisplay(part.name)?.fields);
+		// Answered, a call the provider runs itself is its to run.
+		const approving =
+			part.validation?.approval && part.validation.approved === undefined;
+		if ((asks || approving) && !running) return "feedback";
 		return "running";
 	},
 
@@ -249,9 +286,7 @@ export const ToolCallUtils = {
 
 		const { tool } = ToolUtils.find({ toolsets, part });
 		const display =
-			tool?.display ??
-			ClaudeCodeToolUtils.getDisplay(part.name) ??
-			fallback(part.name);
+			tool?.display ?? getAgentDisplay(part.name) ?? fallback(part.name);
 		const state = ToolCallUtils.getState({ part, tool });
 		const status: ToolCallStatus = {
 			pieces: display.status(ToolCallUtils.getContext({ part, state })),
@@ -280,9 +315,7 @@ export const ToolCallUtils = {
 	}): ToolCallDisplay => {
 		const { tool } = ToolUtils.find({ toolsets, part });
 		/** An agent's own tool's, for a call no Tiny Chat tool made. */
-		const agentDisplay = tool
-			? undefined
-			: ClaudeCodeToolUtils.getDisplay(part.name);
+		const agentDisplay = tool ? undefined : getAgentDisplay(part.name);
 		const display = tool?.display ?? agentDisplay ?? fallback(part.name);
 		const state = ToolCallUtils.getState({
 			part,
@@ -399,7 +432,28 @@ export const ToolCallUtils = {
 			calls: statuses.length,
 			status: statuses.length ? ToolCallUtils.resolveSummary(statuses) : [],
 			pending: statuses.some((status) => status.pending),
+			images: parts.flatMap((part) => ToolCallUtils.getImages(part)),
 		};
+	},
+
+	/**
+	 * The images a call produced — a screenshot, an image file it read. Every
+	 * image a tool shows comes back as a file in its result, so they are read
+	 * from there, without resolving the call's whole display.
+	 */
+	getImages: (part: ToolCallPart): ToolCallImage[] => {
+		const { result } = part;
+		if (!result || result.error) return [];
+		const cached = imageCache.get(result);
+		if (cached) return cached;
+		const images = ToolUtils.file(result)
+			.filter((file) => file.mime.startsWith("image/"))
+			.map((file) => ({
+				src: `data:${file.mime};base64,${file.data}`,
+				name: file.name,
+			}));
+		imageCache.set(result, images);
+		return images;
 	},
 
 	/** One call's status line. */

@@ -74,7 +74,7 @@ export const useUploads = () => {
 			// A skill is carried by the message's config rather than its text, so
 			// it is the one upload that is not written into the editor.
 			if (variables.kind !== "SKILL") {
-				await ComposerService.attachUpload({
+				ComposerService.attachUpload({
 					client,
 					upload: result,
 					file: variables.file.name,

@@ -46,7 +46,7 @@ export function AttachmentUploads({ close }: { close: () => void }) {
 								withBorder
 								style={{ cursor: "pointer" }}
 								onClick={() => {
-									void ComposerService.attachUpload({ client, upload });
+									ComposerService.attachUpload({ client, upload });
 									close();
 								}}
 							>

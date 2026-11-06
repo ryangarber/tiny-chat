@@ -3,7 +3,11 @@ import {
 	useFindHidden,
 	useFindRevealed,
 } from "#client/features/find/hooks/useFindScope.ts";
-import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
+import {
+	ExpandScopeContext,
+	useAutoExpand,
+	useExpandScope,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
@@ -65,6 +69,9 @@ function ToolCallBody({
 		useFindRevealed(),
 	);
 	useFindHidden(!expanded && !empty);
+	// A conversation shown inside it, such as a subagent's, keeps what is
+	// opened in it apart from the parts around the call.
+	const scope = useExpandScope(part.id);
 
 	return (
 		<Task expanded={expanded} onToggle={toggle}>
@@ -84,34 +91,36 @@ function ToolCallBody({
 			</Box>
 			{!empty && (
 				<Task.Details>
-					<Tail follow={auto}>
-						<Box flexDirection="column" gap={1}>
-							{display.input.map((block, index) => (
-								<ToolBlock
-									// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
-									key={`input-${index}`}
-									block={block}
-									active={display.state === "input"}
-								/>
-							))}
-							{controls && message && (
-								<ToolControls
-									message={message}
-									part={part}
-									controls={controls}
-									answerable={answerable}
-								/>
-							)}
-							{display.output.map((block, index) => (
-								<ToolBlock
-									// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
-									key={`output-${index}`}
-									block={block}
-									active={display.state === "running"}
-								/>
-							))}
-						</Box>
-					</Tail>
+					<ExpandScopeContext value={scope}>
+						<Tail follow={auto}>
+							<Box flexDirection="column" gap={1}>
+								{display.input.map((block, index) => (
+									<ToolBlock
+										// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
+										key={`input-${index}`}
+										block={block}
+										active={display.state === "input"}
+									/>
+								))}
+								{controls && message && (
+									<ToolControls
+										message={message}
+										part={part}
+										controls={controls}
+										answerable={answerable}
+									/>
+								)}
+								{display.output.map((block, index) => (
+									<ToolBlock
+										// biome-ignore lint/suspicious/noArrayIndexKey: a tool's blocks keep their order
+										key={`output-${index}`}
+										block={block}
+										active={display.state === "running"}
+									/>
+								))}
+							</Box>
+						</Tail>
+					</ExpandScopeContext>
 				</Task.Details>
 			)}
 		</Task>

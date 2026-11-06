@@ -111,6 +111,25 @@ export const AgentService = {
 		};
 	},
 
+	/** A call of the provider's own, asked about, that the user hasn't answered. */
+	isApproving: (part: zToolCallPart) =>
+		!!part.providerExecuted &&
+		!!part.validation?.approval &&
+		part.validation.approved === undefined,
+
+	/** A call anywhere in a reply. */
+	findCall: (data: zData, id: string) =>
+		data
+			.flat()
+			.find(
+				(part): part is zToolCallPart =>
+					part.type === "toolCall" && part.id === id,
+			),
+
+	/** Whether a call anywhere in a reply has its result. */
+	hasResult: (data: zData, id: string) =>
+		data.flat().some((part) => part.type === "toolResult" && part.id === id),
+
 	/**
 	 * The chat's local folders, the primary one first, where a local agent
 	 * runs: the shell's directory without any.
@@ -240,6 +259,21 @@ export const AgentService = {
 			.find((model) => model.name === config.model)
 			?.features.includes("language:tools");
 
+		// The tools only the provider's model calls (Claude Code's questions),
+		// found as Tiny Chat's own are, but never offered to the model by it.
+		const providerTools = provider.getTools?.({ config }) ?? [];
+		const lookupToolsets: Toolset<any>[] = providerTools.length
+			? [
+					...enabledToolsets,
+					{
+						name: provider.name,
+						tools: providerTools,
+						capabilities: undefined,
+						status: { valid: true },
+					} as Toolset<any>,
+				]
+			: enabledToolsets;
+
 		const toolValidationErrors = new Map<string, unknown>();
 
 		/** Raw input text of tool calls the model is still writing. */
@@ -362,12 +396,57 @@ export const AgentService = {
 			}
 		};
 
+		/**
+		 * Whether the provider runs tools of its own, whose changes are then
+		 * looked for from the start of each step: such a call can be running
+		 * before its part arrives (Codex reports a command once it has begun).
+		 */
+		const runsTools = !!changes && !!provider.runsTools?.({ config });
+
+		/** The provider's own calls being watched for changes, by call id. */
+		const watching = new Set<string>();
+
+		/** Watches a call the provider runs, from now until its result. */
+		const watch = async (part: zToolCallPart) => {
+			if (
+				!changes ||
+				watching.has(part.id) ||
+				!ToolCallUtils.tracksChanges({ tool: null, name: part.name })
+			)
+				return;
+			watching.add(part.id);
+			await changes.begin();
+		};
+
+		/** Lets go of a call that won't run yet, such as one asking approval. */
+		const unwatch = (id: string) => {
+			if (watching.delete(id)) changes?.cancel();
+		};
+
+		/** What a watched call changed, put on its result. */
+		const watched = async (result: zToolResultPart) => {
+			if (!watching.delete(result.id)) return;
+			// Its window would take in every call made while it runs.
+			if (ToolCallUtils.isBackground(result.output)) {
+				changes?.cancel();
+				return;
+			}
+			const changed = await changes?.end();
+			if (changed) result.changes = changed;
+		};
+
 		/** {@link execute}, with what the call changed when its tool tracks it. */
 		const run = async (
 			args: Parameters<typeof execute>[0] & { track?: boolean },
 		) => {
 			const tracker =
-				args.track !== false && args.tool.tracksChanges ? changes : undefined;
+				args.track !== false &&
+				ToolCallUtils.tracksChanges({
+					tool: args.tool,
+					name: args.toolCall.name,
+				})
+					? changes
+					: undefined;
 			await tracker?.begin();
 			const ran = await execute(args);
 			const changed = await tracker?.end();
@@ -430,7 +509,7 @@ export const AgentService = {
 					(p): p is zToolCallPart => p.type === "toolCall" && p.id === part.id,
 				);
 			const { tool } = toolCall
-				? ToolUtils.find({ toolsets: enabledToolsets, part: toolCall })
+				? ToolUtils.find({ toolsets: lookupToolsets, part: toolCall })
 				: { tool: null };
 			if (toolCall && tool) runInBackground(toolCall, tool);
 		}
@@ -461,12 +540,18 @@ export const AgentService = {
 			/** Calls waiting on the user, by call id. */
 			const waiting = new Map<
 				string,
-				{ toolCall: zToolCallPart; tool: Tool<any, any> }
+				{ toolCall: zToolCallPart; tool: Tool<any, any> | null }
 			>();
 
 			for (const toolCall of toolCalls) {
+				// The provider's own: only its approval is Tiny Chat's to settle.
+				if (toolCall.providerExecuted) {
+					waiting.set(toolCall.id, { toolCall, tool: null });
+					continue;
+				}
+
 				const { tool } = ToolUtils.find({
-					toolsets: enabledToolsets,
+					toolsets: lookupToolsets,
 					part: toolCall,
 				});
 
@@ -549,6 +634,15 @@ export const AgentService = {
 				const call = waiting.get(settled.id);
 				if (!call) return;
 				waiting.delete(settled.id);
+				// The provider runs it, or not, once it reads the answer next step.
+				if (!call.tool) {
+					call.toolCall.validation = {
+						...call.toolCall.validation,
+						approved: !!settled.answer.approved,
+					};
+					yield { type: "data", value: call.toolCall };
+					return;
+				}
 				if (call.toolCall.validation?.approval && !settled.answer.approved) {
 					yield push({
 						type: "toolResult",
@@ -558,7 +652,11 @@ export const AgentService = {
 						output: ToolCallUtils.getRejection(),
 					});
 				} else {
-					queue.push({ ...call, feedback: settled.answer.feedback });
+					queue.push({
+						toolCall: call.toolCall,
+						tool: call.tool,
+						feedback: settled.answer.feedback,
+					});
 				}
 			};
 
@@ -666,73 +764,6 @@ export const AgentService = {
 			return interrupted || waiting.size > 0;
 		};
 
-		/**
-		 * Waits on the user's answer to a call while the generation is still
-		 * running, for an agent that is itself blocked on it. No answer — the
-		 * generation stopped, or no one can give one — rejects the call.
-		 */
-		const answerLive = async (
-			toolCall: zToolCallPart,
-		): Promise<ToolFeedback | undefined> => {
-			if (!toolFeedback || !context.interactive) return undefined;
-			const signal = options?.abortSignal ?? new AbortController().signal;
-			return toolFeedback({ part: toolCall, signal }).catch(() => undefined);
-		};
-
-		/** Runs one of Tiny Chat's calls for an agent with its own loop. */
-		const executeTool = async (
-			toolCall: zToolCallPart,
-		): Promise<zToolResultPart> => {
-			const { tool } = ToolUtils.find({
-				toolsets: enabledToolsets,
-				part: toolCall,
-			});
-			const fail = (value: string): zToolResultPart => ({
-				type: "toolResult",
-				id: toolCall.id,
-				name: toolCall.name,
-				error: true,
-				output: [{ id: CommonUtils.getRandomId(), type: "text", value }],
-			});
-			if (!tool) return fail(`Tool "${toolCall.name}" not found`);
-			if (toolValidationErrors.has(toolCall.id))
-				return fail(
-					CommonUtils.formatError({
-						error: toolValidationErrors.get(toolCall.id),
-						details: true,
-					}),
-				);
-
-			let feedback: unknown;
-			if (tool.feedback || toolCall.validation?.approval) {
-				const answer = await answerLive(toolCall);
-				if (!answer || (toolCall.validation?.approval && !answer.approved))
-					return {
-						type: "toolResult",
-						id: toolCall.id,
-						name: toolCall.name,
-						error: true,
-						output: ToolCallUtils.getRejection(),
-					};
-				feedback = answer.feedback;
-			}
-			return (await run({ toolCall, tool, feedback })).result;
-		};
-
-		/** Waits on the user's answer to one of an agent's own questions. */
-		const answer = async (toolCall: zToolCallPart) => {
-			const feedback = (await answerLive(toolCall))?.feedback;
-			return feedback && typeof feedback === "object"
-				? (feedback as Record<string, string>)
-				: undefined;
-		};
-
-		/** Asks the user to approve one of an agent's own calls. */
-		const approve = async (toolCall: zToolCallPart): Promise<boolean> => {
-			toolCall.validation = { ...toolCall.validation, approval: true };
-			return !!(await answerLive(toolCall))?.approved;
-		};
-
 		// A generation resumed with calls still to settle settles them before the
 		// model goes on: the user has answered at least one of them.
 		const unsettled =
@@ -740,12 +771,20 @@ export const AgentService = {
 				(part): part is zToolCallPart =>
 					part.type === "toolCall" &&
 					!part.partial &&
-					!parts.some((p) => p.type === "toolResult" && p.id === part.id),
+					!parts.some((p) => p.type === "toolResult" && p.id === part.id) &&
+					// The provider's own wait only on an approval not yet given.
+					(!part.providerExecuted || AgentService.isApproving(part)),
 			) ?? [];
 		const resumed = unsettled.length ? !(yield* settleCalls(unsettled)) : true;
 
+		/** The provider's calls that can be stopped on their own. */
+		const stoppable = new Set<string>();
+
 		// Agentic loop: keep generating until the model stops calling tools
 		while (resumed) {
+			/** Why the step ended, and whether the provider asks to go on. */
+			let finishReason: string | undefined;
+			let goOn = false;
 			messages[messages.length - 1].data = data;
 
 			parts = data[data.length - 1];
@@ -762,6 +801,9 @@ export const AgentService = {
 				}
 			};
 
+			/** Whether this step holds a window open for the provider's calls. */
+			let stepWindow = false;
+
 			try {
 				if (options?.abortSignal?.aborted) break;
 				for (const part of [
@@ -769,48 +811,44 @@ export const AgentService = {
 					...((await interjections?.()) ?? []),
 				])
 					yield push(part);
-				let stream: AsyncGenerator<zAgentEvent>;
-				if (provider.runAgent) {
-					// The agent keeps its own context, so the chat is not compacted.
-					stream = provider.runAgent({
-						user: context.user,
-						context,
-						config,
-						messages,
-						system: instructions,
-						tools: enabledTools,
-						folders: await AgentService.getLocalFolders(capabilities),
-						executeTool,
-						approve,
-						answer,
-						stream: toolStream
-							? (part, data) =>
-									toolStream({ part, mutation: { mode: "replace", data } })
-							: undefined,
-						signal: toolSignal && ((part) => toolSignal({ part })),
-						interjections,
-						abortSignal: options?.abortSignal,
-					});
-				} else {
-					const compacted = await AgentTokensService.compactMessages({
-						instructions,
-						messages,
-						config,
-						tools: supportsTools ? enabledTools : [],
-					});
-					stream = ModelProviderService.runLanguageModel({
-						user: context.user,
-						provider,
-						messages: compacted.messages,
-						config,
-						tools: enabledTools,
-						env,
-						options: {
-							system: instructions,
-							...options,
-						},
-					});
+				if (runsTools && changes) {
+					stepWindow = true;
+					await changes.begin();
+					// What the user approved, the provider runs in this step.
+					for (const part of data.flat())
+						if (
+							part.type === "toolCall" &&
+							part.providerExecuted &&
+							part.validation?.approved &&
+							!AgentService.hasResult(data, part.id)
+						)
+							await watch(part);
 				}
+				// A provider that keeps its own context is sent the chat whole.
+				const sent = provider.keepsContext
+					? messages
+					: (
+							await AgentTokensService.compactMessages({
+								instructions,
+								messages,
+								config,
+								tools: supportsTools ? enabledTools : [],
+							})
+						).messages;
+				const stream = ModelProviderService.runLanguageModel({
+					user: context.user,
+					provider,
+					messages: sent,
+					config,
+					tools: enabledTools,
+					env,
+					context,
+					folders: await AgentService.getLocalFolders(capabilities),
+					options: {
+						system: instructions,
+						...options,
+					},
+				});
 
 				for await (const event of stream) {
 					if (event.type === "start") {
@@ -851,6 +889,44 @@ export const AgentService = {
 						}
 					}
 
+					if (event.type === "approval") {
+						const call = AgentService.findCall(data, event.id);
+						if (call) call.validation = { ...call.validation, approval: true };
+						// It runs once approved, in a step of its own.
+						unwatch(event.id);
+					}
+
+					if (event.type === "toolStream") {
+						const call = AgentService.findCall(data, event.id);
+						if (call && toolStream) {
+							// Stoppable once it shows it runs, as a subagent does.
+							if (
+								provider.stopToolCall &&
+								toolSignal &&
+								!stoppable.has(call.id)
+							) {
+								stoppable.add(call.id);
+								toolSignal({ part: call })?.addEventListener(
+									"abort",
+									() => void provider.stopToolCall?.({ part: call }),
+									{ once: true },
+								);
+							}
+							toolStream({
+								part: call,
+								mutation: { mode: "replace", data: event.data },
+							});
+						}
+					}
+
+					if (event.type === "end") {
+						const finish = (event.metadata as { type?: string }[]).findLast(
+							(part) => part.type === "finish",
+						) as { finishReason?: string } | undefined;
+						finishReason = finish?.finishReason;
+						goOn = !!provider.shouldContinue?.({ events: event.metadata });
+					}
+
 					if (event.type === "data") {
 						if (event.value.type === "text") {
 							type Text = typeof event.value;
@@ -878,9 +954,29 @@ export const AgentService = {
 							} else {
 								parts.push(event.value);
 							}
+						} else if (
+							event.value.type === "toolCall" &&
+							event.value.providerExecuted
+						) {
+							// Streamed again with an approval asked for later: it moves
+							// to the step that asks.
+							for (const slot of data) {
+								const index = slot.findIndex(
+									(p) => p.type === "toolCall" && p.id === event.value.id,
+								);
+								if (index !== -1 && slot !== parts) slot.splice(index, 1);
+							}
+							toolInputs.delete(event.value.id);
+							const existing = parts.findIndex(
+								(p) => p.type === "toolCall" && p.id === event.value.id,
+							);
+							if (existing === -1) parts.push(event.value);
+							else parts[existing] = event.value;
+							if (!AgentService.isApproving(event.value))
+								await watch(event.value);
 						} else if (event.value.type === "toolCall") {
 							const { tool } = ToolUtils.find({
-								toolsets: enabledToolsets,
+								toolsets: lookupToolsets,
 								part: event.value,
 							});
 							if (tool?.validate) {
@@ -912,7 +1008,8 @@ export const AgentService = {
 							if (partial === -1) parts.push(event.value);
 							else parts[partial] = event.value;
 						} else if (event.value.type === "toolResult") {
-							// An agent's own call reports again once its changes are known.
+							await watched(event.value);
+							// A provider may report a call's result again.
 							const existing = parts.findIndex(
 								(p) => p.type === "toolResult" && p.id === event.value.id,
 							);
@@ -954,12 +1051,27 @@ export const AgentService = {
 					details: JSON.stringify(e),
 				});
 				break;
+			} finally {
+				if (stepWindow) changes?.cancel();
 			}
 
-			// An agent with its own loop settled its calls itself, and is done.
-			if (provider.runAgent) break;
-
-			const toolCalls = parts.filter((p) => p.type === "toolCall");
+			// Tiny Chat's calls, and approvals of the provider's own it asked for.
+			const toolCalls = [
+				...parts.filter(
+					(p): p is zToolCallPart =>
+						p.type === "toolCall" && !p.providerExecuted,
+				),
+				...data
+					.flat()
+					.filter(
+						(p): p is zToolCallPart =>
+							p.type === "toolCall" &&
+							AgentService.isApproving(p) &&
+							!data
+								.flat()
+								.some((r) => r.type === "toolResult" && r.id === p.id),
+					),
+			];
 			if (VERBOSE)
 				console.log(
 					`[AgentService] ${toolCalls.length} tools called:`,
@@ -978,7 +1090,8 @@ export const AgentService = {
 				break;
 			}
 			if (stop) break;
-			if (!toolCalls.length) {
+			// A provider running its own calls goes on with the next step.
+			if (!toolCalls.length && finishReason !== "tool-calls" && !goOn) {
 				if (!background.size) {
 					console.log("[AgentService] loop complete");
 					break;
@@ -988,6 +1101,9 @@ export const AgentService = {
 				await Promise.race(background.values());
 			}
 		}
+
+		// What never reported back is not waited for.
+		for (const id of [...watching]) unwatch(id);
 
 		// The generation does not end with calls still running in the background.
 		await Promise.all(background.values());

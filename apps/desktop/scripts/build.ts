@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
+import { mkdir } from "node:fs/promises";
+import { proc } from "@ryangarber/utils";
 import { zClientEnv } from "#core/core/types/env.ts";
-import { spawn } from "../../../scripts/spawn.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
-import { buildNative } from "./native.ts";
 
 /**
  * A release of the desktop app for this host, against the production server:
@@ -18,19 +18,17 @@ process.env.DEV_HOST = "";
 process.env.DEV_REMOTE = "";
 useEnv({ type: zClientEnv });
 
-await spawn({
+await proc({
+	title: "Preparing electrobun",
 	command: ["pnpm", "exec", "electrobun", "prepare"],
-	label: ["electrobun prepare", "preparing electrobun"],
-	output: "tail",
 });
-await buildNative("release");
-await spawn({
+// What `electrobun.config.ts` copies, before the GUI is built into it.
+await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
+await proc({
+	title: "Building GUI",
 	command: ["pnpm", "exec", "vite", "build"],
-	label: ["gui build", "building gui"],
-	output: "tail",
 });
-await spawn({
+await proc({
+	title: `Building app (${channel})`,
 	command: ["pnpm", "exec", "electrobun", "build", `--env=${channel}`],
-	label: [`${channel} app build`, `building ${channel} app`],
-	output: "tail",
 });

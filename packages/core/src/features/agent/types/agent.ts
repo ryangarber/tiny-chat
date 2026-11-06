@@ -46,6 +46,10 @@ export const zAgentEvent = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("start"), warnings: z.array(z.any()) }),
 	z.object({ type: z.literal("data"), value: zDataPart }),
 	z.object({ type: z.literal("end"), metadata: zMetadata }),
+	/** A call the provider runs itself asks for the user's approval first. */
+	z.object({ type: z.literal("approval"), id: z.string() }),
+	/** What a call the provider runs shows while it runs, in place of before. */
+	z.object({ type: z.literal("toolStream"), id: z.string(), data: zData }),
 	/** A tool call's input as the model writes it, before the call is complete. */
 	z.object({
 		type: z.literal("toolInput"),

@@ -1,5 +1,10 @@
 import type { ProviderV3, ProviderV4 } from "@ai-sdk/provider";
-import type { EmbeddingModel, LanguageModel, TextStreamPart } from "ai";
+import type {
+	EmbeddingModel,
+	LanguageModel,
+	Tool as SdkTool,
+	TextStreamPart,
+} from "ai";
 import { z } from "zod";
 import { Enum } from "#core/core/services/PostgresService.ts";
 import type { PromiseOrValue } from "#core/core/types/common.ts";
@@ -12,17 +17,15 @@ import type { zConfig } from "#core/features/data/types/message.ts";
 import {
 	zData,
 	type zDataPart,
-	type zInterjectionPart,
 	type zSignature,
 	type zToolCallPart,
-	type zToolResultPart,
 } from "#core/features/data/types/part.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
 import type {
 	Provider,
 	ProviderStatus,
 } from "#core/features/provider/types/provider.ts";
-import type { ToolDefinition } from "#core/features/tool/types/tool.ts";
+import type { Tool } from "#core/features/tool/types/tool.ts";
 
 export const zModelFeature = z.enum([
 	"language",
@@ -87,6 +90,10 @@ export interface ModelProvider<T extends ProviderV3 | ProviderV4>
 		user: zUser;
 		config: zConfig;
 		env: Partial<zProviderEnv>;
+		/** The chat the generation is for, whose project's settings apply. */
+		context?: zAgentContext;
+		/** The chat's local folders, the primary one first. */
+		folders?: string[];
 	}) => Record<string, any> | undefined;
 
 	getModelArgs: (args: { model: string }) => zModelArg[];
@@ -122,48 +129,45 @@ export interface ModelProvider<T extends ProviderV3 | ProviderV4>
 	}) => Record<string, any> | undefined;
 
 	/**
-	 * Runs a whole generation as an agent with its own loop, in place of a
-	 * single model step at a time. Its calls arrive with their results, so the
-	 * generation does not run them; Tiny Chat's own tools run through
-	 * `executeTool`, and the agent's own ones ask `approve` first.
+	 * What a provider keeps of the conversation itself (Claude Code's
+	 * session), so the chat sent to it is never compacted.
 	 */
-	runAgent?: (args: AgentRunArgs) => AsyncGenerator<zAgentEvent>;
-}
+	keepsContext?: boolean;
 
-export interface AgentRunArgs {
-	user: zUser;
-	/** The chat the generation is for, whose settings and rules apply. */
-	context: zAgentContext;
-	config: zConfig;
-	/** The chat, ending with the user's prompt and then the reply being made. */
-	messages: zModelMessage[];
-	system?: string;
-	/** Tiny Chat's enabled tools, by the name the model calls them. */
-	tools: ToolDefinition[];
 	/**
-	 * The chat's local folders, the primary one first, where a local agent
-	 * runs and works. Empty without any.
+	 * Tools only the provider's model calls that Tiny Chat answers, such as
+	 * Claude Code's own questions. Never offered to other models.
 	 */
-	folders: string[];
-	/** Validates, waits on the user where needed, and runs one of Tiny Chat's calls. */
-	executeTool: (part: zToolCallPart) => Promise<zToolResultPart>;
-	/** Asks the user to approve one of the agent's own calls. */
-	approve: (part: zToolCallPart) => Promise<boolean>;
+	getTools?: (args: { config: zConfig }) => Tool<any, any>[];
+
+	/** The provider's own tools to declare for a step, beside Tiny Chat's. */
+	getSdkTools?: (args: { config: zConfig }) => Record<string, SdkTool>;
+
 	/**
-	 * Waits on the user's answer to one of the agent's own calls that asks them
-	 * something, as its display's fields; undefined if none comes.
+	 * Whether a step's model may run tools of its own (Claude Code's, Codex's)
+	 * without Tiny Chat running them. What those change is then found by
+	 * comparing the user's repositories from the start of the step, since such
+	 * a call can be running before Tiny Chat hears of it.
 	 */
-	answer: (part: zToolCallPart) => Promise<Record<string, string> | undefined>;
+	runsTools?: (args: { config: zConfig }) => boolean;
+
 	/**
-	 * Shows what one of the agent's own calls does while it runs — a
-	 * subagent's conversation — in place of what it showed before.
-	 *
-	 * [yes apparently genius opus 5.5 made 'stream' the name of a specific provider's SUBAGENT-specific path. zero energy to fix it now.]
+	 * A stream's event as the generation's events, where the provider reads it
+	 * its own way; undefined to read it as any other.
 	 */
-	stream?: (part: zToolCallPart, data: zData) => void;
-	/** Aborts once the user stops one of the agent's own calls while it runs. */
-	signal?: (part: zToolCallPart) => AbortSignal | undefined;
-	/** Takes the messages the user queued meanwhile, for the agent to read next. */
-	interjections?: () => zInterjectionPart[] | Promise<zInterjectionPart[]>;
-	abortSignal?: AbortSignal;
+	getEventTransformed?: (args: {
+		user: zUser;
+		config: zConfig;
+		event: TextStreamPart<any>;
+	}) => zAgentEvent[] | undefined;
+
+	/**
+	 * Whether the generation goes on after a step that called nothing, from
+	 * the step's events: the provider has more to stream (work in the
+	 * background that will report in).
+	 */
+	shouldContinue?: (args: { events: TextStreamPart<any>[] }) => boolean;
+
+	/** Stops one of the provider's own calls while it runs (a subagent). */
+	stopToolCall?: (args: { part: zToolCallPart }) => PromiseOrValue<void>;
 }

@@ -1,9 +1,9 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { log } from "@ryangarber/utils";
 import type { z } from "better-auth";
 import { config } from "dotenv";
 import { internalIpV4Sync } from "internal-ip";
-import { print } from "./use-stdout.ts";
 
 export function useEnv<T extends z.ZodObject>({
 	type,
@@ -27,8 +27,8 @@ export function useEnv<T extends z.ZodObject>({
 			process.env.DEV_REMOTE === "true" ? internalIpV4Sync() : "localhost";
 	}
 
-	print({
-		message: `using ${process.env.DEV_ENV} [${Object.entries(env.parsed ?? {}).length}]`,
+	log({
+		message: `Loaded ${process.env.DEV_ENV} [${Object.entries(env.parsed ?? {}).length} variables]`,
 	});
 
 	return type.parse({

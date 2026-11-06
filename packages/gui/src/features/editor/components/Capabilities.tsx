@@ -564,17 +564,26 @@ function ToolsetView({
 function BrowserRequirement({
 	label,
 	found,
+	optional,
 	children,
 }: {
 	label: string;
 	found: boolean;
+	/** Missing it only limits what can be done, so it warns rather than fails. */
+	optional?: boolean;
 	children: ReactNode;
 }) {
 	return (
 		<Card withBorder padding="xs">
 			<Group wrap="nowrap" align="flex-start">
-				<Box pt={2} c={found ? "green" : "red"}>
-					{found ? <CheckCircleIcon size={16} /> : <XCircleIcon size={16} />}
+				<Box pt={2} c={found ? "green" : optional ? "yellow" : "red"}>
+					{found ? (
+						<CheckCircleIcon size={16} />
+					) : optional ? (
+						<WarningCircleIcon size={16} />
+					) : (
+						<XCircleIcon size={16} />
+					)}
 				</Box>
 				<Stack gap={5} miw={0} flex={1}>
 					<Text size="xs">{label}</Text>
@@ -605,6 +614,11 @@ function BrowserView() {
 				<Switch
 					size="xs"
 					label="Show the browser window"
+					description={
+						status?.display?.available === false
+							? "Not available here; the browser runs headless"
+							: undefined
+					}
 					checked={browserSettings.data?.headed ?? false}
 					onChange={(event) =>
 						setBrowserSettings.mutate({
@@ -668,6 +682,19 @@ function BrowserView() {
 							</Text>
 						)}
 					</BrowserRequirement>
+					{status.display && (
+						<BrowserRequirement
+							label="Browser window"
+							found={status.display.available}
+							optional
+						>
+							<Text size="xs" c="dimmed">
+								{status.display.available
+									? "Can be shown on this desktop"
+									: `${status.display.error ?? "No desktop to show it on"} · runs headless instead`}
+							</Text>
+						</BrowserRequirement>
+					)}
 					{status.error && (
 						<Group gap="xs" c="red" wrap="nowrap">
 							<WarningCircleIcon size={14} />

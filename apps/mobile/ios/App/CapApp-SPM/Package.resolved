@@ -1,13 +1,40 @@
 {
-  "originHash" : "46a329c8cfbdfa429ceba8f2fc02ae9c5bdcd1341acdff109470a237e238a301",
+  "originHash" : "defb0da56c4195d916710fb79ffecdb55ef59171677ba279908d66089689ad2b",
   "pins" : [
+    {
+      "identity" : "afmize",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ryangarber/afmize.git",
+      "state" : {
+        "revision" : "715686c9a3b5c50c08ced1920a2293368b79c102",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "alamofire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Alamofire/Alamofire.git",
+      "state" : {
+        "revision" : "bda9ed57d72988a3a2ada33d824583541f86eac6",
+        "version" : "5.12.2"
+      }
+    },
     {
       "identity" : "capacitor-swift-pm",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
       "state" : {
-        "revision" : "4c7f346d16196e21fbe23d4a7a6fc7af62af6742",
-        "version" : "8.5.3"
+        "revision" : "e9e932f7748d3b948bc47f5791c761ac5221ec6a",
+        "version" : "8.6.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
       }
     }
   ],

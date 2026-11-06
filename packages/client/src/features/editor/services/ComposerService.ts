@@ -55,7 +55,11 @@ export const ComposerService = {
 		useComposerStore.getState().setData(data);
 	},
 
-	insertAttachment: async ({
+	/**
+	 * Writes an attachment in at once, as a chip that reads it in the
+	 * background; sending waits on it while it is in the message.
+	 */
+	insertAttachment: ({
 		client,
 		item,
 	}: {
@@ -63,8 +67,9 @@ export const ComposerService = {
 		item: AttachmentItem;
 	}) => {
 		if (!client.input) throw new Error("missing client input");
-		const node = await AttachmentService.create({ client, item });
+		const node = AttachmentService.create({ client, item });
 		client.input.insertNode({ client, node });
+		return node;
 	},
 
 	/** Quote a passage of a message into the message being written. */
@@ -89,7 +94,7 @@ export const ComposerService = {
 	 * directory on the chat mount. That reference is the whole of it: an upload
 	 * is in a chat because a message points into it.
 	 */
-	attachUpload: async ({
+	attachUpload: ({
 		client,
 		upload,
 		file,
@@ -98,7 +103,7 @@ export const ComposerService = {
 		upload: { id: string; name: string };
 		file?: string;
 	}) => {
-		await ComposerService.insertAttachment({
+		return ComposerService.insertAttachment({
 			client,
 			item: AttachmentUtils.forUpload({ upload, file }),
 		});

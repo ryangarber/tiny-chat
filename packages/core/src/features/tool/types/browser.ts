@@ -151,6 +151,25 @@ export const zBrowserStep = z.discriminatedUnion("action", [
 		.describe("Read the console messages and page errors of the tab."),
 	z
 		.object({
+			action: z.literal("resize"),
+			width: z
+				.number()
+				.optional()
+				.describe("Viewport width in CSS pixels (200–4000)."),
+			height: z
+				.number()
+				.optional()
+				.describe("Viewport height in CSS pixels (200–4000)."),
+			reset: z
+				.boolean()
+				.optional()
+				.describe("Go back to the default size instead."),
+		})
+		.describe(
+			"Resize the active tab's viewport, e.g. 390×844 to see a page as a phone would. The size stays with the tab for later calls until reset.",
+		),
+	z
+		.object({
 			action: z.literal("screenshot"),
 			...zTarget,
 			fullPage: z.boolean().optional(),
@@ -181,6 +200,11 @@ export const zBrowserRunResult = z.object({
 	steps: z.array(zBrowserStepResult),
 	/** Steps never reached because one before them failed or was aborted. */
 	skipped: z.number().optional(),
+	/**
+	 * Something about how the run went that is not a failure: that the
+	 * browser ran headless because no window could be shown, say.
+	 */
+	notice: z.string().optional(),
 	/** One per `screenshot` step, then the final one when asked for. */
 	screenshots: z.array(z.object({ mime: z.string(), data: z.string() })),
 });
@@ -206,5 +230,13 @@ export const zBrowserStatus = z.object({
 	browsers: z.array(zBrowserInstall),
 	/** The install a run will launch: the first of `browsers`. */
 	browser: zBrowserInstall.optional(),
+	/**
+	 * Whether the browser window can be shown here. Where it cannot (no
+	 * desktop, as over SSH or a broken WSLg), showing it is asked for in vain
+	 * and the browser runs headless instead.
+	 */
+	display: z
+		.object({ available: z.boolean(), error: z.string().optional() })
+		.optional(),
 });
 export type zBrowserStatus = z.infer<typeof zBrowserStatus>;

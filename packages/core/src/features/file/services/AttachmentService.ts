@@ -71,13 +71,22 @@ export const AttachmentService = {
 			};
 		} else if (source.startsWith("window:")) {
 			if (!computer) throw new Error(`Cannot read window: ${source}`);
+			const status = await ComputerService.status(computer);
+			if (!status.available) {
+				throw new Error(status.error ?? `Cannot read window: ${source}`);
+			}
+			// The outline is the attachment; a screenshot only adds to it. Where
+			// the screen cannot be captured at all it is not tried, which would
+			// raise the window for nothing, and one that fails is left out.
 			const result = await ComputerService.run({
 				capability: computer,
 				window: source.slice(7),
 				steps: [{ action: "read" }],
-				screenshot: true,
+				screenshot: status.screen !== false,
 			});
-			const failed = result.steps.find((step) => !step.ok);
+			const failed = result.steps.find(
+				(step) => !step.ok && step.action !== "screenshot",
+			);
 			if (failed || !result.window) {
 				throw new Error(failed?.error ?? `No window ${source.slice(7)}`);
 			}

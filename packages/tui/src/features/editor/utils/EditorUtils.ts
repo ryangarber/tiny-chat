@@ -1,3 +1,4 @@
+import type { EditorPartStatus } from "#client/features/editor/stores/useEditorPartStore.ts";
 import { getEditorPart } from "#client/features/editor/stores/useEditorPartStore.ts";
 import type { Atom, AtomToken } from "#client/features/editor/types/atom.ts";
 import { AtomUtils } from "#client/features/editor/utils/AtomUtils.ts";
@@ -27,14 +28,29 @@ export const EditorUtils = {
 	 * — for the text area's `labels`. They are read in order and the first rule
 	 * to claim a character keeps it, so these come before the markdown's.
 	 */
-	tokenLabels: ({ atoms }: { atoms: Atom[] }): TextareaLabels => {
+	/**
+	 * Paints each atom as its kind; an attachment still being read is drawn
+	 * `attachment+pending`, and one that could not be, `attachment+failed`.
+	 */
+	tokenLabels: ({
+		atoms,
+		status = {},
+	}: {
+		atoms: Atom[];
+		status?: Record<string, EditorPartStatus>;
+	}): TextareaLabels => {
 		const pattern = AtomUtils.pattern({ atoms });
 		if (!pattern) return [];
 
 		return [
 			{
 				pattern,
-				label: (match) => AtomUtils.find({ atoms, text: match[0] })?.kind,
+				label: (match) => {
+					const atom = AtomUtils.find({ atoms, text: match[0] });
+					if (!atom) return undefined;
+					const state = status[atom.id]?.state;
+					return state ? `${atom.kind}+${state}` : atom.kind;
+				},
 			},
 		];
 	},

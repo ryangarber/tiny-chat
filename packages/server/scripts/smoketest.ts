@@ -1,27 +1,23 @@
 #!/usr/bin/env node
 
-import { spawn } from "../../../scripts/spawn.ts";
-import { create, printout } from "../../../scripts/use-stdout.ts";
+import { log, proc } from "@ryangarber/utils";
 
-const update = create("trying server");
-
-const { code, error, stdout, stderr } = await spawn({
+const { code, error, stdout, stderr } = await proc({
+	title: "Checking server",
 	command: ["pnpm", "-w", "start:server", "--", "--smoke"],
 	signal: AbortSignal.timeout(30_000),
 	errors: "resolve",
-	output: false,
 });
 
 const timedOut = error?.name === "AbortError";
 if (!timedOut && (stdout + stderr).includes("EADDRINUSE")) {
-	update("server started but port is in use", "warning");
+	log({ message: "Server started but port is in use", level: "warning" });
 } else if (timedOut) {
-	update("timed out waiting for server to start", "error");
+	log({ message: "Timed out waiting for server to start", level: "error" });
 	process.exitCode = 1;
 } else if (code !== 0) {
-	update("server failed to start", "error");
+	log({ message: "Server failed to start", level: "error" });
 	process.exitCode = 1;
 } else {
-	update("server started successfully");
+	log({ message: "Server started successfully" });
 }
-printout({ stdout, stderr });

@@ -96,7 +96,7 @@ export function GitHubUploads({ close }: { close: () => void }) {
 									}}
 									onClick={() => {
 										if (!existing) return;
-										void ComposerService.attachUpload({
+										ComposerService.attachUpload({
 											client,
 											upload: existing,
 										});

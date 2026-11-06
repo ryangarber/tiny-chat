@@ -1,12 +1,16 @@
 import { z } from "zod";
 import { AgentService } from "#core/features/agent/services/AgentService.ts";
+import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
 import { zConfig } from "#core/features/data/types/message.ts";
 import type {
 	zData,
+	zDataSimplePart,
 	zInterjectionPart,
 	zToolCallPart,
 } from "#core/features/data/types/part.ts";
+import { FileChangeService } from "#core/features/file/services/FileChangeService.ts";
 import { TestProvider } from "#core/features/provider/providers/model/TestProvider.ts";
+import { ModelProviderService } from "#core/features/provider/services/ModelProviderService.ts";
 import type {
 	Tool,
 	ToolFeedback,
@@ -682,6 +686,128 @@ describe("AgentService", () => {
 				).toEqual(["toolCall", "toolCall", "result write", "result read"]);
 				expect(data.flat().at(-1)?.type).toBe("text");
 			});
+		});
+	});
+
+	describe("changes of the provider's own calls", () => {
+		afterEach(() => vi.restoreAllMocks());
+
+		/** One step of a provider that runs its own tools, and its tracker's log. */
+		const generate = (step: zAgentEvent[]) => {
+			const log: string[] = [];
+			vi.spyOn(FileChangeService, "createTracker").mockReturnValue({
+				begin: async () => void log.push("begin"),
+				cancel: () => void log.push("cancel"),
+				end: async () => {
+					log.push("end");
+					return { files: [{ path: "/repo/a.txt", before: "a", after: "b" }] };
+				},
+			});
+			vi.spyOn(ModelProviderService, "runLanguageModel").mockImplementation(
+				async function* () {
+					log.push("step");
+					yield* step;
+				},
+			);
+			const data: zData = [];
+			const config = zConfig.parse({
+				provider: "test",
+				model: "test-generate",
+				toolsets: [],
+			});
+			const events = AgentService.generate({
+				provider: { ...TestProvider, runsTools: () => true },
+				capabilities: { shell: {} as never },
+				toolsets: [],
+				skills: [],
+				data,
+				metadata: [],
+				env: {},
+				instructions: "Test",
+				context: {
+					user: { id: "test", name: "test", settings: {}, isEphemeral: true },
+					timezone: "UTC",
+					interactive: true,
+					messages: [
+						{
+							id: "prompt",
+							author: "USER",
+							config,
+							createdAt: null,
+							data: [[{ id: "prompt", type: "text", value: "Go" }]],
+						},
+						{ id: "reply", author: "MODEL", config, createdAt: null, data },
+					],
+				},
+			});
+			return { data, events, log };
+		};
+
+		const call = (id: string, name: string): zAgentEvent => ({
+			type: "data",
+			value: { type: "toolCall", id, name, input: {}, providerExecuted: true },
+		});
+		const result = (
+			id: string,
+			name: string,
+			output: zDataSimplePart[] = [
+				{ id: `${id}:out`, type: "text", value: "done" },
+			],
+		): zAgentEvent => ({
+			type: "data",
+			value: { type: "toolResult", id, name, providerExecuted: true, output },
+		});
+		const start: zAgentEvent = { type: "start", warnings: [] };
+		const end: zAgentEvent = {
+			type: "end",
+			metadata: [{ type: "finish", finishReason: "stop" }],
+		};
+
+		it("finds what a call changed, from the start of its step", async () => {
+			const { data, events, log } = generate([
+				start,
+				call("bash", "Bash"),
+				call("read", "Read"),
+				result("read", "Read"),
+				result("bash", "Bash"),
+				end,
+			]);
+			for await (const _ of events);
+
+			// The step's window is taken before it streams; `Read` isn't watched.
+			expect(log).toEqual(["begin", "step", "begin", "end", "cancel"]);
+			const results = data.flat().filter((part) => part.type === "toolResult");
+			expect(
+				results.find((part) => part.id === "bash")?.changes?.files,
+			).toEqual([{ path: "/repo/a.txt", before: "a", after: "b" }]);
+			expect(
+				results.find((part) => part.id === "read")?.changes,
+			).toBeUndefined();
+		});
+
+		it("lets go of a call asking approval, or running in the background", async () => {
+			const { data, events, log } = generate([
+				start,
+				call("asks", "Bash"),
+				{ type: "approval", id: "asks" },
+				call("later", "Bash"),
+				result("later", "Bash", ToolCallUtils.getBackground({ id: "later" })),
+				end,
+			]);
+			for await (const _ of events);
+
+			expect(log).toEqual([
+				"begin",
+				"step",
+				"begin",
+				"cancel",
+				"begin",
+				"cancel",
+				"cancel",
+			]);
+			expect(
+				data.flat().some((part) => part.type === "toolResult" && part.changes),
+			).toBe(false);
 		});
 	});
 });

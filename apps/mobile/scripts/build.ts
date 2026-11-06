@@ -3,10 +3,10 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { proc } from "@ryangarber/utils";
 import { zClientEnv } from "#core/core/types/env.ts";
 import type { MobileRelease, MobileUpdate } from "#mobile/core/types/update.ts";
 import workspace from "../../../package.json" with { type: "json" };
-import { spawn } from "../../../scripts/spawn.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 import { fingerprint } from "./fingerprint.ts";
 
@@ -41,19 +41,18 @@ const release: MobileRelease = {
 // What the build checks updates against (`vite.config.ts`).
 process.env.MOBILE_RELEASE = JSON.stringify(release);
 
-await spawn({
+await proc({
+	title: "Building GUI",
 	command: ["pnpm", "exec", "vite", "build"],
-	label: ["gui build", "building gui"],
-	output: "tail",
 });
 
 const out = fileURLToPath(new URL("../build", import.meta.url));
 const bundle = `${out}/Tiny.Chat_Mobile.zip`;
 await mkdir(out, { recursive: true });
 await rm(bundle, { force: true });
-await spawn({
+await proc({
+	title: "Zipping live update",
 	command: ["zip", "-qr", bundle, ".", "-x", "stats.html"],
-	label: ["live update", "zipping live update"],
 	cwd: fileURLToPath(new URL("../dist", import.meta.url)),
 });
 const update: MobileUpdate = {
@@ -64,16 +63,16 @@ const update: MobileUpdate = {
 };
 await writeFile(`${out}/mobile-update.json`, JSON.stringify(update));
 
-await spawn({
+await proc({
+	title: `Syncing ${platform}`,
 	command: ["pnpm", "exec", "cap", "sync", platform],
-	label: [`${platform} sync`, `syncing ${platform}`],
-	output: "tail",
 });
 
 if (platform === "ios") {
 	const archive = `${process.env.RUNNER_TEMP ?? fileURLToPath(new URL("../ios/App", import.meta.url))}/App.xcarchive`;
 	await rm(archive, { recursive: true, force: true });
-	await spawn({
+	await proc({
+		title: "Building IPA",
 		command: [
 			"xcodebuild",
 			"-project",
@@ -96,20 +95,17 @@ if (platform === "ios") {
 			// What a live update is installed over (`UpdateService`).
 			`MARKETING_VERSION=${workspace.version}`,
 		],
-		label: ["ios archive", "archiving ios app"],
-		output: "tail",
 		cwd: fileURLToPath(new URL("../ios/App", import.meta.url)),
 	});
 } else {
-	await spawn({
+	await proc({
+		title: "Building APK",
 		command: [
 			process.platform === "win32" ? "gradlew.bat" : "./gradlew",
 			"assembleRelease",
 			// What a live update is installed over (`UpdateService`).
 			`-PversionName=${workspace.version}`,
 		],
-		label: ["android assemble", "assembling android apks"],
-		output: "tail",
 		cwd: fileURLToPath(new URL("../android", import.meta.url)),
 	});
 }

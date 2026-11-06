@@ -137,6 +137,7 @@ export const ComputerService = {
 				os: status.os,
 				input: status.input,
 				missing: status.missing,
+				screen: !status.missing.includes("screen") && !status.errors.screen,
 			};
 		} catch (error) {
 			return {

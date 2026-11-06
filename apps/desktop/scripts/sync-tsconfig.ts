@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { readFile, writeFile } from "node:fs/promises";
-import { create } from "../../../scripts/use-stdout.ts";
+import { task } from "@ryangarber/utils";
 import devkit from "../.hutch/devkit/tsconfig.json" with { type: "json" };
 
-const update = create("updating tsconfig");
+const status = await task("Updating tsconfig.json");
 
 const original = await readFile(
 	new URL("../tsconfig.json", import.meta.url),
@@ -40,4 +40,4 @@ const updated =
 	original.slice(pathsEnd);
 
 await writeFile(new URL("../tsconfig.json", import.meta.url), updated);
-update(`updated tsconfig`);
+status.complete();

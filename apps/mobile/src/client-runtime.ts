@@ -29,7 +29,7 @@ export const runtime: ClientRuntime = native
 				? KeyboardService.onKeyboard
 				: undefined,
 			getModelProviders: async () => {
-				if (!Capacitor.isPluginAvailable("afmize")) return [];
+				if (!Capacitor.isPluginAvailable("Afmize")) return [];
 				const { AFMProvider } = await import(
 					"#mobile/core/services/AfmService.ts"
 				);

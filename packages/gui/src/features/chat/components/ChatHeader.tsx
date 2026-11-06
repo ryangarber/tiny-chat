@@ -53,7 +53,7 @@ export default function ChatHeader({ fixed }: { fixed: boolean }) {
 							size={32}
 							variant="subtle"
 							className="nav-link-like filled"
-							onClick={() => ChatService.newChat(null)}
+							onClick={() => ChatService.setChat({ id: null })}
 							data-active={!chat.data}
 						>
 							<PlusCircleIcon size={20} />

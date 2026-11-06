@@ -11,14 +11,8 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 
 /** What a native project is built from, besides the plugins it is given. */
 const sources = {
-	ios: {
-		files: ["apps/mobile/ios", "apps/mobile/capacitor.config.ts"],
-		submodules: ["vendor/afmize"],
-	},
-	android: {
-		files: ["apps/mobile/android", "apps/mobile/capacitor.config.ts"],
-		submodules: [],
-	},
+	ios: ["apps/mobile/ios", "apps/mobile/capacitor.config.ts"],
+	android: ["apps/mobile/android", "apps/mobile/capacitor.config.ts"],
 } as const;
 
 /** Files git would track under `paths`, sorted; ignored ones are build output. */
@@ -62,16 +56,10 @@ const listPlugins = async () => {
  */
 export async function fingerprint(platform: "ios" | "android") {
 	const hash = createHash("sha256");
-	for (const file of await listFiles(sources[platform].files)) {
+	for (const file of await listFiles(sources[platform])) {
 		// Listed, but deleted from the working tree.
 		const data = await readFile(join(root, file)).catch(() => undefined);
 		if (data) hash.update(`${file}\0`).update(data).update("\0");
-	}
-	for (const submodule of sources[platform].submodules) {
-		const { stdout } = await exec("git", ["rev-parse", "HEAD"], {
-			cwd: join(root, submodule),
-		});
-		hash.update(`${submodule}\0${stdout.trim()}\0`);
 	}
 	for (const plugin of await listPlugins()) hash.update(`${plugin}\0`);
 	return hash.digest("hex");

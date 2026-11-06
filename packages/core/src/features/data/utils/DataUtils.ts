@@ -1,4 +1,7 @@
+import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import { TypeUtils } from "#core/core/utils/TypeUtils.ts";
 import type {
+	zAbortPart,
 	zData,
 	zDataPart,
 	zInterjectionPart,
@@ -23,7 +26,81 @@ export type RenderedPartGroup<T extends RenderedPart["type"][]> = {
 	};
 }[T[number]];
 
+/** What the model is told where a reply it is working from was cut short. */
+const CHECKPOINT_NOTICE =
+	"[This reply was saved as a checkpoint while it was still being generated, and was interrupted before it finished. Work done after this point — including the effects of any tool calls cut off here — may have happened without being recorded above.]";
+
+/** The result of a call a checkpoint caught before it returned. */
+const CHECKPOINT_CALL_NOTICE =
+	"Interrupted before this call returned: whether it took effect is unknown.";
+
 export const DataUtils = {
+	/** Whether `part` marks its reply as saved mid-generation. */
+	isCheckpoint: (part: zDataPart): part is zAbortPart =>
+		part.type === "abort" && part.reason === "checkpoint",
+
+	/** What the model is told in place of a checkpoint's `abort` part. */
+	getCheckpointNotice: () => CHECKPOINT_NOTICE,
+
+	/**
+	 * A copy of a reply still being generated, as it stands, to save in case
+	 * the generation never finishes. Calls left half-written are dropped, and
+	 * calls still running end on a result saying so, so the reply can be picked
+	 * up again from here — except those in `awaiting`, still waiting on the
+	 * user, which are left to be answered. It ends on a `checkpoint` abort.
+	 */
+	getCheckpoint: ({
+		data,
+		awaiting = () => false,
+	}: {
+		data: zData;
+		awaiting?: (id: string) => boolean;
+	}): zData => {
+		const checkpoint = TypeUtils.deepClone(data);
+		if (!checkpoint.length) checkpoint.push([]);
+		const settled = new Set(
+			checkpoint
+				.flat()
+				.filter((part) => part.type === "toolResult")
+				.map((part) => part.id),
+		);
+		const parts = checkpoint[checkpoint.length - 1];
+		const kept = parts.filter(
+			(part) => !(part.type === "toolCall" && part.partial),
+		);
+		const cut = kept.filter(
+			(part): part is zToolCallPart =>
+				part.type === "toolCall" && !settled.has(part.id) && !awaiting(part.id),
+		);
+		parts.splice(
+			0,
+			parts.length,
+			...kept,
+			...cut.map(
+				(call): zToolResultPart => ({
+					id: call.id,
+					type: "toolResult",
+					name: call.name,
+					error: true,
+					output: [
+						{
+							id: CommonUtils.getRandomId(),
+							type: "text",
+							value: CHECKPOINT_CALL_NOTICE,
+						},
+					],
+				}),
+			),
+			{
+				id: CommonUtils.getRandomId(),
+				type: "abort",
+				reason: "checkpoint",
+				message: "This reply was interrupted before it finished.",
+			},
+		);
+		return checkpoint;
+	},
+
 	getText: ({ data, join = " " }: { data: zData; join?: string }): string => {
 		return data
 			.flat()
@@ -74,14 +151,23 @@ export const DataUtils = {
 		const parts = data.flat();
 		const renderedParts: RenderedPart[] = [];
 
+		// A provider numbers a step's thoughts from `0` again in every step, so
+		// one that repeats an earlier step's id is told apart by its step: what
+		// is drawn for each, and what the user opens of it, stays its own.
+		const steps = data.flatMap((step, index) => step.map(() => index));
+		const thoughts = new Set<string>();
+
 		for (let i = 0; i < parts.length; i++) {
 			const part = parts[i];
 
 			if (part.type === "text") {
 				if (part.value.trim().length) renderedParts.push(part);
 			} else if (part.type === "thought") {
+				const id = thoughts.has(part.id) ? `${part.id}@${steps[i]}` : part.id;
+				thoughts.add(part.id);
 				renderedParts.push({
 					...part,
+					id,
 					active: thinking && i === parts.length - 1,
 				});
 			} else if (part.type === "toolCall") {
