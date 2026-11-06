@@ -1,3 +1,30 @@
+## 0.10.9 (2026-11-06)
+
+### Features
+
+- codex provider ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- collapse tool calls anywhere ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- real time token usage updates ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- recover partial responses ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- automatic file diffs for tool calls ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- resizable browser for models ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- **gui:** tool calls image thumbnails ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+
+### Bug Fixes
+
+- large attachments block menu while loading ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- tool calls collapse when grouped ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- browser tool can fail in headless environments ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- recent chats includes other projects ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- crash on re-focus after app attachment ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- mobile new chat button unsets project ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- bundle chromium for linux ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+
+### Other
+
+- new afm, claude, codex packages ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+- clean up scripts ([3c3e347](https://github.com/ryangarber/tiny-chat/commit/3c3e34756dcd24babe8af7e24d3dc359cd4dcfa0))
+
 ## 0.10.8 (2026-11-01)
 
 ### Features
