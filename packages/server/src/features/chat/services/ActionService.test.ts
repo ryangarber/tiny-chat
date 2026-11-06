@@ -41,7 +41,9 @@ describe("ActionService", () => {
 			timezone,
 		});
 
-		expect(action.schedule).toMatch(/^DTSTART:/);
+		expect(action.schedule).toMatch(
+			/^DTSTART;TZID=America\/New_York:\d{8}T\d{6}\n/,
+		);
 		expect(action.nextRunAt).not.toBeNull();
 		if (!action.nextRunAt) return;
 		// 9am in New York, whatever its offset from UTC that day.

@@ -24,6 +24,9 @@ export interface BrowserTab {
 
 const SETTINGS_KEY = "browser";
 
+/** Where `useBrowser` keeps the status, so a run that learns more can update it. */
+export const browserStatusQueryKey = ["useBrowser", "status"] as const;
+
 /**
  * A GUI app's PATH rarely has the user's Node on it (nvm, Homebrew), so it is
  * looked up the way the user's own terminal would find it.
@@ -219,7 +222,7 @@ export const ClientBrowserService = {
 
 		const settings = ClientBrowserService.getSettings({ client });
 		const driver = await getDriver(client, status.node.path);
-		return await request<zBrowserRunResult>(
+		const result = await request<zBrowserRunResult>(
 			driver,
 			"run",
 			{
@@ -231,6 +234,26 @@ export const ClientBrowserService = {
 			},
 			abort,
 		);
+
+		// A headed launch that found no desktop is only learned by trying, so
+		// the status shown beside the setting is brought up to date with it.
+		if (
+			settings.headed &&
+			result.notice &&
+			status.display?.available !== false
+		) {
+			const display = await request<zBrowserStatus>(driver, "detect", {
+				cwd: await client.shell?.cwd?.(),
+			})
+				.then((found) => found.display)
+				.catch(() => undefined);
+			if (display) {
+				const updated = { ...status, display };
+				statuses.set(client, Promise.resolve(updated));
+				client.queryClient.setQueryData(browserStatusQueryKey, updated);
+			}
+		}
+		return result;
 	},
 
 	/**

@@ -3,11 +3,12 @@ import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { nativeToolsQueryKey } from "#client/features/agent/hooks/useTools.ts";
 import {
+	browserStatusQueryKey,
 	ClientBrowserService,
 	type zBrowserSettings,
 } from "#client/features/agent/services/ClientBrowserService.ts";
 
-export const browserStatusQueryKey = ["useBrowser", "status"] as const;
+export { browserStatusQueryKey };
 export const browserSettingsQueryKey = ["useBrowser", "settings"] as const;
 
 /** What was found to drive a browser with, and how to look again. */

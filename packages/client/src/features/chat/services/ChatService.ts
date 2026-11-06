@@ -48,7 +48,7 @@ export const ChatService = {
 		ChatService.setChat({ id: null });
 
 		const chat = await client.api.chat.getChat.query(chatId);
-		await ComposerService.insertAttachment({
+		ComposerService.insertAttachment({
 			client,
 			item: AttachmentUtils.forChat({ chat }),
 		});

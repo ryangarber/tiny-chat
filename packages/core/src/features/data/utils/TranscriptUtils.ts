@@ -1,5 +1,6 @@
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zDataPart } from "#core/features/data/types/part.ts";
+import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
 
 /** Roughly 25k tokens: enough for a long chat without crowding out the one it is attached to. */
@@ -96,7 +97,9 @@ export const TranscriptUtils = {
 			case "interjection":
 				return part.value.flatMap((value) => TranscriptUtils.part(value));
 			case "abort":
-				return [`[stopped: ${part.reason}]`];
+				return part.reason === "checkpoint"
+					? [DataUtils.getCheckpointNotice()]
+					: [`[stopped: ${part.reason}]`];
 			default:
 				return [];
 		}

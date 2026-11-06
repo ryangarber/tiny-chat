@@ -21,6 +21,7 @@ import type {
 	Categories,
 	Usage,
 } from "#client/features/editor/hooks/useEstimatedTokens.ts";
+import { usePendingAttachments } from "#client/features/editor/hooks/usePendingAttachments.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useShellCommand } from "#client/features/shell/hooks/useShellCommand.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
@@ -61,6 +62,7 @@ export default function RightSection({
 
 	const isEmpty = useComposerStore((state) => state.isEmpty);
 	const isIncomplete = useEditorStore((state) => state.isIncomplete);
+	const { pending } = usePendingAttachments();
 	const { command, isRunning } = useShellCommand();
 
 	const modelWidth = width * 0.25;
@@ -146,7 +148,14 @@ export default function RightSection({
 						? !command || isRunning || disabled
 						: stream && isEmpty
 							? false
-							: isEmpty || isIncomplete || disabled || status !== "ready"
+							: isEmpty ||
+								isIncomplete ||
+								pending > 0 ||
+								disabled ||
+								status !== "ready"
+				}
+				aria-label={
+					pending > 0 ? "Waiting for attachments to be read" : undefined
 				}
 			>
 				{command !== null ? (

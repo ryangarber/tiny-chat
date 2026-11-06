@@ -522,3 +522,36 @@ body:not(.unselectable) .selectable * {
 	box-shadow: var(--glass-shadow);
 	z-index: inherit;
 }
+
+/* The line down a task's details, which closes it when clicked. */
+.task-line {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -5px;
+	width: 12px;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+.task-line::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 5px;
+	width: 2px;
+	border-radius: 1px;
+	background-color: var(--mantine-color-default-border);
+	transition: background-color 150ms ease;
+}
+
+button.task-line {
+	cursor: pointer;
+}
+
+button.task-line:hover::before,
+button.task-line:focus-visible::before {
+	background-color: var(--mantine-color-dimmed);
+}

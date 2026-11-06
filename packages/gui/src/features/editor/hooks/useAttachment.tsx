@@ -27,7 +27,8 @@ interface AttachmentOptions {
 		query: string,
 		signal?: AbortSignal,
 	) => Promise<AttachmentGroup[]>;
-	attach: (item: AttachmentItem) => Promise<string>;
+	/** Starts reading the item, handing back the id its chip stands under. */
+	attach: (item: AttachmentItem) => string;
 }
 
 const pluginKey = new PluginKey("attachment");
@@ -46,7 +47,7 @@ const Attachment = Node.create({
 	addOptions(): AttachmentOptions {
 		return {
 			getAttachables: async () => [],
-			attach: async () => "",
+			attach: () => "",
 		};
 	},
 	addAttributes() {
@@ -121,18 +122,19 @@ const Attachment = Node.create({
 
 					return [...AttachmentUtils.filter({ groups: items, query }), other];
 				},
+				// The chip goes in at once and reads what it stands for in the
+				// background, showing it is busy until then.
 				command: ({ editor, range, props }) => {
-					void (this.options as AttachmentOptions).attach(props).then((id) => {
-						editor
-							.chain()
-							.focus()
-							.insertContentAt(range, [
-								{ type: "text", text: " " },
-								{ type: this.name, attrs: { id } },
-								{ type: "text", text: " " },
-							])
-							.run();
-					});
+					const id = (this.options as AttachmentOptions).attach(props);
+					editor
+						.chain()
+						.focus()
+						.insertContentAt(range, [
+							{ type: "text", text: " " },
+							{ type: this.name, attrs: { id } },
+							{ type: "text", text: " " },
+						])
+						.run();
 				},
 				render: renderCompletions({
 					tabs: true,
@@ -177,8 +179,7 @@ export const useAttachment = () => {
 	const client = useContext(ClientContext);
 	const { getAttachables } = useAttachments();
 	const attach = useCallback(
-		async (item: AttachmentItem) =>
-			(await AttachmentService.create({ client, item })).id,
+		(item: AttachmentItem) => AttachmentService.create({ client, item }).id,
 		[client],
 	);
 
@@ -194,6 +195,7 @@ export const useAttachment = () => {
 
 function AttachmentNodeView({ id }: { id: string }) {
 	const attachment = useEditorPartStore((state) => state.parts[id]);
+	const status = useEditorPartStore((state) => state.status[id]);
 	if (attachment?.type !== "attachment") return null;
 	return (
 		<NodeViewWrapper as="span" contentEditable={false} data-drag-handle>
@@ -201,6 +203,8 @@ function AttachmentNodeView({ id }: { id: string }) {
 				source={attachment.source}
 				directory={attachment.content.type === "directory"}
 				name={attachment.label}
+				pending={status?.state === "pending"}
+				error={status?.state === "failed" ? status.error : undefined}
 				grabbable
 			/>
 		</NodeViewWrapper>

@@ -1,4 +1,2 @@
-# Made by scripts/dev.ts and scripts/build.ts
-native
+# Made by scripts/build.ts
 artifacts
-afmize-host/.build

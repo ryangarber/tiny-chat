@@ -14,6 +14,7 @@ import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQueueStore.ts";
 import { ActiveChatUtils } from "#client/features/chat/utils/ActiveChatUtils.ts";
+import { AttachmentService } from "#client/features/editor/services/AttachmentService.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { MessageQueryService } from "#client/features/message/services/MessageQueryService.ts";
@@ -113,8 +114,13 @@ export const useMessaging = () => {
 			const isEmpty = !data
 				.flat()
 				.some((part) => part.type !== "text" || part.value.trim().length);
-			// Kept as a draft until there is a model to send it to.
-			if (isEmpty || configStatus !== "ready") {
+			// Kept as a draft until there is a model to send it to, and until
+			// every attachment in it has been read.
+			if (
+				isEmpty ||
+				configStatus !== "ready" ||
+				AttachmentService.pending(data).length
+			) {
 				return;
 			}
 
@@ -309,7 +315,9 @@ export const useMessaging = () => {
 				if (ClientMessageService.isIdle(seed.chatId)) break;
 			}
 
-			if (part.validation?.approval && !approved) {
+			// A call the provider runs itself takes the answer as it resumes,
+			// to tell the provider.
+			if (part.validation?.approval && !approved && !part.providerExecuted) {
 				ToolFeedbackService.settle(part.id);
 				await ClientMessageService.onMessage({
 					client,

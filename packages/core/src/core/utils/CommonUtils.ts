@@ -1,14 +1,15 @@
 import { distance } from "fastest-levenshtein";
 import { customAlphabet } from "nanoid";
 import "temporal-polyfill/full/global";
-import { format } from "timeago.js";
+import { RRuleTemporal } from "rrule-temporal";
+import { toText } from "rrule-temporal/totext";
 import {
 	adjectives,
 	colors,
 	uniqueNamesGenerator,
 } from "unique-names-generator";
 import { ID_ALPHABET, ID_LENGTH } from "#core/core/types/common.ts";
-import { RRule } from "#core/index.ts";
+import { ScheduleUtils } from "#core/core/utils/ScheduleUtils.ts";
 
 export type MaybeNullish<TIn, TOut> = TIn extends undefined
 	? undefined
@@ -26,6 +27,59 @@ const getRandomName = () => {
 };
 
 const getRandomId = customAlphabet(ID_ALPHABET, ID_LENGTH);
+
+const TIME_UNITS = [
+	["year", 365 * 24 * 60 * 60],
+	["month", 30 * 24 * 60 * 60],
+	["week", 7 * 24 * 60 * 60],
+	["day", 24 * 60 * 60],
+	["hour", 60 * 60],
+	["minute", 60],
+	["second", 1],
+] as const satisfies [Intl.RelativeTimeFormatUnit, number][];
+
+const relativeFormat = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const durationFormats = Object.fromEntries(
+	TIME_UNITS.map(([unit]) => [
+		unit,
+		new Intl.NumberFormat("en", { style: "unit", unit, unitDisplay: "long" }),
+	]),
+);
+
+/** The largest whole unit in `seconds`, as `[unit, value]`. */
+const toTimeUnit = (seconds: number) => {
+	const [unit, size] =
+		TIME_UNITS.find(([, size]) => Math.abs(seconds) >= size) ?? TIME_UNITS[6];
+	return [unit, Math.trunc(seconds / size)] as const;
+};
+
+/**
+ * A stored schedule as a rule in its timezone. Schedules are written in
+ * wall-clock time, so a start in UTC — as older schedules, and ones written
+ * by a model, are — is that time where it was scheduled. Without a start of
+ * its own, it starts at `now`.
+ */
+const toRule = ({
+	schedule,
+	timezone,
+	now,
+}: {
+	schedule: string;
+	timezone: string;
+	now?: Temporal.PlainDateTime;
+}) => {
+	const rule = new RRuleTemporal({
+		rruleString: schedule,
+		...(now && { dtstart: now.toZonedDateTime(timezone) }),
+	});
+	const { dtstart, tzid } = rule.options();
+	return tzid === "UTC" && timezone !== "UTC"
+		? rule.with({
+				dtstart: dtstart.toPlainDateTime().toZonedDateTime(timezone),
+				tzid: timezone,
+			})
+		: rule;
+};
 
 export const CommonUtils = {
 	endpoints: {
@@ -104,13 +158,15 @@ export const CommonUtils = {
 		relative?: boolean;
 	}) => {
 		date = CommonUtils.toDate(date) ?? new Date();
-		return relative
-			? format(date, timezone)
-			: date.toLocaleString("en-US", {
-					timeZone: timezone ?? "UTC",
-					dateStyle: "long",
-					timeStyle: "short",
-				});
+		if (relative) {
+			const [unit, value] = toTimeUnit((date.getTime() - Date.now()) / 1000);
+			return relativeFormat.format(value, unit);
+		}
+		return date.toLocaleString("en-US", {
+			timeZone: timezone ?? "UTC",
+			dateStyle: "long",
+			timeStyle: "short",
+		});
 	},
 
 	formatTimespan: ({
@@ -120,12 +176,12 @@ export const CommonUtils = {
 		from: Temporal.PlainDateTime | Date;
 		to: Temporal.PlainDateTime | Date;
 	}) => {
-		from = CommonUtils.toDate(from);
-		to = CommonUtils.toDate(to);
-		if (from.getTime() > to.getTime()) {
-			[from, to] = [to, from];
-		}
-		return format(from, undefined, { relativeDate: to }).replace(" ago", "");
+		const [unit, value] = toTimeUnit(
+			Math.abs(
+				CommonUtils.toDate(to).getTime() - CommonUtils.toDate(from).getTime(),
+			) / 1000,
+		);
+		return durationFormats[unit].format(value);
 	},
 
 	formatError: ({ error, details }: { error?: unknown; details?: boolean }) => {
@@ -237,23 +293,11 @@ export const CommonUtils = {
 		rrule: { schedule: string; timezone: string };
 		after?: Temporal.PlainDateTime | null;
 	}): Temporal.PlainDateTime | null => {
-		const { timezone } = rrule;
-		const schedule = RRule.fromString(rrule.schedule);
-		// RRule keeps wall-clock times as though they were UTC instants.
-		const searchFrom = after
-			? after.toZonedDateTime("UTC").withTimeZone(timezone).toPlainDateTime()
-			: CommonUtils.toPlainDateTime(schedule.options.dtstart).subtract({
-					milliseconds: 1,
-				});
-		const nextRunAt = CommonUtils.toPlainDateTime(
-			schedule.after(CommonUtils.toDate(searchFrom), false),
-		);
-		return (
-			nextRunAt
-				?.toZonedDateTime(timezone, { disambiguation: "compatible" })
-				.withTimeZone("UTC")
-				.toPlainDateTime() ?? null
-		);
+		const rule = toRule(rrule);
+		const nextRunAt = after
+			? rule.next(after.toZonedDateTime("UTC"))
+			: rule.next(rule.options().dtstart, true);
+		return nextRunAt?.withTimeZone("UTC").toPlainDateTime() ?? null;
 	},
 
 	/**
@@ -275,22 +319,18 @@ export const CommonUtils = {
 		const value = text.trim();
 		if (!value) return null;
 		try {
-			const parsed = /\bFREQ=/i.test(value)
-				? RRule.fromString(value)
-				: RRule.fromText(value);
-			const { origOptions } = parsed;
-			// Words that aren't a schedule still read as a yearly rule, written as nothing.
-			if (origOptions.freq === undefined) return null;
-			const rule = new RRule({
-				...origOptions,
-				dtstart:
-					origOptions.dtstart ??
-					CommonUtils.toDate(now.round({ smallestUnit: "minute" })),
-				...(origOptions.byhour !== undefined &&
-					origOptions.byminute === undefined && { byminute: 0 }),
-				...(origOptions.bysecond === undefined && { bysecond: 0 }),
-			});
-			return rule.toString();
+			const start = now.round({ smallestUnit: "minute" });
+			const rule = /\bFREQ=/i.test(value)
+				? toRule({ schedule: value, timezone, now: start })
+				: ScheduleUtils.fromText(value, start.toZonedDateTime(timezone));
+			if (!rule) return null;
+			const { byHour, byMinute, bySecond } = rule.options();
+			return rule
+				.with({
+					...(byHour && !byMinute && { byMinute: [0] }),
+					...(!bySecond && { bySecond: [0] }),
+				})
+				.toString();
 		} catch {
 			return null;
 		}
@@ -300,7 +340,7 @@ export const CommonUtils = {
 	describeSchedule: (schedule: string | undefined) => {
 		if (!schedule) return "";
 		try {
-			return RRule.fromString(schedule).toText();
+			return toText(schedule, "en", { excludeTzAbbreviation: true });
 		} catch {
 			return schedule;
 		}

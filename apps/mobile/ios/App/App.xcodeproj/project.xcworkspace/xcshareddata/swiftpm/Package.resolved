@@ -1,5 +1,5 @@
 {
-  "originHash" : "098156e1f3c048876a78a01cbea44834d4ee73552ab3fed3042b4b7f4192f547",
+  "originHash" : "ee3e123e11d19270c8de6b2ab262f46b1f5783ea8bb60fbe80d48e18602f1345",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -15,17 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
       "state" : {
-        "revision" : "4c7f346d16196e21fbe23d4a7a6fc7af62af6742",
-        "version" : "8.5.3"
-      }
-    },
-    {
-      "identity" : "swift-rs",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Brendonovich/swift-rs",
-      "state" : {
-        "revision" : "207e4bfe5d36fdd0cc08f28d1849ff94ac7e24b8",
-        "version" : "1.0.9"
+        "revision" : "e9e932f7748d3b948bc47f5791c761ac5221ec6a",
+        "version" : "8.6.0"
       }
     },
     {

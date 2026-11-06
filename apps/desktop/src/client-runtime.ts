@@ -1,18 +1,27 @@
+import {
+	type AfmEvent,
+	type AfmizeClient,
+	createEventStream,
+} from "@afmize/node";
 import type {
 	JSONRPCMessage,
 	Transport,
 	TransportSendOptions,
 } from "@modelcontextprotocol/client";
+import {
+	type ClaudeCodeChannelMessage,
+	connectClaudeCodeHost,
+} from "@ryangarber/ai-sdk-providers/claude";
+import {
+	type CodexChannelMessage,
+	connectCodexHost,
+} from "@ryangarber/ai-sdk-providers/codex";
 import { Electroview } from "electrobun/view";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createAFMProvider } from "#core/features/provider/providers/model/AFMProvider.ts";
 import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
-import type { AFMEvent } from "#core/features/provider/types/afm.ts";
-import type {
-	ClaudeCodeEvent,
-	ClaudeCodeHandlers,
-} from "#core/features/provider/types/claude.ts";
+import { createCodexProvider } from "#core/features/provider/providers/model/CodexProvider.ts";
 import type { DesktopRPC, McpServer } from "#desktop/core/types/rpc.ts";
 import type {
 	ClientRuntime,
@@ -28,11 +37,14 @@ const spawnListeners = new Map<
 	(output: { type: "stdout" | "stderr"; value: string }) => void
 >();
 const mcpTransports = new Map<string, RpcTransport>();
-const afmListeners = new Map<number, (event: AFMEvent) => void>();
+const afmListeners = new Map<number, (event: AfmEvent) => void>();
 let nextAfmKey = 1;
-/** Claude Code runs' handlers, by the key their events and questions come under. */
-const claudeCodeRuns = new Map<number, ClaudeCodeHandlers>();
-let nextClaudeCodeKey = 1;
+/** Who listens for what the main process's Claude Code host sends. */
+const claudeCodeListeners = new Set<
+	(message: ClaudeCodeChannelMessage) => void
+>();
+/** Who listens for what the main process's Codex host sends. */
+const codexListeners = new Set<(message: CodexChannelMessage) => void>();
 let updateListener: ((fraction: number) => void) | undefined;
 const urlListeners = new Set<(url: string) => void>();
 let launched = false;
@@ -61,31 +73,11 @@ function connect(): DesktopView {
 					afmListeners.get(key)?.(event);
 					if (event.type === "finish") afmListeners.delete(key);
 				},
-				claudeCodeEvent: ({ key, event }) => {
-					claudeCodeRuns.get(key)?.onEvent(event as ClaudeCodeEvent);
-					if (event.type === "end") claudeCodeRuns.delete(key);
+				claudeCode: (message) => {
+					for (const listener of claudeCodeListeners) listener(message);
 				},
-				claudeCodeQuestion: ({ key, id, ...question }) => {
-					const handlers = claudeCodeRuns.get(key);
-					const answer = (
-						answer: Parameters<
-							typeof rpc.request.claudeCodeAnswer
-						>[0]["answer"],
-					) => void rpc.request.claudeCodeAnswer({ id, answer });
-					if (!handlers) return answer({ type: "none" });
-					if (question.type === "tool") {
-						const { type: _, ...call } = question;
-						handlers.callTool(call).then(
-							(result) => answer({ type: "tool", result }),
-							() => answer({ type: "none" }),
-						);
-					} else {
-						const { type: _, ...call } = question;
-						handlers.canUseTool(call).then(
-							(result) => answer({ type: "permission", result }),
-							() => answer({ type: "none" }),
-						);
-					}
+				codex: (message) => {
+					for (const listener of codexListeners) listener(message);
 				},
 				updateProgress: ({ fraction }) => updateListener?.(fraction),
 				openUrl: ({ url }) => {
@@ -140,49 +132,53 @@ class RpcTransport implements Transport {
 
 /** The desktop app's runtime over its main process. */
 function create(rpc: DesktopView): ClientRuntime {
-	const AFMProvider = createAFMProvider({
-		availability: async () => (await rpc.request.afmAvailability()) ?? "{}",
-		stream: async (request, onEvent) => {
-			const key = nextAfmKey++;
-			afmListeners.set(key, onEvent);
-			try {
-				return await rpc.request.afmStream({ key, request });
-			} catch (error) {
-				afmListeners.delete(key);
-				throw error;
-			}
-		},
-		cancel: async (id) => {
-			await rpc.request.afmCancel({ id });
-		},
-	});
+	// afmize runs in the main process (`AfmHostService`); this reaches it.
+	const afmize: AfmizeClient = {
+		availability: async () =>
+			(await rpc.request.afmAvailability()) ?? {
+				onDevice: { available: false, reason: "platform-not-supported" },
+				privateCloudCompute: {
+					available: false,
+					reason: "platform-not-supported",
+				},
+			},
+		stream: (request, { signal } = {}) =>
+			createEventStream(async (onEvent) => {
+				const key = nextAfmKey++;
+				afmListeners.set(key, onEvent);
+				try {
+					await rpc.request.afmStream({ key, request });
+				} catch (error) {
+					afmListeners.delete(key);
+					throw error;
+				}
+				return () => rpc.request.afmCancel({ key });
+			}, signal),
+	};
+	const AFMProvider = createAFMProvider(afmize);
 
-	const ClaudeCodeProvider = createClaudeCodeProvider({
-		status: (settings) =>
-			rpc.request.claudeCodeStatus({ executable: settings?.executable }),
-		run: async (request, handlers) => {
-			const key = nextClaudeCodeKey++;
-			claudeCodeRuns.set(key, handlers);
-			try {
-				return await rpc.request.claudeCodeRun({ key, request });
-			} catch (error) {
-				claudeCodeRuns.delete(key);
-				throw error;
-			}
-		},
-		cancel: async (id) => {
-			await rpc.request.claudeCodeCancel({ id });
-		},
-		stopTask: async (id, toolUseId) => {
-			await rpc.request.claudeCodeStopTask({ id, toolUseId });
-		},
-		send: async (id, prompt) => {
-			await rpc.request.claudeCodeSend({ id, prompt });
-		},
-		close: async (id) => {
-			await rpc.request.claudeCodeClose({ id });
-		},
-	});
+	// Claude Code runs in the main process; the provider reaches its host
+	// over one channel.
+	const ClaudeCodeProvider = createClaudeCodeProvider(
+		connectClaudeCodeHost({
+			post: (message) => void rpc.request.claudeCode(message),
+			listen: (handler) => {
+				claudeCodeListeners.add(handler);
+				return () => claudeCodeListeners.delete(handler);
+			},
+		}),
+	);
+
+	// Codex too, over a channel of its own.
+	const CodexProvider = createCodexProvider(
+		connectCodexHost({
+			post: (message) => void rpc.request.codex(message),
+			listen: (handler) => {
+				codexListeners.add(handler);
+				return () => codexListeners.delete(handler);
+			},
+		}),
+	);
 
 	const platform = window.__electrobunPlatform as RuntimePlatform;
 
@@ -213,6 +209,7 @@ function create(rpc: DesktopView): ClientRuntime {
 				? [AFMProvider]
 				: []),
 			ClaudeCodeProvider,
+			CodexProvider,
 		],
 		shell: {
 			os: platform === "windows" || platform === "linux" ? platform : "macos",

@@ -20,6 +20,7 @@ allowBuilds:
   ink@git+https://github.com/vadimdemedes/ink.git: true
 minimumReleaseAgeExclude:
   - "@ryangarber/*"
+  - "@afmize/*"
   - "@prisma/*"
   - prisma
   - "@crowecawcaw/xa11y-darwin-arm64@0.15.3"
@@ -58,5 +59,20 @@ catalogs:
     "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.21
     "@ryangarber/prisma-orm-extension-zod": 0.2.13
     "@ryangarber/better-auth-adapter-prisma": 0.1.13
+  ai:
+    "ai": ^7.0.162
+    "@ai-sdk/amazon-bedrock": ^5.0.132
+    "@ai-sdk/anthropic": ^4.0.96
+    "@ai-sdk/azure": ^4.0.116
+    "@ai-sdk/google": ^4.0.111
+    "@ai-sdk/openai": ^4.0.108
+    "@ai-sdk/openai-compatible": ^3.0.84
+    "@ai-sdk/provider": "^4.0.35"
+    "@anthropic-ai/sdk": ^1.4.0
+    "openai": ^7.50.0
+    "voyage-ai-provider": "^5.0.0"
+    "@ryangarber/ai-sdk-providers": "^0.1.0"
+    "@afmize/node": "^1.1.0"
+    "@afmize/capacitor": "^1.1.0"
 patchedDependencies:
   native-run: patches/native-run.patch

@@ -8,7 +8,6 @@ import type {
 	ToolDefinition,
 	ToolFactory,
 } from "#core/features/tool/types/tool.ts";
-import { RRule } from "#core/index.ts";
 
 export const create_action = {
 	name: "create_action",
@@ -17,15 +16,11 @@ export const create_action = {
 		prompt: z.string().describe("The prompt to send to the assistant."),
 		schedule: z
 			.string()
-			.refine((value) => {
-				try {
-					RRule.fromString(value);
-					return true;
-				} catch (error) {
-					console.warn("failed to parse rrule in tool input:", error);
-					return false;
-				}
-			})
+			.refine(
+				(value) =>
+					CommonUtils.parseSchedule({ text: value, timezone: "UTC" }) !== null,
+				"Not a valid RRule",
+			)
 			.describe(
 				"The RRule (RFC 5545) schedule to send at. Do not convert - use local time.",
 			),

@@ -17,31 +17,30 @@ import {
 	negatableFlag,
 	object,
 	optional,
-	passThrough,
 	string,
 } from "@optique/core";
 import { defineProgram } from "@optique/core/program";
 import { run } from "@optique/run";
+import { log, task } from "@ryangarber/utils";
 import { concurrently } from "concurrently";
 import waitOn from "wait-on";
 import { zClientEnv } from "../packages/core/src/core/types/env.ts";
 import { useEnv } from "./use-env.ts";
-import { create, print } from "./use-stdout.ts";
 
 useEnv({ type: zClientEnv });
 
 export const serverUrl = `http://${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`;
 
 export async function isServerLive() {
-	const update = create(`trying server at ${serverUrl}`);
+	const status = await task(`Trying server at ${serverUrl}`);
 	try {
 		const result = await fetch(serverUrl, {
 			signal: AbortSignal.timeout(5_000),
 		});
-		update(`server is ${result.ok ? "live" : "not live"}`);
+		status.complete({ status: `Server is ${result.ok ? "live" : "not live"}` });
 		return result.ok;
 	} catch {
-		update("server is not live");
+		status.complete({ status: "Server is not live" });
 		return false;
 	}
 }
@@ -50,11 +49,11 @@ export async function isServerNeeded(start: boolean | null | undefined) {
 	if (start !== false) {
 		const isLive = await isServerLive();
 		if (start === true || !isLive) {
-			print({ message: "starting server..." });
+			log({ message: "Starting server..." });
 			return true;
 		}
 	} else {
-		print({ message: "waiting for a server..." });
+		log({ message: "Waiting for server..." });
 	}
 	return false;
 }
@@ -170,7 +169,7 @@ export async function useServer({
 	 */
 	quiet?: boolean;
 } = {}) {
-	print({ message: "starting..." });
+	log({ message: "Starting..." });
 
 	let child: ChildProcess | undefined;
 	let stderr = "";
@@ -185,13 +184,13 @@ export async function useServer({
 			const serverPid = getServerPid();
 			if (getOtherUsers().length === 0) {
 				if (serverPid !== undefined) {
-					print({ message: "stopping server..." });
+					log({ message: "Stopping server..." });
 					await stopServer(serverPid);
 				}
 				rmSync(serverFile, { force: true });
 			} else if (child && child.pid === serverPid) {
 				// Hand the server to the remaining users; the last one stops it.
-				print({ message: "leaving server running for other processes" });
+				log({ message: "Keeping server live" });
 				child.unref();
 			}
 		});
@@ -245,7 +244,7 @@ export async function useServer({
 								// Typically EADDRINUSE: a server started elsewhere won the port.
 								waitOn({ resources: [serverUrl], timeout: 5_000 }).then(
 									() => {
-										print({ message: "using a server started elsewhere" });
+										log({ message: "Reusing live server" });
 										resolve();
 									},
 									() => reject(error),
@@ -281,12 +280,12 @@ if (import.meta.main) {
 		help: "both",
 	});
 
-	print({ message: "starting..." });
+	log({ message: "Starting..." });
 
 	const doStart = await isServerNeeded(start);
 
 	if (commands.length !== 0) {
-		print({
+		log({
 			message: `${commands.length} command${commands.length !== 1 ? "s" : ""} waiting...`,
 		});
 		try {

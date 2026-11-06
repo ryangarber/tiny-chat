@@ -99,14 +99,20 @@ export const useAttachments = () => {
 
 	// The chats on the sidebar's first page, newest first, to ask about from
 	// this one. The chat being written in is already all there.
+	const project = useChatStore((state) => state.active.project);
+
 	const { projects: chatList } = useChatList();
 	const chatId = useChatStore((state) => state.active.chatId);
 	const chatGroups = useMemo((): AttachmentGroup[] => {
-		const page = chatList.data?.pages[0];
-		const chats = [
-			...(page?.chats ?? []),
-			...(page?.projects.flatMap((project) => project.chats) ?? []),
-		]
+		const pages = chatList.data?.pages ?? [];
+		const chats = pages
+			.flatMap((page) =>
+				project
+					? page.projects
+							.filter((other) => other.id === project.id)
+							.flatMap((other) => other.chats)
+					: page?.chats,
+			)
 			.filter((chat) => chat.id !== chatId)
 			.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
 			.slice(0, 5);
@@ -119,7 +125,7 @@ export const useAttachments = () => {
 					},
 				]
 			: [];
-	}, [chatList.data, chatId]);
+	}, [chatList.data, chatId, project]);
 
 	// Walking a large tree is the slow part of a search and its answer barely
 	// changes between keystrokes, so each directory is walked once and kept for

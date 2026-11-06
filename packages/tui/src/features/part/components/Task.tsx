@@ -19,8 +19,6 @@ import {
 interface TaskContext {
 	expanded: boolean;
 	setExpanded?: (value: boolean) => void;
-	taskProps?: BoxProps;
-	detailsProps?: BoxProps;
 }
 
 const TaskContext = createContext<TaskContext>({ expanded: false });
@@ -62,25 +60,14 @@ function Task({
 namespace Task {
 	export function Group({
 		children,
-		taskProps,
-		detailsProps,
 		...props
 	}: BoxProps & {
 		children: ReactNode;
-		taskProps?: BoxProps;
-		detailsProps?: BoxProps;
 	}) {
-		const context = useMemo(
-			(): TaskContext => ({ taskProps, detailsProps, expanded: false }),
-			[taskProps, detailsProps],
-		);
-
 		return (
-			<TaskContext value={context}>
-				<Box flexDirection="column" gap={1} {...props}>
-					{children}
-				</Box>
-			</TaskContext>
+			<Box flexDirection="column" gap={1} {...props}>
+				{children}
+			</Box>
 		);
 	}
 
@@ -151,9 +138,14 @@ namespace Task {
 			});
 		}, [hovered, offset, current, status, parts, colorScheme.textSubtle]);
 
+		// The emoji is held to its width, and set off by a margin rather than a
+		// trailing space, so the gap stays put when the text wraps against the
+		// edge instead of being squeezed out of it.
 		return (
-			<Box ref={mouseRef}>
-				<Text color="textSubtle">{emoji ?? " "} </Text>
+			<Box ref={mouseRef} flexShrink={1}>
+				<Box flexShrink={0} marginRight={1}>
+					<Text color="textSubtle">{emoji ?? " "}</Text>
+				</Box>
 				<Text>{text}</Text>
 			</Box>
 		);
@@ -167,23 +159,52 @@ namespace Task {
 		children: ReactNode;
 		collapse?: boolean;
 	}) {
-		const { detailsProps, expanded } = useContext(TaskContext);
+		const { expanded, setExpanded } = useContext(TaskContext);
+
+		const [hovered, setHovered] = useState(false);
+		const { mouseRef } = useMouseInput({
+			onClick: ({ event }) => {
+				if (event.type === "down" && event.button === "left") {
+					setHovered(false);
+					setExpanded?.(false);
+				}
+			},
+			onHoverStart: () => {
+				setHovered(true);
+			},
+			onHoverEnd: () => {
+				setHovered(false);
+			},
+			isActive: !!setExpanded,
+		});
 
 		if (collapse && !expanded) {
 			return null;
 		}
 
+		// The line down its left side is a column of its own, so it can be
+		// pointed at: it lights up under the pointer and closes the task when
+		// clicked.
 		return (
-			<Box
-				flexDirection="column"
-				paddingY={1}
-				paddingLeft={2}
-				borderStyle="single"
-				borderLeft={true}
-				{...detailsProps}
-				{...props}
-			>
-				{children}
+			<Box flexDirection="row">
+				<Box
+					ref={mouseRef}
+					flexShrink={0}
+					width={1}
+					borderStyle="single"
+					borderLeft={true}
+					borderColor={hovered ? "textSubtle" : undefined}
+				/>
+				<Box
+					flexDirection="column"
+					flexGrow={1}
+					flexShrink={1}
+					paddingY={1}
+					paddingLeft={2}
+					{...props}
+				>
+					{children}
+				</Box>
 			</Box>
 		);
 	}

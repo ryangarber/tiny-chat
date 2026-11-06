@@ -71,7 +71,9 @@ export interface Tool<
 	/**
 	 * Whether files a call changes are found and shown as diffs, for tools that
 	 * can change files without saying which: a shell, an MCP server's tool.
-	 * Tools that write files themselves show their own edits instead.
+	 * Tools that write files themselves show their own edits instead. An
+	 * agent's own tools say so in their display; any other tool without a
+	 * display of its own is assumed to change files.
 	 */
 	tracksChanges?: boolean;
 

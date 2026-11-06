@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { log, task } from "@ryangarber/utils";
 import { zServerEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { createLogger } from "#core/logger.ts";
@@ -10,14 +11,13 @@ import { EmbeddingRunnerService } from "#server/features/embedding/services/Embe
 import { AntigravityService } from "#server/features/proxy/services/AntigravityService.ts";
 import { McpService } from "#server/features/proxy/services/McpService.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
-import { create, print } from "../../../scripts/use-stdout.ts";
 
 useEnv({ type: zServerEnv });
 
 if (import.meta.main) {
 	createLogger({ logToDisk: true });
 
-	const update = create("starting server");
+	const status = await task("Starting server");
 
 	const server = createServer((req, res) => {
 		res.setHeader(
@@ -54,13 +54,13 @@ if (import.meta.main) {
 		}
 	});
 
-	server.listen(process.env.VITE_SERVER_PORT, () => {
-		update(
-			`server live at ${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`,
-		);
+	server.listen(process.env.VITE_SERVER_PORT, async () => {
+		await status.complete({
+			status: `Server live at ${process.env.DEV_HOST}:${process.env.VITE_SERVER_PORT}`,
+		});
 		if (process.argv.some((arg) => /^['"]?--smoke['"]?$/.test(arg))) {
-			print({
-				message: "server was started in smoke mode. now stopping.",
+			log({
+				message: "Server was started in smoke mode, now stopping...",
 				level: "warning",
 			});
 			process.exit(0);

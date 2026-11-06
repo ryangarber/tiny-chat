@@ -8,7 +8,10 @@ import {
 import { z } from "zod";
 import type { zClientEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
-import type { zAgentEvent } from "#core/features/agent/types/agent.ts";
+import type {
+	zAgentContext,
+	zAgentEvent,
+} from "#core/features/agent/types/agent.ts";
 import type { zConfig } from "#core/features/data/types/message.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
 import { AnthropicProvider } from "#core/features/provider/providers/model/AnthropicProvider.ts";
@@ -60,6 +63,8 @@ export const ModelProviderService = {
 		config,
 		tools,
 		env,
+		context,
+		folders,
 		options = {},
 	}: {
 		user: zUser;
@@ -68,6 +73,10 @@ export const ModelProviderService = {
 		config: zConfig;
 		tools: ToolDefinition[];
 		env: Partial<zClientEnv>;
+		/** The chat the generation is for, for a provider that needs it. */
+		context?: zAgentContext;
+		/** The chat's local folders, for a provider that works in them. */
+		folders?: string[];
 		options?: Partial<RunLanguageModelOptions>;
 	}): AsyncGenerator<zAgentEvent> {
 		const model = (await provider.getStatus({ user })).models.find(
@@ -93,15 +102,18 @@ export const ModelProviderService = {
 		});
 
 		const sdkTools = model.features.includes("language:tools")
-			? Object.fromEntries(
-					tools.map((tool) => [
-						tool.name,
-						{
-							description: tool.description,
-							inputSchema: tool.input as z.ZodType,
-						} satisfies Tool,
-					]),
-				)
+			? {
+					...Object.fromEntries(
+						tools.map((tool) => [
+							tool.name,
+							{
+								description: tool.description,
+								inputSchema: tool.input as z.ZodType,
+							} satisfies Tool,
+						]),
+					),
+					...provider.getSdkTools?.({ config }),
+				}
 			: undefined;
 
 		const input = {
@@ -109,7 +121,13 @@ export const ModelProviderService = {
 			model: sdkModel,
 			maxOutputTokens: config.args?.["tokens-out"],
 			temperature: config.args?.temperature as number,
-			providerOptions: provider?.getSdkOptions({ user, config, env }),
+			providerOptions: provider?.getSdkOptions({
+				user,
+				config,
+				env,
+				context,
+				folders,
+			}),
 			output: config.schema
 				? Output.object({ schema: z.fromJSONSchema(config.schema) })
 				: undefined,
@@ -134,14 +152,17 @@ export const ModelProviderService = {
 				};
 			}
 
-			const part = ModelTransformService.fromSdkEvent({
-				user,
-				config,
-				provider,
-				event,
-			});
-
-			if (part) yield part;
+			const own = provider.getEventTransformed?.({ user, config, event });
+			if (own) yield* own;
+			else {
+				const part = ModelTransformService.fromSdkEvent({
+					user,
+					config,
+					provider,
+					event,
+				});
+				if (part) yield part;
+			}
 
 			if (event.type === "finish" || event.type === "error") {
 				yield {

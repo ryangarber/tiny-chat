@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
+import { log, proc } from "@ryangarber/utils";
 import { concurrently } from "concurrently";
 import { zClientEnv } from "#core/core/types/env.ts";
-import { spawn } from "../../../scripts/spawn.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 import { useServer } from "../../../scripts/use-server.ts";
-import { print } from "../../../scripts/use-stdout.ts";
 
 /**
  * The mobile app on a device or emulator, against the dev server on this
@@ -28,15 +27,14 @@ const cap = `pnpm exec cap run ${platform} ${args.map((arg) => `"${arg}"`).join(
 
 try {
 	if (dist) {
-		await spawn({
+		await proc({
+			title: "Building GUI",
 			command: ["pnpm", "exec", "vite", "build"],
-			label: ["gui build", "building gui"],
-			output: "tail",
 		});
 		await concurrently([{ command: cap, name: "cap", raw: true }]).result;
 		// `cap run` returns once the app is installed; the app still needs the
 		// server until it is stopped.
-		print({ message: "running; press Ctrl-C to stop" });
+		log({ message: "Running... Ctrl-C to stop" });
 		await new Promise<void>((resolve) => process.once("SIGINT", resolve));
 	} else {
 		const url = `http://${env.DEV_HOST}:${env.VITE_WEB_PORT}`;

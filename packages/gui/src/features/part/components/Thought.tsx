@@ -1,4 +1,3 @@
-import { Box, Collapse, Group, Text } from "@mantine/core";
 import { BrainIcon } from "@phosphor-icons/react";
 import {
 	useFindHidden,
@@ -8,6 +7,7 @@ import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
 import Tail from "#gui/features/part/components/Tail.tsx";
+import Task from "#gui/features/part/components/Task.tsx";
 
 /** Height the thought is held to while it is open on its own. */
 const TAIL_HEIGHT = 400;
@@ -36,34 +36,27 @@ export default function Thought({
 	useFindHidden(!expanded);
 
 	return (
-		<Box my={10}>
-			<Group
-				className={`shimmer-text ${pending ? "active" : ""}`}
-				onClick={toggle}
-				style={{ cursor: "pointer" }}
-				gap="xs"
-			>
-				<BrainIcon size={20} color="var(--mantine-color-dimmed)" />
-				<Text truncate="end" flex={1}>
-					{pending ? "Thinking..." : "Thought"}
-				</Text>
-			</Group>
-			<Collapse expanded={expanded}>
-				<Box
-					style={{
-						borderLeft: "2px solid var(--mantine-color-default-border)",
-					}}
-					px="lg"
-					py="xs"
-					ml={8}
-				>
+		<Task.Group>
+			<Task expanded={expanded} onToggle={toggle} my={10}>
+				<Task.Status
+					icon={
+						<BrainIcon
+							size={20}
+							color="var(--mantine-color-dimmed)"
+							className="shrink-0"
+						/>
+					}
+					status={pending ? "pending" : "success"}
+					parts={[{ text: pending ? "Thinking..." : "Thought" }]}
+				/>
+				<Task.Details pr="lg">
 					<Tail follow={auto} height={TAIL_HEIGHT} content={thoughtText}>
 						<div style={{ zoom: 0.9 }}>
 							<Markdown source={thoughtText} streaming={pending} />
 						</div>
 					</Tail>
-				</Box>
-			</Collapse>
-		</Box>
+				</Task.Details>
+			</Task>
+		</Task.Group>
 	);
 }

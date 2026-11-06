@@ -41,6 +41,7 @@ export const ClientAgentService = {
 		streamChat,
 		toolNames,
 		instructions,
+		onData,
 	}: {
 		client: Client;
 		context: zAgentContext;
@@ -55,6 +56,8 @@ export const ClientAgentService = {
 		streamChat: string | null;
 		toolNames?: string[];
 		instructions?: string;
+		/** `data` has changed, as it does on every event while it streams. */
+		onData?: () => void;
 	}): Promise<{ data: zData; metadata: zMetadata }> => {
 		console.log(
 			"[ClientAgentService] running agent",
@@ -118,6 +121,9 @@ export const ClientAgentService = {
 			mode: "patch",
 			data: { status: "pending" },
 		});
+		// Counted from the start, so a generation that never gets as far as its
+		// first output is still caught by whatever is watching it.
+		onData?.();
 
 		const agent = AgentService.generate({
 			provider,
@@ -184,6 +190,7 @@ export const ClientAgentService = {
 				}
 
 				AgentStreamService.mutate(streamKey, { mode: "patch", data: { data } });
+				onData?.();
 			}
 		} finally {
 			// Answers the generation did not get to are given again once it is

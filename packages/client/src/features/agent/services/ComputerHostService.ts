@@ -27,8 +27,32 @@ interface Window {
 	id: number;
 	key: string;
 	app: string;
-	element: Element;
+	/**
+	 * Null for the host's own process, which is never read or acted on through
+	 * accessibility: see {@link HostOptions.activateSelf}.
+	 */
+	element: Element | null;
+	/** Whether it is in front, for the host's own process. */
+	focused?: boolean;
 }
+
+interface HostOptions {
+	/**
+	 * Brings the host's own window forward, the way its runtime does it — on
+	 * the thread its UI lives on. Without it the host's own window is left
+	 * where it is.
+	 *
+	 * An accessibility request to an element of one's own process is not sent
+	 * anywhere: AppKit answers it in-process, on the calling thread. xa11y
+	 * calls from a worker thread, so raising (or even reading) a window of the
+	 * desktop app from its own main process crashes it with "Must only be used
+	 * from the main thread". The host's own windows therefore stand as one
+	 * entry with no element, whose only operation is this.
+	 */
+	activateSelf?: () => void | Promise<void>;
+}
+
+const SELF = "Tiny Chat's own window cannot be read or driven";
 
 type Params = Record<string, any>;
 
@@ -216,7 +240,10 @@ const launch = (params: Params) => {
  * `ComputerService`; every call answers `{ ok, result }` or
  * `{ ok, error: { code, message } }`.
  */
-const create = (x: Xa11y): ClientComputer => {
+const create = (
+	x: Xa11y,
+	{ activateSelf }: HostOptions = {},
+): ClientComputer => {
 	let windows: Window[] = [];
 	/** Window ids by identity, so a window keeps its id across listings. */
 	const windowIds = new Map<string, number>();
@@ -279,6 +306,23 @@ const create = (x: Xa11y): ClientComputer => {
 	const refreshWindows = async () => {
 		const next: Window[] = [];
 		for (const app of await x.App.list()) {
+			// The host's own windows are named without being read.
+			if (app.pid === process.pid) {
+				const key = `${app.pid}:self`;
+				let id = windowIds.get(key);
+				if (id === undefined) {
+					id = ++nextWindow;
+					windowIds.set(key, id);
+				}
+				next.push({
+					id,
+					key,
+					app: app.name,
+					element: null,
+					focused: app.isForeground,
+				});
+				continue;
+			}
 			// An app that will not list its windows has none to offer.
 			let elements: Element[];
 			try {
@@ -313,6 +357,7 @@ const create = (x: Xa11y): ClientComputer => {
 		if (!window) {
 			throw new Failure("not_found", `No window w${id}; list windows again`);
 		}
+		if (!window.element) throw new Failure("unsupported", SELF);
 		return window.element;
 	};
 
@@ -339,15 +384,19 @@ const create = (x: Xa11y): ClientComputer => {
 
 		windows: async () => {
 			await refreshWindows();
-			return windows.map(({ id, app, element }) => ({
-				id,
-				pid: element.pid,
-				app,
-				title: element.name,
-				bounds: rect(element.bounds),
-				focused: element.active,
-				minimized: element.minimized,
-			}));
+			return windows.map(({ id, app, element, focused }) =>
+				element
+					? {
+							id,
+							pid: element.pid,
+							app,
+							title: element.name,
+							bounds: rect(element.bounds),
+							focused: element.active,
+							minimized: element.minimized,
+						}
+					: { id, pid: process.pid, app, focused: !!focused },
+			);
 		},
 
 		tree: async (params) => {
@@ -553,8 +602,19 @@ const create = (x: Xa11y): ClientComputer => {
 		},
 
 		window: async (params) => {
-			const element = await windowElement(num(params, "window"));
+			const id = num(params, "window");
 			const op = str(params, "op");
+			await refreshWindows();
+			const window = windows.find((window) => window.id === id);
+			if (!window) {
+				throw new Failure("not_found", `No window w${id}; list windows again`);
+			}
+			const { element } = window;
+			if (!element) {
+				if (op !== "activate") throw new Failure("unsupported", SELF);
+				await activateSelf?.();
+				return null;
+			}
 			switch (op) {
 				case "activate":
 					await element.activate();
@@ -627,9 +687,9 @@ export const ComputerHostService = {
 	 * xa11y, loaded on first use since the toolset may never be. Where its
 	 * native module cannot load, every call answers with why.
 	 */
-	create: (): ClientComputer => ({
+	create: (options?: HostOptions): ClientComputer => ({
 		call: async (request) => {
-			host ??= import("@crowecawcaw/xa11y").then(create);
+			host ??= import("@crowecawcaw/xa11y").then((x) => create(x, options));
 			let computer: ClientComputer;
 			try {
 				computer = await host;

@@ -1,5 +1,9 @@
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
+import {
+	ExpandScopeContext,
+	useExpandScope,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
@@ -25,17 +29,32 @@ function CompactionBadge({
 	return status ? <Text color="yellow">[{status}]</Text> : null;
 }
 
-export default function MessageParts({
-	message,
-	data,
-	status,
-	compaction,
-}: {
+/**
+ * A message's parts. What the user opens in them is remembered for this
+ * message alone — see `ExpandScopeContext`.
+ */
+export default function MessageParts(props: MessagePartsProps) {
+	const scope = useExpandScope(props.message?.id);
+	return (
+		<ExpandScopeContext value={scope}>
+			<MessagePartsBody {...props} />
+		</ExpandScopeContext>
+	);
+}
+
+type MessagePartsProps = {
 	message?: MessageState;
 	data: zData;
 	status?: AgentStreamEvent["status"];
 	compaction?: Compaction;
-}) {
+};
+
+function MessagePartsBody({
+	message,
+	data,
+	status,
+	compaction,
+}: MessagePartsProps) {
 	const regenerate = useMessageStore((s) => s.regenerate);
 	const resume = useMessageStore((s) => s.resume);
 
@@ -110,7 +129,9 @@ export default function MessageParts({
 						paddingY={1}
 					>
 						<Text bold>
-							{part.reason === "error" ? "Failed" : "Stopped"}: {part.reason}
+							{part.reason === "checkpoint"
+								? "Interrupted"
+								: `${part.reason === "error" ? "Failed" : "Stopped"}: ${part.reason}`}
 						</Text>
 						<Text>{part.message ?? JSON.stringify(part.details)}</Text>
 						{/* Once the reply carries on past it, it has nothing left to offer. */}

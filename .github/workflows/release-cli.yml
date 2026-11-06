@@ -43,7 +43,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # FoundationModels (afmize) needs the macOS 27 SDK.
           - platform: "xcode-27"
             asset: "Tiny.Chat_CLI_macOS"
           - platform: "ubuntu-latest"
@@ -62,7 +61,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || inputs.version || github.ref }}
-          submodules: recursive
 
       - name: Install dependencies
         uses: pnpm/setup@v3
@@ -94,31 +92,6 @@ jobs:
       - name: Write version
         if: env.DRY_RUN == 'true' && inputs.version
         run: pnpm pkg set "version=${{ inputs.version }}"
-
-      - name: Create Swift cache key
-        if: matrix.platform == 'xcode-27'
-        id: swift-toolchain
-        run: |
-          fingerprint=$({
-            xcodebuild -version
-            xcrun --sdk macosx --show-sdk-version
-            xcrun swift --version
-          } | shasum -a 256 | cut -d ' ' -f 1)
-          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
-
-      - name: Cache SwiftPM
-        if: matrix.platform == 'xcode-27'
-        uses: actions/cache@v6
-        with:
-          path: vendor/afmize/.build
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.swift-toolchain.outputs.fingerprint }}-afmize-${{ hashFiles('vendor/afmize/Package.swift', 'vendor/afmize/Package.resolved', 'vendor/afmize/Sources/**') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-${{ steps.swift-toolchain.outputs.fingerprint }}-afmize-
-
-      # The CLI embeds afmize's dynamic library on macOS. `build:cli` builds it
-      # too (and fails in CI without it); this step only keeps its log apart.
-      - name: Build afmize
-        if: matrix.platform == 'xcode-27'
-        run: swift build --package-path vendor/afmize --configuration release --product dynafmize
 
       - name: Build CLI
         run: pnpm run build:cli

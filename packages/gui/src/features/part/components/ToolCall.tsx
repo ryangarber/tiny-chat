@@ -1,21 +1,26 @@
-import { Box, Collapse, Stack } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { WrenchIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import {
 	useFindHidden,
 	useFindRevealed,
 } from "#client/features/find/hooks/useFindScope.ts";
-import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
+import {
+	ExpandScopeContext,
+	useAutoExpand,
+	useExpandScope,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 import FindSegment from "#gui/features/find/components/FindSegment.tsx";
 import Tail from "#gui/features/part/components/Tail.tsx";
+import Task from "#gui/features/part/components/Task.tsx";
 import ToolBlock from "#gui/features/part/components/ToolBlock.tsx";
 import ToolControls from "#gui/features/part/components/ToolControls.tsx";
-import ToolHeader from "#gui/features/part/components/ToolHeader.tsx";
 
 /** Height the call is held to while it is open on its own. */
 const TAIL_HEIGHT = 400;
@@ -60,6 +65,10 @@ function ToolCallBody({
 		useFindRevealed(),
 	);
 	useFindHidden(!expanded && !empty);
+	// A conversation shown inside it, such as a subagent's, keeps what is
+	// opened in it apart from the parts around the call.
+	const scope = useExpandScope(part.id);
+	const images = ToolCallUtils.getImages(part);
 
 	// Brought into view when gone to, such as from a citation of it.
 	const ref = useRef<HTMLDivElement>(null);
@@ -85,8 +94,8 @@ function ToolCallBody({
 	}, [focused]);
 
 	return (
-		<Box my={8} ref={ref}>
-			<ToolHeader
+		<Task ref={ref} expanded={expanded} onToggle={toggle} collapsible={!empty}>
+			<Task.Status
 				icon={
 					<WrenchIcon
 						size={20}
@@ -94,23 +103,20 @@ function ToolCallBody({
 						className="shrink-0"
 					/>
 				}
-				status={display.status}
-				active={display.active}
-				error={display.state === "error"}
-				expanded={expanded && !empty}
-				onToggle={empty ? undefined : toggle}
-				onInterrupt={display.interrupt}
-			/>
-			<Collapse expanded={expanded && !empty} keepMounted={false}>
-				<Box
-					style={{
-						borderLeft: "2px solid var(--mantine-color-default-border)",
-					}}
-					pl="md"
-					py="xs"
-					ml={9}
-					mt={4}
-				>
+				status={
+					display.active
+						? "pending"
+						: display.state === "error"
+							? "error"
+							: "success"
+				}
+				parts={display.status}
+			>
+				<Task.Thumbnails images={images} />
+				{display.interrupt && <Task.Stop onClick={display.interrupt} />}
+			</Task.Status>
+			<Task.Details>
+				<ExpandScopeContext value={scope}>
 					<Tail follow={auto} height={TAIL_HEIGHT} content={part}>
 						<Stack gap="xs" style={{ zoom: 0.9 }}>
 							{display.input.map((block, index) => (
@@ -139,8 +145,8 @@ function ToolCallBody({
 							))}
 						</Stack>
 					</Tail>
-				</Box>
-			</Collapse>
-		</Box>
+				</ExpandScopeContext>
+			</Task.Details>
+		</Task>
 	);
 }

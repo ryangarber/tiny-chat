@@ -10,6 +10,7 @@ import {
 	zDataSimplePart,
 } from "#core/features/data/types/part.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
+import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import type {
 	ModelProvider,
 	zModelMessage,
@@ -71,14 +72,31 @@ export const ModelTransformService = {
 				return (await Promise.all(items.map(map))).flat();
 			}
 
-			// Sorted again here so a message saved out of order still sends.
-			const parts = message.data.flatMap((slot) =>
-				AgentUtils.getToolResultsSorted({ data: slot }),
-			);
+			// Sorted again here so a message saved out of order still sends. A
+			// checkpoint is told to the model like a note from the user, so it
+			// knows it is picking up from one.
+			const parts = message.data
+				.flatMap((slot) => AgentUtils.getToolResultsSorted({ data: slot }))
+				.map(
+					(part): zDataPart =>
+						DataUtils.isCheckpoint(part)
+							? {
+									id: part.id,
+									type: "interjection",
+									value: [
+										{
+											id: part.id,
+											type: "text",
+											value: DataUtils.getCheckpointNotice(),
+										},
+									],
+								}
+							: part,
+				);
 
 			for (const part of parts) {
 				const role =
-					part.type === "toolResult"
+					part.type === "toolResult" && !part.providerExecuted
 						? "tool"
 						: part.type === "interjection"
 							? "user"
@@ -173,8 +191,20 @@ export const ModelTransformService = {
 									toolCallId: part.id,
 									toolName: part.name,
 									input: part.input,
+									...(part.providerExecuted && { providerExecuted: true }),
 									providerOptions,
 								},
+								// Asked about by the provider, which reads the user's
+								// answer after the message.
+								...(part.providerExecuted && part.validation?.approval
+									? [
+											{
+												type: "tool-approval-request" as const,
+												approvalId: part.id,
+												toolCallId: part.id,
+											},
+										]
+									: []),
 							];
 						} else if (part.type === "toolResult") {
 							const parsed = z.array(zDataSimplePart).safeParse(part.output);
@@ -210,6 +240,27 @@ export const ModelTransformService = {
 			if (sdkMessage.content.length) {
 				sdkMessages.push(sdkMessage);
 			}
+
+			// The user's answers to approvals the provider asked for, for calls
+			// it hasn't run since: they go back to it with the next step.
+			const all = message.data.flat();
+			const approvals = all.flatMap((part): SdkPart[] =>
+				part.type === "toolCall" &&
+				part.providerExecuted &&
+				part.validation?.approved !== undefined &&
+				!all.some((p) => p.type === "toolResult" && p.id === part.id)
+					? [
+							{
+								type: "tool-approval-response",
+								approvalId: part.id,
+								approved: part.validation.approved,
+								providerExecuted: true,
+							},
+						]
+					: [],
+			);
+			if (approvals.length)
+				sdkMessages.push({ role: "tool", content: approvals } as SdkMessage);
 		}
 
 		return sdkMessages;
@@ -281,6 +332,7 @@ export const ModelTransformService = {
 					name: event.toolName,
 					id: event.toolCallId,
 					input: event.input,
+					...(event.providerExecuted && { providerExecuted: true }),
 					signature,
 				},
 			};
@@ -291,6 +343,8 @@ export const ModelTransformService = {
 					type: "toolResult",
 					name: event.toolName,
 					id: event.toolCallId,
+					...(event.providerExecuted && { providerExecuted: true }),
+					signature,
 					output: [
 						{
 							id: CommonUtils.getRandomId(),

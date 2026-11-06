@@ -31,9 +31,6 @@ const MEMORY_BUDGETS = Array.from({ length: 21 }, (_, i) => i * 500);
 
 const onOff = (value: boolean) => (value ? "on" : "off");
 
-/** How many recent chats and projects are offered before the full list. */
-const RECENTS = 10;
-
 /** The choice that opens the full list, after the recents. */
 const MORE = "more…";
 
@@ -121,10 +118,8 @@ export const useCommands = ({
 				: page.chats,
 		)
 		.sort((a, b) => ChatUtils.getTimestamp(b) - ChatUtils.getTimestamp(a))
-		.slice(0, RECENTS);
-	const recentProjects = pages
-		.flatMap((page) => page.projects)
-		.slice(0, RECENTS);
+		.slice(0, 5);
+	const recentProjects = pages.flatMap((page) => page.projects).slice(0, 5);
 
 	// Built from what this render holds, so a host rendering the list shows
 	// what is in effect now; the compiler rebuilds it only when that changes.

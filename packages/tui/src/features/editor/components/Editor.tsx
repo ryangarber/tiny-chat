@@ -14,10 +14,12 @@ import type {
 	Categories,
 	Usage,
 } from "#client/features/editor/hooks/useEstimatedTokens.ts";
+import { usePendingAttachments } from "#client/features/editor/hooks/usePendingAttachments.ts";
 import { AttachmentService } from "#client/features/editor/services/AttachmentService.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useAtomStore } from "#client/features/editor/stores/useAtomStore.ts";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
+import { useEditorPartStore } from "#client/features/editor/stores/useEditorPartStore.ts";
 import { AtomUtils } from "#client/features/editor/utils/AtomUtils.ts";
 import { EditorNodeUtils } from "#client/features/editor/utils/EditorNodeUtils.ts";
 import { PasteUtils } from "#client/features/editor/utils/PasteUtils.ts";
@@ -137,12 +139,14 @@ export default function Editor({
 	// The atoms are painted before the markdown, so a command or an attachment
 	// standing in the value keeps its own style whatever punctuation it carries.
 	const highlight = useCodeHighlight(content);
+	const partStatus = useEditorPartStore((state) => state.status);
+	const { pending } = usePendingAttachments();
 	const labels = useMemo(
 		() => [
-			...EditorUtils.tokenLabels({ atoms }),
+			...EditorUtils.tokenLabels({ atoms, status: partStatus }),
 			...MarkdownUtils.labels({ highlight }),
 		],
-		[atoms, highlight],
+		[atoms, partStatus, highlight],
 	);
 
 	const styles = useMemo(
@@ -150,6 +154,10 @@ export default function Editor({
 			...MarkdownUtils.styles(colorScheme),
 			command: { color: colorScheme.primary, bold: true },
 			attachment: { color: colorScheme.primary, bold: true },
+			// Still being read: dimmed until it lands, and sending waits on it.
+			pending: { color: colorScheme.textSubtle, italic: true },
+			// Could not be read, and goes out as unavailable.
+			failed: { color: "red" },
 			paste: { color: colorScheme.textSubtle, bold: true },
 		}),
 		[colorScheme],
@@ -229,24 +237,21 @@ export default function Editor({
 		// text.
 		const files = FilePasteUtils.detect(pasted);
 		if (files) {
-			void Promise.all(
-				files.map((file) =>
-					AttachmentService.create({
-						client,
-						item: {
-							name: PathUtils.name(file.path),
-							value: file.path,
-							directory: file.directory,
-						},
-					}),
-				),
-			).then((nodes) => {
-				insert(
-					nodes
-						.map((node) => `${AtomUtils.fromNode({ content, node })} `)
-						.join(""),
-				);
-			});
+			const nodes = files.map((file) =>
+				AttachmentService.create({
+					client,
+					item: {
+						name: PathUtils.name(file.path),
+						value: file.path,
+						directory: file.directory,
+					},
+				}),
+			);
+			insert(
+				nodes
+					.map((node) => `${AtomUtils.fromNode({ content, node })} `)
+					.join(""),
+			);
 			return;
 		}
 
@@ -480,6 +485,7 @@ export default function Editor({
 					canSend={
 						!_disabled &&
 						!sendMessage.isPending &&
+						!pending &&
 						!!content.trim() &&
 						status === "ready"
 					}

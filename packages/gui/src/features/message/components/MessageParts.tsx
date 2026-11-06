@@ -3,6 +3,10 @@ import { ArrowClockwiseIcon, PlayIcon } from "@phosphor-icons/react";
 import { Audio, AudioPlayer, AudioSkin } from "@videojs/react/audio";
 import { Video, VideoPlayer, VideoSkin } from "@videojs/react/video";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
+import {
+	ExpandScopeContext,
+	useExpandScope,
+} from "#client/features/part/hooks/useAutoExpand.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
@@ -17,21 +21,36 @@ import Thought from "#gui/features/part/components/Thought.tsx";
 import ToolGroup from "#gui/features/part/components/ToolGroup.tsx";
 
 /* biome-ignore-start lint/suspicious/noArrayIndexKey: parts stay in order */
-export default function MessageParts({
-	message,
-	data,
-	status,
-	compaction,
-	regenerate,
-	resume,
-}: {
+/**
+ * A message's parts. What the user opens in them is remembered for this
+ * message alone — see `ExpandScopeContext`.
+ */
+export default function MessageParts(props: MessagePartsProps) {
+	const scope = useExpandScope(props.message?.id);
+	return (
+		<ExpandScopeContext value={scope}>
+			<MessagePartsBody {...props} />
+		</ExpandScopeContext>
+	);
+}
+
+type MessagePartsProps = {
 	message?: MessageState;
 	data: zData;
 	status?: AgentStreamEvent["status"];
 	compaction?: Compaction;
 	regenerate?: (message: MessageState) => void;
 	resume?: (message: MessageState) => void;
-}) {
+};
+
+function MessagePartsBody({
+	message,
+	data,
+	status,
+	compaction,
+	regenerate,
+	resume,
+}: MessagePartsProps) {
 	const parts = DataUtils.getRenderedPartsGrouped(
 		data,
 		status === "thinking",
@@ -160,7 +179,11 @@ export default function MessageParts({
 						mb={10}
 						color={part.reason === "error" ? "red" : "gray"}
 						variant="light"
-						title={`${part.reason === "error" ? "Failed" : "Stopped"}: ${part.reason}`}
+						title={
+							part.reason === "checkpoint"
+								? "Interrupted"
+								: `${part.reason === "error" ? "Failed" : "Stopped"}: ${part.reason}`
+						}
 					>
 						<Stack align="flex-end">
 							<Text size="sm" w="100%">

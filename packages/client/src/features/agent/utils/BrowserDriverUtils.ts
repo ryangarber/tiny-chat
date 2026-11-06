@@ -283,6 +283,54 @@ function driver(load: any, proc: any) {
 		return browsers;
 	};
 
+	// --- display ------------------------------------------------------------
+
+	/**
+	 * Why a headed launch failed for want of somewhere to draw, learned from
+	 * the first one that did; a recheck starts a new driver, which tries again.
+	 */
+	let headedFailure: string | undefined;
+
+	/** A launch error that means there is no usable display, not a broken browser. */
+	const isDisplayError = (error: any) =>
+		/XServer|X server|\$DISPLAY|cannot open display|Missing X|wayland|ozone|Failed to connect to (?:the )?(?:X|display|Wayland)|headed browser|no display/i.test(
+			clean(error),
+		);
+
+	/**
+	 * Whether a browser window can be shown here. macOS and Windows always
+	 * have a desktop; on Linux (WSLg included) it takes an X or Wayland
+	 * display whose socket is actually there.
+	 */
+	const display = (): { available: boolean; error?: string } => {
+		if (headedFailure) return { available: false, error: headedFailure };
+		if (proc.platform !== "linux") return { available: true };
+
+		const env = proc.env;
+		const wayland = env.WAYLAND_DISPLAY;
+		if (wayland) {
+			const socket = path.isAbsolute(wayland)
+				? wayland
+				: path.join(env.XDG_RUNTIME_DIR ?? "", wayland);
+			if (exists(socket)) return { available: true };
+		}
+		const x = env.DISPLAY;
+		if (x) {
+			const local = /^(?:unix)?:(\d+)(?:\.\d+)?$/.exec(x);
+			// A display on another host is reached over the network; trust it.
+			if (!local || exists(`/tmp/.X11-unix/X${local[1]}`)) {
+				return { available: true };
+			}
+		}
+		return {
+			available: false,
+			error:
+				!x && !wayland
+					? "No desktop to show it on ($DISPLAY and $WAYLAND_DISPLAY are unset)"
+					: `The desktop is not reachable (${[x && `DISPLAY=${x}`, wayland && `WAYLAND_DISPLAY=${wayland}`].filter(Boolean).join(", ")} has no socket)`,
+		};
+	};
+
 	const detect = ({ cwd }: { cwd?: string }) => {
 		const playwright = findPlaywright(cwd || proc.cwd());
 		const browsers = findBrowsers();
@@ -298,6 +346,7 @@ function driver(load: any, proc: any) {
 			playwright,
 			browsers,
 			browser: browsers[0],
+			display: display(),
 		};
 	};
 
@@ -646,7 +695,12 @@ function driver(load: any, proc: any) {
 		userDataDir?: string;
 	};
 
-	let session: { key: string; context: any; browser?: any } | null = null;
+	let session: {
+		key: string;
+		context: any;
+		browser?: any;
+		headless: boolean;
+	} | null = null;
 	let active: any = null;
 	const logs = new WeakMap<any, Log[]>();
 	const aborted = new Set<any>();
@@ -682,7 +736,36 @@ function driver(load: any, proc: any) {
 		await current?.browser?.close().catch(() => {});
 	};
 
-	const ensure = async (options: Options) => {
+	/**
+	 * Launches the browser as asked, or headless where no window can be shown:
+	 * a missing desktop is not a reason for a run to fail. Says why when it
+	 * fell back.
+	 */
+	const ensure = async (options: Options): Promise<{ notice?: string }> => {
+		if (!options.headless) {
+			const shown = display();
+			if (!shown.available) {
+				await launch({ ...options, headless: true });
+				return { notice: fallback(shown.error) };
+			}
+			try {
+				await launch(options);
+				return {};
+			} catch (error) {
+				if (!isDisplayError(error)) throw error;
+				headedFailure = clean(error).split("\n")[0];
+				await launch({ ...options, headless: true });
+				return { notice: fallback(headedFailure) };
+			}
+		}
+		await launch(options);
+		return {};
+	};
+
+	const fallback = (why?: string) =>
+		`The browser window could not be shown${why ? `: ${why}.` : "."} The browser is running headless instead; everything else works as usual.`;
+
+	const launch = async (options: Options) => {
 		const key = JSON.stringify([
 			options.playwright,
 			options.executablePath,
@@ -692,7 +775,7 @@ function driver(load: any, proc: any) {
 		await close();
 
 		const { chromium } = load(options.playwright);
-		const launch = {
+		const launchOptions = {
 			executablePath: options.executablePath,
 			headless: options.headless,
 			args: ["--no-first-run", "--no-default-browser-check"],
@@ -710,7 +793,7 @@ function driver(load: any, proc: any) {
 		try {
 			fs.mkdirSync(userDataDir, { recursive: true });
 			context = await chromium.launchPersistentContext(userDataDir, {
-				...launch,
+				...launchOptions,
 				...contextOptions,
 			});
 		} catch (error) {
@@ -718,13 +801,13 @@ function driver(load: any, proc: any) {
 			// at once): fall back to a fresh, throwaway one.
 			if (!/ProcessSingleton|already in use|SingletonLock/i.test(clean(error)))
 				throw error;
-			browser = await chromium.launch(launch);
+			browser = await chromium.launch(launchOptions);
 			context = await browser.newContext(contextOptions);
 		}
 
 		context.setDefaultTimeout(10_000);
 		context.setDefaultNavigationTimeout(30_000);
-		const current = { key, context, browser };
+		const current = { key, context, browser, headless: options.headless };
 		session = current;
 		context.on("close", () => {
 			if (session === current) {
@@ -986,6 +1069,43 @@ function driver(load: any, proc: any) {
 			return selected;
 		},
 
+		/**
+		 * Sets the size the active tab lays out at. It stays with the tab, for
+		 * every call after, until it is reset or the tab closes; tabs opened
+		 * later start at the default.
+		 */
+		resize: async ({ page, step }) => {
+			if (step.reset) {
+				if (session?.headless) {
+					await page.setViewportSize({ width: 1280, height: 800 });
+				} else {
+					// A shown window lays out at its own size once nothing overrides it.
+					const cdp = await page.context().newCDPSession(page);
+					try {
+						await cdp.send("Emulation.clearDeviceMetricsOverride");
+					} finally {
+						await cdp.detach().catch(() => {});
+					}
+				}
+			} else {
+				const size = (value: unknown, name: string) => {
+					if (typeof value !== "number" || !Number.isFinite(value)) {
+						throw new Error(`resize needs a ${name}, or reset`);
+					}
+					return Math.min(Math.max(Math.round(value), 200), 4000);
+				};
+				await page.setViewportSize({
+					width: size(step.width, "width"),
+					height: size(step.height, "height"),
+				});
+			}
+			const viewport = await page.evaluate(() => ({
+				width: (globalThis as any).innerWidth,
+				height: (globalThis as any).innerHeight,
+			}));
+			return viewport;
+		},
+
 		screenshot: async ({ page, step, screenshots }) => {
 			const target = await resolve(page, step);
 			screenshots.push(await shoot(page, target, step.fullPage));
@@ -1023,7 +1143,7 @@ function driver(load: any, proc: any) {
 	};
 
 	const run = async (params: any, id: unknown) => {
-		await ensure(params);
+		const { notice } = await ensure(params);
 		const results: any[] = [];
 		const screenshots: { mime: string; data: string }[] = [];
 		let skipped = 0;
@@ -1062,6 +1182,7 @@ function driver(load: any, proc: any) {
 			title: await page.title().catch(() => ""),
 			steps: results,
 			...(skipped ? { skipped } : {}),
+			...(notice ? { notice } : {}),
 			screenshots,
 		};
 	};

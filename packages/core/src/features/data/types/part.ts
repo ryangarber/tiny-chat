@@ -4,6 +4,8 @@ export const zSignature = z.object({
 	model: z.string().optional(),
 	item: z.string().optional(),
 	reasoning: z.string().optional(),
+	/** A provider's own metadata for the part, returned to it as it was. */
+	metadata: z.record(z.string(), z.string()).optional(),
 });
 export type zSignature = z.infer<typeof zSignature>;
 
@@ -63,9 +65,16 @@ export const zToolCallPart = _zDataPart.extend({
 	validation: z
 		.object({
 			approval: z.boolean(),
+			/**
+			 * The user's answer to an approval of a call the provider runs
+			 * itself, which goes back to it with the next step.
+			 */
+			approved: z.boolean(),
 		})
 		.partial()
 		.optional(),
+	/** Run by the provider (Claude Code's own tools), not by Tiny Chat. */
+	providerExecuted: z.boolean().optional(),
 	/**
 	 * The model is still writing `input`, which holds what has been parsed so
 	 * far. Only ever seen mid-stream: the loop settles or drops these before a
@@ -107,12 +116,19 @@ export const zToolResultPart = _zDataPart.extend({
 	},
 	error: z.boolean().optional(),
 	changes: zFileChanges.optional(),
+	/** The result of a call the provider ran itself. */
+	providerExecuted: z.boolean().optional(),
 });
 export type zToolResultPart = z.infer<typeof zToolResultPart>;
 
 export const zAbortPart = _zDataPart.extend({
 	type: z.literal("abort"),
-	reason: z.enum(["user", "content", "length", "error", "other"]),
+	/**
+	 * `checkpoint` marks a reply saved while it was still being generated: it
+	 * is replaced by the next save, so it only survives a generation that never
+	 * got to finish, such as one the app closed on.
+	 */
+	reason: z.enum(["user", "content", "length", "error", "other", "checkpoint"]),
 	message: z.string().optional(),
 	details: z.any().optional(),
 });

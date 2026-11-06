@@ -43,6 +43,18 @@ export default function BrowserSettings({ toolset }: { toolset?: ConfigItem }) {
 									? `${status.playwright.name}@${status.playwright.version} · ${status.playwright.path}`
 									: "not found · npm install -g playwright",
 							},
+							...(status.display
+								? [
+										{
+											name: "browser window",
+											value: "display",
+											found: status.display.available,
+											detail: status.display.available
+												? "can be shown on this desktop"
+												: `${status.display.error ?? "no desktop to show it on"} · runs headless instead`,
+										},
+									]
+								: []),
 							...(status.error
 								? [
 										{
@@ -72,6 +84,9 @@ export default function BrowserSettings({ toolset }: { toolset?: ConfigItem }) {
 						name: "show the browser window",
 						value: "headed",
 						enabled: headed,
+						...(status?.display?.available === false
+							? { detail: "not available here · runs headless" }
+							: {}),
 						onSelect: () => setBrowserSettings.mutate({ headed: !headed }),
 					},
 				],

@@ -11,6 +11,8 @@ import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts"
 
 type Input = Record<string, any>;
 type Display = ToolDisplay<ToolDefinition> & {
+	/** Whether it can change files, which are then found and shown as diffs. */
+	tracksChanges?: boolean;
 	/**
 	 * How the text of its result is shown: as `prose` (a subagent's answer) or
 	 * as code, under `title` when given. Beside files, it is a notice.
@@ -23,14 +25,17 @@ const make = ({
 	status,
 	input,
 	text,
+	tracksChanges,
 }: {
 	status: (input: Input) => ToolStatusPiece[];
 	input?: (input: Input) => ToolBlock[];
 	text?: Display["text"];
+	tracksChanges?: boolean;
 }): Display => ({
 	status: (call) => status((call.input ?? {}) as Input),
 	input: input && ((call) => input((call.input ?? {}) as Input)),
 	text,
+	tracksChanges,
 });
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
@@ -50,6 +55,7 @@ const diff = (input: Input, before: string, after: string) => ({
  */
 const displays: Record<string, Display> = {
 	Bash: make({
+		tracksChanges: true,
 		status: (input: Input) => [
 			["Running", "Ran"],
 			{
@@ -86,6 +92,7 @@ const displays: Record<string, Display> = {
 			),
 	},
 	Write: make({
+		tracksChanges: true,
 		status: (input: Input) => [
 			["Writing", "Wrote"],
 			{ count: ["file", "files"] },
@@ -101,6 +108,7 @@ const displays: Record<string, Display> = {
 		],
 	}),
 	Edit: make({
+		tracksChanges: true,
 		status: (input: Input) => [
 			["Editing", "Edited"],
 			{ count: ["file", "files"] },
@@ -111,6 +119,7 @@ const displays: Record<string, Display> = {
 		],
 	}),
 	MultiEdit: make({
+		tracksChanges: true,
 		status: (input: Input) => [
 			["Editing", "Edited"],
 			{ count: ["file", "files"] },
@@ -180,8 +189,11 @@ const displays: Record<string, Display> = {
 			return data ? [{ type: "messages", data: data as zData }] : [];
 		},
 		text: { prose: true },
+		// Its calls are not watched one by one: what it changed shows here.
+		tracksChanges: true,
 	},
 	NotebookEdit: make({
+		tracksChanges: true,
 		status: (input: Input) => [
 			["Editing", "Edited"],
 			{ count: ["notebook", "notebooks"] },

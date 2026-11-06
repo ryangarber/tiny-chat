@@ -2,10 +2,9 @@ import { cp, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { log, proc } from "@ryangarber/utils";
 import sharp, { type Sharp } from "sharp";
 import { sharpsToIco } from "sharp-ico";
-import { spawn } from "./spawn.ts";
-import { print } from "./use-stdout.ts";
 
 const Rendition = { Dark: 0, Light: 1 } as const;
 const RenditionName = Object.keys(Rendition) as (keyof typeof Rendition)[];
@@ -17,7 +16,8 @@ type RenditionId = (typeof RenditionId)[number];
 const ictool =
 	'$(dirname "$(xcode-select -p)")/Applications/Icon Composer.app/Contents/Executables/ictool';
 
-const { stdout: _ictoolPath } = await spawn({
+const { stdout: _ictoolPath } = await proc({
+	title: "Finding ictool",
 	command: [
 		`"${ictool}"`,
 		"--version",
@@ -27,7 +27,6 @@ const { stdout: _ictoolPath } = await spawn({
 		"echo",
 		`"${ictool}"`,
 	],
-	label: ["find ictool", "finding ictool", "found ictool"],
 	shell: true,
 	errors: "exit",
 });
@@ -41,10 +40,9 @@ const renditionPath = (rendition: RenditionName | RenditionId) =>
 		`${typeof rendition === "number" ? RenditionName[rendition] : rendition}.png`,
 	);
 
-print({ message: "building source icons" });
-
 for (const rendition of RenditionName) {
-	await spawn({
+	await proc({
+		title: `Building ${rendition} icon`,
 		command: [
 			ictoolPath,
 			iconPath,
@@ -63,12 +61,10 @@ for (const rendition of RenditionName) {
 			1,
 		],
 		shell: true,
-		output: false,
 		errors: "exit",
 	});
+	log({ details: renditionPath(rendition) });
 }
-
-print({ details: [renditionPath("Light"), renditionPath("Dark")].join("\n") });
 
 // [helper] convert and place icons
 async function copy(
@@ -105,13 +101,12 @@ async function copy(
 			},
 		),
 	);
-	print({ details: results.join("\n") });
-	return results;
+	log({ details: results.join("\n") });
 }
 
 // build desktop assets
 const desktopPath = fileURLToPath(new URL("../apps/desktop", import.meta.url));
-print({ message: "copying desktop assets" });
+log({ message: "Copying desktop assets" });
 
 await copy(
 	desktopPath,
@@ -127,7 +122,7 @@ await copy(
 
 // build mobile assets
 const mobilePath = fileURLToPath(new URL("../apps/mobile", import.meta.url));
-print({ message: "copying mobile assets" });
+log({ message: "Copying mobile assets" });
 
 await copy(
 	mobilePath,
@@ -136,7 +131,8 @@ await copy(
 	{ from: Rendition.Dark, to: "assets/logo-dark.png" },
 );
 
-await spawn({
+await proc({
+	title: "Generating mobile assets",
 	command: [
 		"pnpx",
 		"--allow-build=sharp",
@@ -146,18 +142,13 @@ await spawn({
 		"--ios",
 		"--android",
 	],
-	label: [
-		"generate mobile assets",
-		"generating mobile assets",
-		"generated mobile assets",
-	],
 	errors: "exit",
 	cwd: mobilePath,
 });
 
 // build gui assets
 const guiPath = fileURLToPath(new URL("../packages/gui", import.meta.url));
-print({ message: "copying gui assets" });
+log({ message: "Copying gui assets" });
 
 await copy(
 	guiPath,
@@ -171,5 +162,3 @@ await copy(
 		save: (input: Sharp, output: string) => sharpsToIco([input], output),
 	},
 );
-
-print({ message: "done!" });
