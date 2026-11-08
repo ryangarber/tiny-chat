@@ -1,3 +1,37 @@
+## 0.10.10 (2026-11-08)
+
+### Features
+
+- terminal driving tools ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- sticky line numbers, controls in scrollable content ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- all previews get content controls ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- chat status indicators ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- message, tool call chapters ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- **tui:** non-blocking image renderer ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- /plan mode ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- read skills from projects, agents ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- cursor provider ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- auto approve work in tmp ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+
+### Bug Fixes
+
+- some provider tool calls prevent chat ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- some crashes not caught by tui ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- **cli:** fast scrolling can cause ink crash ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- errors can be swallowed or kill the process ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+- claude subagents, background tasks fail to stream ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+
+### Performance Improvements
+
+- drop streamdown fade ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+
+### Other
+
+- improved memory, action, file tools ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- improved tool displays for agents ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- improvement test provider ([b4d52ba](https://github.com/ryangarber/tiny-chat/commit/b4d52baed16f1d80b151fd72564167d6d7e8b39c))
+- bump dependencies ([3dbbd5b](https://github.com/ryangarber/tiny-chat/commit/3dbbd5b19ca0788e988e14319cadbea2b913818b))
+
 ## 0.10.9 (2026-11-06)
 
 ### Features
