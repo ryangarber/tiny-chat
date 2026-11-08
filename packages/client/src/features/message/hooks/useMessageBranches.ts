@@ -12,7 +12,8 @@ export const useMessageBranches = (message: MessageState) => {
 	const selection = useMutation({
 		mutationFn: (id: string) =>
 			MessageQueryService.selectBranch(client, message.previousId, id),
-		throwOnError: true,
+		onError: (error) =>
+			console.error("[useMessageBranches] could not select branch:", error),
 	});
 	const options = messages.data?.branchOptions[message.id] ?? [];
 	const index = options.indexOf(message.id);

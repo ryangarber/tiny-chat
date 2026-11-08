@@ -191,6 +191,36 @@ export const ToolUtils = {
 		return { toolsets, tools };
 	},
 
+	/**
+	 * Runs a bulk tool's steps in order, stopping at the first that fails. What
+	 * ran is reported either way, so the model knows what is already applied.
+	 */
+	runSteps: async <TStep, TResult>({
+		steps,
+		run,
+		failed,
+		abort,
+	}: {
+		steps: TStep[];
+		run: (step: TStep) => Promise<TResult>;
+		/** The failed step's result, given the error it threw. */
+		failed: (step: TStep, error: string) => TResult;
+		abort?: AbortSignal;
+	}): Promise<{ steps: TResult[]; skipped?: number }> => {
+		const results: TResult[] = [];
+		for (const [index, step] of steps.entries()) {
+			abort?.throwIfAborted();
+			try {
+				results.push(await run(step));
+			} catch (error) {
+				results.push(failed(step, CommonUtils.formatError({ error })));
+				const skipped = steps.length - index - 1;
+				return { steps: results, ...(skipped ? { skipped } : {}) };
+			}
+		}
+		return { steps: results };
+	},
+
 	is: <T extends ToolDefinition>(
 		toolsets: Toolset<any>[],
 		part: zToolCallPart | Extract<RenderedPart, { type: "toolCall" }>,

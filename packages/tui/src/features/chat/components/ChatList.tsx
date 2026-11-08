@@ -1,6 +1,8 @@
 import { useInput } from "ink";
+import Spinner from "ink-spinner";
 import { useState } from "react";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
+import { useChatStatuses } from "#client/features/chat/hooks/useChatStatuses.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import Box from "#tui/core/components/Box.tsx";
@@ -76,6 +78,7 @@ export default function ChatList({
 }) {
 	const { projects, deleteChat } = useChatList();
 	useWorkingStatus(projects, deleteChat);
+	const statuses = useChatStatuses();
 
 	const project = useChatStore((state) => state.active.project);
 	const projectList =
@@ -145,6 +148,19 @@ export default function ChatList({
 					})),
 				},
 			]}
+			renderItem={({ item }) => (
+				<>
+					{statuses[item.value] === "generating" && (
+						<Text color="primary">
+							<Spinner type="circleQuarters" />
+						</Text>
+					)}
+					{statuses[item.value] === "waiting" && (
+						<Text color="yellowBright">‖</Text>
+					)}
+					<Text wrap="truncate-end">{item.name}</Text>
+				</>
+			)}
 			bindings={{
 				primary: {
 					name: "open",

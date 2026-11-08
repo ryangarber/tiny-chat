@@ -12,9 +12,7 @@ import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
 import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
 import { edit_files } from "#core/features/tool/tools/shell/edit_files.ts";
-import { grep_files } from "#core/features/tool/tools/shell/grep_files.ts";
-import { read_dir } from "#core/features/tool/tools/shell/read_dir.ts";
-import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
+import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import { search_files } from "#core/features/tool/tools/shell/search_files.ts";
 import { search_web } from "#core/features/tool/tools/web/search_web.ts";
 import { view_web } from "#core/features/tool/tools/web/view_web.ts";
@@ -190,38 +188,28 @@ const fromToolCall = ({
 		return output[0]
 			? [{ key: output[0].url, type: "web", value: output[0] }]
 			: [];
-	} else if (ToolUtils.is(toolsets, part, read_file)) {
-		const output = ToolUtils.file(result);
-		return output[0]
-			? [
-					{
-						key: part.input.path,
-						type: "file",
-						value: {
-							path: part.input.path,
-							directory: false,
-						},
-					},
-				]
-			: [];
-	} else if (ToolUtils.is(toolsets, part, read_dir)) {
-		const output = ToolUtils.json<typeof read_dir>(result, true);
-		return output.map((item) => ({
-			key: item.path,
-			type: "file",
-			value: {
-				path: item.path,
-				directory: item.is_dir,
-			},
-		}));
-	} else if (
-		ToolUtils.is(toolsets, part, search_files) ||
-		ToolUtils.is(toolsets, part, grep_files)
-	) {
-		const output = ToolUtils.json<typeof grep_files | typeof search_files>(
-			result,
-			true,
+	} else if (ToolUtils.is(toolsets, part, read_files)) {
+		// Each read file, and each entry of each directory listed.
+		return ToolUtils.json<typeof read_files>(result, true).flatMap(
+			(read): Source[] =>
+				read.error
+					? []
+					: read.entries
+						? read.entries.map((entry) => ({
+								key: entry.path,
+								type: "file",
+								value: { path: entry.path, directory: entry.is_dir },
+							}))
+						: [
+								{
+									key: read.path,
+									type: "file",
+									value: { path: read.path, directory: false },
+								},
+							],
 		);
+	} else if (ToolUtils.is(toolsets, part, search_files)) {
+		const output = ToolUtils.json<typeof search_files>(result, true);
 		return output.map((item) => ({
 			key: item.path,
 			type: "file",

@@ -29,12 +29,15 @@ const CATEGORY_COLORS: Record<CategoryId, DefaultMantineColor> = {
 export default function TokenUsage({
 	usage,
 	categories,
+	disabled,
 }: {
 	usage: Usage<DefaultMantineColor>;
 	categories: Categories;
+	/** Keeps its breakdown shut, as while the config is open over it. */
+	disabled?: boolean;
 }) {
 	return (
-		<Popup position="top">
+		<Popup position="top" disabled={disabled}>
 			<Popup.Target>
 				{usage.loading ? (
 					<Loader size="xs" />

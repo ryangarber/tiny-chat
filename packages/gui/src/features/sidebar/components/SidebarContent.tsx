@@ -3,6 +3,7 @@ import {
 	Button,
 	Group,
 	Indicator,
+	Loader,
 	Modal,
 	NavLink,
 	Overlay,
@@ -19,6 +20,7 @@ import {
 	CaretLeftIcon,
 	CaretRightIcon,
 	DotsThreeIcon,
+	PauseCircleIcon,
 	PlusIcon,
 	TrashIcon,
 } from "@phosphor-icons/react";
@@ -32,6 +34,7 @@ import {
 import { ClientContext } from "#client/client.ts";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
+import { useChatStatus } from "#client/features/chat/hooks/useChatStatuses.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import type {
@@ -164,11 +167,12 @@ function Chat({
 	const isMobile = useAppStore((state) => state.isMobile);
 	const setPanel = useLayoutStore((state) => state.setPanel);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
+	const status = useChatStatus(chat.id);
 
 	return (
 		<Indicator
 			size={8}
-			disabled={!chat.unseen}
+			disabled={!chat.unseen || !!status}
 			color={active ? "white" : "blue"}
 			position="middle-start"
 			offset={20}
@@ -178,6 +182,22 @@ function Chat({
 				label={chat.title ?? "Sending..."}
 				variant="filled"
 				active={active}
+				leftSection={
+					status === "generating" ? (
+						<Loader
+							size={12}
+							color={active ? "white" : "blue"}
+							aria-label="Generating"
+						/>
+					) : status === "waiting" ? (
+						<PauseCircleIcon
+							size={16}
+							weight="fill"
+							color={active ? "white" : "var(--mantine-color-yellow-filled)"}
+							aria-label="Waiting for you"
+						/>
+					) : undefined
+				}
 				className={`right-section-hover${active || isMobile ? " hover" : ""}`}
 				onClick={() => {
 					ChatService.setChat(chat);
@@ -188,7 +208,7 @@ function Chat({
 				onDragStart={(event) => dragHandlers.onDragStart(event, chat)}
 				onDragEnd={dragHandlers.onDragEnd}
 				style={{ cursor: "grab" }}
-				{...(chat.unseen && { pl: 35 })}
+				{...(chat.unseen && !status && { pl: 35 })}
 				rightSection={
 					<ActionIcon
 						size={24}

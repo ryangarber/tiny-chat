@@ -70,14 +70,18 @@ export default function RightSection({
 	useEffect(() => {
 		const onClickOutside = (event: PointerEvent) => {
 			if (!opened || currentModal) return;
-			if (event.target instanceof HTMLElement) {
-				const isRightSection = event.target.closest(".right-section");
-				if (!isRightSection) {
-					setConfigOpen(false);
-				}
-				event.preventDefault();
-				event.stopPropagation();
-			}
+			if (!(event.target instanceof Element)) return;
+			// The path as the click began: what it landed on may be gone by now,
+			// as an option is once its dropdown closes.
+			const isRightSection = event
+				.composedPath()
+				.some(
+					(node) =>
+						node instanceof Element && node.classList.contains("right-section"),
+				);
+			if (!isRightSection) setConfigOpen(false);
+			event.preventDefault();
+			event.stopPropagation();
 		};
 		document.body.addEventListener("click", onClickOutside);
 		return () => document.body.removeEventListener("click", onClickOutside);
@@ -85,7 +89,8 @@ export default function RightSection({
 
 	return (
 		<>
-			<TokenUsage usage={usage} categories={categories} />
+			{/* Its hover breakdown would open over the config's lower fields. */}
+			<TokenUsage usage={usage} categories={categories} disabled={opened} />
 			<Popover position="top" opened={opened}>
 				<Popover.Target>
 					{modelWidth < 100 ? (

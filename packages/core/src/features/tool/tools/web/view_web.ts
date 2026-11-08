@@ -1,6 +1,5 @@
 import { z } from "zod";
 import type { WebCapability } from "#core/core/types/capability.ts";
-import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import { zWebContext } from "#core/features/provider/types/web.ts";
 import type { ToolDisplay } from "#core/features/tool/types/display.ts";
 import type {
@@ -8,6 +7,7 @@ import type {
 	ToolDefinition,
 	ToolFactory,
 } from "#core/features/tool/types/tool.ts";
+import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
 export const view_web = {
 	name: "view_web",
@@ -19,12 +19,7 @@ export const view_web = {
 } as const satisfies ToolDefinition;
 
 const display: ToolDisplay<typeof view_web> = {
-	status: ({ input }) => [
-		["Reading", "Read"],
-		{ count: ["page", "pages"] },
-		"at",
-		{ subject: input.url ? PathUtils.name(input.url) : "" },
-	],
+	status: ({ input }) => ToolDisplayUtils.status.viewWeb(input.url),
 	output: ({ output }) => output.map((source) => ({ type: "web", source })),
 };
 

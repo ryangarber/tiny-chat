@@ -6,7 +6,7 @@ import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { ActionState } from "#core/features/data/types/action.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 
-/** A prompt as an action sends it, the way `create_action` writes it. */
+/** A prompt as an action sends it, the way `edit_actions` writes it. */
 const toData = (prompt: string): zData => [
 	[{ id: CommonUtils.getRandomId(), type: "text", value: prompt }],
 ];

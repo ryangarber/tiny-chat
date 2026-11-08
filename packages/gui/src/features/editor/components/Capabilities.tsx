@@ -59,7 +59,7 @@ import type { zMCPServers } from "#core/features/data/types/user.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
-import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
+import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 import { LogList } from "#gui/core/components/Console.tsx";
@@ -848,7 +848,7 @@ function SkillView({ skills, native }: { skills: zSkill[]; native?: boolean }) {
 										<WarningDiamondIcon size={14} />
 										<Text size="xs">
 											Needs{" "}
-											<span style={{ fontWeight: 450 }}>{read_file.name}</span>
+											<span style={{ fontWeight: 450 }}>{read_files.name}</span>
 										</Text>
 									</Group>
 								)}

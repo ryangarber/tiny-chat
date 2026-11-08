@@ -12,6 +12,9 @@ import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
 interface MessageQueueStore {
 	active: Record<string, boolean>;
 	setActive: (chatId: string, active: boolean) => void;
+	/** Chats whose reply has stopped on calls only the user can answer. */
+	paused: Record<string, boolean>;
+	pause: (chatId: string) => void;
 	queues: Record<string, zInterjectionPart[]>;
 	enqueue: (chatId: string, data: zData) => void;
 	drain: (chatId: string) => zInterjectionPart[];
@@ -30,11 +33,19 @@ export const useMessageQueueStore = create<MessageQueueStore>((set, get) => ({
 		) {
 			get().clear(chatId);
 			get().setActive(chatId, false);
+		} else {
+			get().pause(chatId);
 		}
 	},
 	active: {},
 	setActive: (chatId, active) =>
-		set((state) => ({ active: { ...state.active, [chatId]: active } })),
+		set((state) => ({
+			active: { ...state.active, [chatId]: active },
+			paused: { ...state.paused, [chatId]: false },
+		})),
+	paused: {},
+	pause: (chatId) =>
+		set((state) => ({ paused: { ...state.paused, [chatId]: true } })),
 	queues: {},
 	enqueue: (chatId, data) => {
 		const value = data.flat().flatMap((part): zDataSimplePart[] => {

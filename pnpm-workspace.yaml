@@ -17,7 +17,6 @@ allowBuilds:
   tree-sitter-bash: true
   unrs-resolver: true
   workerd: true
-  ink@git+https://github.com/vadimdemedes/ink.git: true
 minimumReleaseAgeExclude:
   - "@ryangarber/*"
   - "@afmize/*"
@@ -26,6 +25,7 @@ minimumReleaseAgeExclude:
   - better-ink-picture
   - better-auth-prisma-orm
   - prisma-orm-extension-zod
+  - ink-nightly
 peerDependencyRules:
   allowedVersions:
     "@browser-ai/web-llm>ai": "7"
@@ -37,7 +37,7 @@ peerDependencyRules:
     "@better-auth/prisma-adapter>prisma": "*"
 overrides:
   effect: "^4.0.5"
-  ink: "github:vadimdemedes/ink#342afb4d218f92854841c76b1a402b628b0ad8a4"
+  ink: "npm:ink-nightly"
 catalogs:
   typescript:
     "typescript": "7.1.0-beta"

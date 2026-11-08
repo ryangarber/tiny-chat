@@ -251,7 +251,7 @@ catalogs:
 
 overrides:
   effect: ^4.0.5
-  ink: github:vadimdemedes/ink#342afb4d218f92854841c76b1a402b628b0ad8a4
+  ink: npm:ink-nightly
 
 patchedDependencies:
   native-run: 9fa167e2367df0c66ebb956cb430ed74193b4780927891e89bb35d27b17dfb56
@@ -386,7 +386,7 @@ importers:
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       better-ink-picture:
         specifier: ^0.1.0
-        version: 0.1.0(ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
+        version: 0.1.0(ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
       client:
         specifier: workspace:*
         version: link:../../packages/client
@@ -394,8 +394,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
       ink:
-        specifier: github:vadimdemedes/ink#342afb4d218f92854841c76b1a402b628b0ad8a4
-        version: https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
+        specifier: npm:ink-nightly
+        version: ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
       react:
         specifier: catalog:react
         version: 19.3.1
@@ -854,7 +854,7 @@ importers:
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       better-ink-picture:
         specifier: ^0.1.0
-        version: 0.1.0(ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
+        version: 0.1.0(ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
       chalk:
         specifier: ^6.0.1
         version: 6.0.1
@@ -871,11 +871,11 @@ importers:
         specifier: ^2.3.7
         version: 2.3.7(supports-color@10.2.2)
       ink:
-        specifier: github:vadimdemedes/ink#342afb4d218f92854841c76b1a402b628b0ad8a4
-        version: https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
+        specifier: npm:ink-nightly
+        version: ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
       ink-spinner:
         specifier: ^5.0.0
-        version: 5.0.0(ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)
+        version: 5.0.0(ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)
       react:
         specifier: catalog:react
         version: 19.3.1
@@ -4236,7 +4236,6 @@ packages:
 
   better-ink-picture@0.1.0:
     resolution: {integrity: sha512-90zoegyQSo6osAmdmBlc/eVA0WfTg07BhXX6CeD/YtBSuns/k0cVlThLo/O/DQkmMNlFwgs1Gc9N514cfIga/w==}
-    version: 0.1.0
     peerDependencies:
       ink: '>=8'
       react: '>=19'
@@ -5553,9 +5552,21 @@ packages:
     resolution: {integrity: sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
+  ink-nightly@8.0.1-nightly.1:
+    resolution: {integrity: sha512-dotblq5bluLIQ1uMinL3CzvZWUga9oyWhz3yZiz3jdTCIV5ejyW+N/h6X4FKgAvlASmS0BdAfpwjEPG7O/ydxA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@types/react': '>=19.3.0'
+      react: '>=19.3.0'
+      react-devtools-core: '>=6.1.2'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react-devtools-core:
+        optional: true
+
   ink-spinner@5.0.0:
     resolution: {integrity: sha512-EYEasbEjkqLGyPOUc8hBJZNuC5GvXGMLu0w5gdTNskPc7Izc5vO3tdQEYnzvshucyGCBXc86ig0ujXPMWaQCdA==}
-    version: 5.0.0
     engines: {node: '>=14.16'}
     peerDependencies:
       ink: '>=4.0.0'
@@ -5568,20 +5579,6 @@ packages:
       '@types/react': '>=18.0.0'
     peerDependenciesMeta:
       '@types/react':
-        optional: true
-
-  ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4:
-    resolution: {gitHosted: true, integrity: sha512-UTTABVDSnb3CESEo/P/Y5h2dgk0CwjYVhrMbpN10PC4GBSNcNFjUYbbW+yRls6rwNKXp6cFSW+cp2nh+7AUROg==, tarball: https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4}
-    version: 8.0.0
-    engines: {node: '>=22'}
-    peerDependencies:
-      '@types/react': '>=19.3.0'
-      react: '>=19.3.0'
-      react-devtools-core: '>=6.1.2'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react-devtools-core:
         optional: true
 
   inline-style-parser@0.2.9:
@@ -11113,9 +11110,9 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  better-ink-picture@0.1.0(ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6)):
+  better-ink-picture@0.1.0(ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6)):
     dependencies:
-      ink: https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
+      ink: ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
       jpeg-js: 0.4.4
       omggif: 1.0.10
       react: 19.3.1
@@ -12411,17 +12408,7 @@ snapshots:
 
   ini@6.0.0: {}
 
-  ink-spinner@5.0.0(ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1):
-    dependencies:
-      cli-spinners: 2.9.2
-      ink: https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
-      react: 19.3.1
-
-  ink-testing-library@4.0.0(@types/react@19.3.0):
-    optionalDependencies:
-      '@types/react': 19.3.0
-
-  ink@https://codeload.github.com/vadimdemedes/ink/tar.gz/342afb4d218f92854841c76b1a402b628b0ad8a4(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1):
+  ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1):
     dependencies:
       '@alcalzone/ansi-tokenize': 0.3.1
       ansi-escapes: 7.3.0
@@ -12449,6 +12436,16 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
       react-devtools-core: 8.0.0
+
+  ink-spinner@5.0.0(ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1):
+    dependencies:
+      cli-spinners: 2.9.2
+      ink: ink-nightly@8.0.1-nightly.1(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
+      react: 19.3.1
+
+  ink-testing-library@4.0.0(@types/react@19.3.0):
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   inline-style-parser@0.2.9: {}
 

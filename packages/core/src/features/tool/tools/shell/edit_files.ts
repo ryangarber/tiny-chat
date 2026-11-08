@@ -5,7 +5,6 @@ import { FileEditService } from "#core/features/file/services/FileEditService.ts
 import type {
 	ToolBlock,
 	ToolDisplay,
-	ToolStatusPiece,
 } from "#core/features/tool/types/display.ts";
 import { zFileStep, zFileStepResult } from "#core/features/tool/types/files.ts";
 import type {
@@ -52,13 +51,11 @@ export const getStepBlocks = (
 			return [ToolDisplayUtils.text({ path: target, content: step.content })];
 		if (step?.action === "edit")
 			return [
-				{
-					type: "diff",
+				ToolDisplayUtils.diff({
 					path: target,
-					before: step.old_string ?? "",
-					after: step.new_string ?? "",
-					language: ToolDisplayUtils.language(target),
-				},
+					before: step.old_string,
+					after: step.new_string,
+				}),
 			];
 		if (step?.action === "rename")
 			return [
@@ -76,44 +73,14 @@ export const getStepBlocks = (
 export const getResultBlocks = (
 	output: z.infer<typeof edit_files.output>[],
 ): ToolBlock[] =>
-	output.flatMap((result) => [
-		...result.steps.flatMap((step): ToolBlock[] =>
-			step.error
-				? [
-						{
-							type: "text",
-							value: `${step.action} ${step.path}: ${step.error}`,
-							tone: "error",
-						},
-					]
-				: [],
-		),
-		...(result.skipped
-			? [
-					{
-						type: "text" as const,
-						value: `Skipped ${result.skipped} later ${result.skipped === 1 ? "step" : "steps"}`,
-						tone: "dimmed" as const,
-					},
-				]
-			: []),
-	]);
+	ToolDisplayUtils.steps(output, (step) => `${step.action} ${step.path}`);
 
 const display: ToolDisplay<typeof edit_files> = {
-	status: ({ input }) => {
-		const paths = getPaths(input.steps as PartialStep[]);
-		if (paths.length > 1)
-			return [
-				["Editing", "Edited"],
-				{ count: ["file", "files"], subject: `${paths.length} files` },
-			];
-		const status: ToolStatusPiece[] = [
-			["Editing", "Edited"],
-			{ count: ["file", "files"] },
-		];
-		if (paths[0]) status.push({ subject: ToolDisplayUtils.name(paths[0]) });
-		return status;
-	},
+	status: ({ input }) =>
+		ToolDisplayUtils.status.paths({
+			verb: ["Editing", "Edited"],
+			paths: getPaths(input.steps as PartialStep[]),
+		}),
 	input: ({ input }) => getStepBlocks(input.steps as PartialStep[]),
 	output: ({ output }) => getResultBlocks(output),
 };

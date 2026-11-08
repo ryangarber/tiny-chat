@@ -23,9 +23,12 @@ export const ToolFeedbackService = {
 	wait: ({
 		part,
 		signal,
+		chatId,
 	}: {
 		part: zToolCallPart;
 		signal: AbortSignal;
+		/** The chat the generation is in: none for a subagent's. */
+		chatId: string | null;
 	}): Promise<ToolFeedback> => {
 		const given = answers.get(part.id);
 		if (given) {
@@ -42,12 +45,12 @@ export const ToolFeedbackService = {
 			const onAbort = () => {
 				if (waiters.get(part.id) === settle) {
 					waiters.delete(part.id);
-					useToolFeedbackStore.getState().set("awaiting", part.id, false);
+					useToolFeedbackStore.getState().setAwaiting(part.id, false);
 				}
 				reject(signal.reason);
 			};
 			waiters.set(part.id, settle);
-			useToolFeedbackStore.getState().set("awaiting", part.id, true);
+			useToolFeedbackStore.getState().setAwaiting(part.id, chatId);
 			signal.addEventListener("abort", onAbort, { once: true });
 		});
 	},
@@ -61,8 +64,8 @@ export const ToolFeedbackService = {
 		if (!waiter) return false;
 		waiters.delete(id);
 		const store = useToolFeedbackStore.getState();
-		store.set("awaiting", id, false);
-		store.set("answered", id, true);
+		store.setAwaiting(id, false);
+		store.setAnswered(id, true);
 		waiter(answer);
 		return true;
 	},
@@ -73,7 +76,7 @@ export const ToolFeedbackService = {
 	 */
 	hold: (id: string, answer: ToolFeedback): Promise<boolean> => {
 		answers.get(id)?.taken(false);
-		useToolFeedbackStore.getState().set("answered", id, true);
+		useToolFeedbackStore.getState().setAnswered(id, true);
 		return new Promise((resolve) => {
 			answers.set(id, { answer, taken: resolve });
 		});
@@ -86,6 +89,6 @@ export const ToolFeedbackService = {
 	settle: (id: string) => {
 		answers.get(id)?.taken(false);
 		answers.delete(id);
-		useToolFeedbackStore.getState().set("answered", id, false);
+		useToolFeedbackStore.getState().setAnswered(id, false);
 	},
 } as const;

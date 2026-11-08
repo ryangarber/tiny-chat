@@ -265,13 +265,14 @@ export const useMessaging = () => {
 			});
 		},
 
-		onError: () => {
+		// The draft is given back to send again; the error is only logged, as
+		// thrown into the tree it would take the whole app down with it.
+		onError: (error) => {
+			console.error("[useMessaging] could not send:", error);
 			if (sendingData.current) {
 				ComposerService.setData({ client, data: [...sendingData.current] });
 			}
 		},
-
-		throwOnError: true,
 	});
 
 	const sendToolFeedback = useMutation({

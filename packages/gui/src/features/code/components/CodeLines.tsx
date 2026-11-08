@@ -21,7 +21,11 @@ export default function CodeLines({
 		<span
 			className={
 				lineNumbers
-					? "block before:content-[counter(line)] before:inline-block before:[counter-increment:line] before:w-6 before:mr-4 before:text-[13px] before:text-right before:text-muted-foreground/50 before:font-mono before:select-none"
+					? // Held to the left edge as the line scrolls sideways under it,
+						// painted in the block's color — the gap after it too — so the
+						// line is hidden there rather than showing through. It sticks at
+						// the block's padding, so a shadow in the same color covers that.
+						"block before:content-[counter(line)] before:inline-block before:[counter-increment:line] before:sticky before:left-0 before:z-1 before:box-content before:w-6 before:pr-4 before:bg-(--sdm-bg) before:[box-shadow:-16px_0_0_var(--sdm-bg)] before:text-[13px] before:text-right before:text-muted-foreground/50 before:font-mono before:select-none"
 					: undefined
 			}
 			key={lineIndex}

@@ -326,7 +326,7 @@ const NAMES = getLookup([
 	],
 	[
 		// Credentials. Withheld from search so that a broad query cannot sweep
-		// a key into the conversation; `read_file` will still open one when it
+		// a key into the conversation; `read_files` will still open one when it
 		// is asked for by name.
 		"secret",
 		[

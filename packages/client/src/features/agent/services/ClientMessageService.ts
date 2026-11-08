@@ -213,6 +213,7 @@ export const ClientMessageService = {
 		useMessageQueueStore.getState().setActive(chat.id, true);
 		if (!answered && DataUtils.isMissingToolResult(response)) {
 			// Awaiting more user tool inputs — do not start generation yet.
+			useMessageQueueStore.getState().pause(chat.id);
 			return;
 		}
 

@@ -157,6 +157,13 @@ export interface ToolDisplay<T extends ToolDefinition> {
 	output?: (call: ToolCallContext<T>) => ToolBlock[];
 	/** What the user fills in, for a tool with `feedback`. */
 	fields?: (call: ToolCallContext<T>) => ToolField[];
+	/**
+	 * How text in the call's result is shown after `output`: as a `notice`
+	 * (truncation, a summary), as `prose` (a subagent's answer), or as code
+	 * (a command's output). Tiny Chat's own tools default to notices, since
+	 * their output says the rest; tools known only by name default to code.
+	 */
+	text?: "notice" | "prose" | { title?: string; terminal?: boolean };
 }
 
 /** A tool call resolved for rendering. */

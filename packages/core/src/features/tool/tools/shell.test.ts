@@ -6,9 +6,8 @@ import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createEditPlanTool } from "#core/features/tool/tools/plan/edit_plan.ts";
 import { createEditFilesTool } from "#core/features/tool/tools/shell/edit_files.ts";
 import { createGlobFilesTool } from "#core/features/tool/tools/shell/glob_files.ts";
-import { createGrepFilesTool } from "#core/features/tool/tools/shell/grep_files.ts";
-import { createReadDirTool } from "#core/features/tool/tools/shell/read_dir.ts";
-import { createReadFileTool } from "#core/features/tool/tools/shell/read_file.ts";
+import { createReadFilesTool } from "#core/features/tool/tools/shell/read_files.ts";
+import { createSearchFilesTool } from "#core/features/tool/tools/shell/search_files.ts";
 import { createShellExecTool } from "#core/features/tool/tools/shell/shell_exec.ts";
 
 const context = {} as zAgentContext;
@@ -51,10 +50,10 @@ describe("shell", () => {
 				(_, index) => `line ${index + 1}`,
 			).join("\n"),
 		});
-		const tool = await createReadFileTool({ capabilities: { shell } });
+		const tool = await createReadFilesTool({ capabilities: { shell } });
 
 		const parts = await tool.execute({
-			input: { path: "/project/long.ts" },
+			input: { reads: [{ path: "/project/long.ts" }] },
 			feedback: undefined,
 			context,
 		});
@@ -74,11 +73,11 @@ describe("shell", () => {
 		const shell = createShell({
 			"/project/blob.psd": new Uint8Array(6_000_000),
 		});
-		const tool = await createReadFileTool({ capabilities: { shell } });
+		const tool = await createReadFilesTool({ capabilities: { shell } });
 
 		await expect(
 			tool.execute({
-				input: { path: "/project/blob.psd" },
+				input: { reads: [{ path: "/project/blob.psd" }] },
 				feedback: undefined,
 				context,
 			}),
@@ -90,22 +89,73 @@ describe("shell", () => {
 		for (let index = 0; index < 300; index++) {
 			files[`/project/file-${index}.ts`] = "x";
 		}
-		const tool = await createReadDirTool({
+		const tool = await createReadFilesTool({
 			capabilities: { shell: createShell(files) },
 		});
 
 		const parts = await tool.execute({
-			input: { path: "/project", max_results: 50 },
+			input: { reads: [{ path: "/project", max_results: 50 }] },
 			feedback: undefined,
 			context,
 		});
 
-		const listing = parts.filter((part) => part.type === "json");
-		expect(listing).toHaveLength(50);
+		const listing = parts[0];
+		if (listing?.type !== "json") throw new Error("Expected a listing");
+		expect(listing.value.entries).toHaveLength(50);
 		expect(parts.at(-1)).toEqual({
 			type: "text",
 			value: expect.stringContaining("Showing 50 of 300"),
 		});
+	});
+
+	it("reads files and directories together, failing only what fails", async () => {
+		const shell = createShell({
+			"/project/a.ts": "one\ntwo",
+			"/project/src/b.ts": "b",
+		});
+		const tool = await createReadFilesTool({ capabilities: { shell } });
+
+		const parts = await tool.execute({
+			input: {
+				reads: [
+					{ path: "/project/a.ts", line_numbers: true },
+					{ path: "/project/missing.ts" },
+					{ path: "/project/src" },
+				],
+			},
+			feedback: undefined,
+			context,
+		});
+
+		const json = parts.flatMap((part) =>
+			part.type === "json" ? [part.value] : [],
+		);
+		expect(json[0]).toEqual({ path: "/project/a.ts" });
+		expect(json[1]).toMatchObject({
+			path: "/project/missing.ts",
+			error: expect.any(String),
+		});
+		expect(json[2]?.entries?.map((entry) => entry.path)).toEqual([
+			expect.stringContaining("b.ts"),
+		]);
+
+		const file = parts.find((part) => part.type === "file");
+		if (file?.type !== "file") throw new Error("Expected a file part");
+		expect(FileUtils.getTextFromBytes(file)).toBe("1. one\n2. two");
+	});
+
+	it("fails a read that fails every path", async () => {
+		const tool = await createReadFilesTool({
+			capabilities: { shell: createShell({}) },
+		});
+
+		await expect(
+			tool.execute({
+				input: { reads: [{ path: "/project/missing.ts" }] },
+				feedback: undefined,
+				context,
+			}),
+		).rejects.toThrow();
 	});
 
 	it("truncates the middle of very long command output", async () => {
@@ -183,10 +233,10 @@ describe("shell", () => {
 			"/project/a.ts": "const needle = 1;\n",
 			"/project/b.ts": "nothing here\n",
 		});
-		const tool = await createGrepFilesTool({ capabilities: { shell } });
+		const tool = await createSearchFilesTool({ capabilities: { shell } });
 
 		const parts = await tool.execute({
-			input: { path: "/project", query: "needle" },
+			input: { path: "/project", query: "needle", mode: "regex" },
 			feedback: undefined,
 			context,
 		});

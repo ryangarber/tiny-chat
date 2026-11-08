@@ -135,6 +135,40 @@ const expectStablePrefix = (requests: Request[]) => {
 	}
 };
 
+/** `count` writes and reads, made together. */
+const calls = (count: number, { background = false } = {}) =>
+	Array.from({ length: count }, (_, n) => [
+		{
+			tool: "edit_files",
+			input: { path: `${n}.txt`, ...(background ? { background } : {}) },
+			delay: 0,
+		},
+		{ tool: "read_dir", input: { path: "" }, delay: 0 },
+	]).flat();
+
+/** Scripts for the test model: see `TestProvider`. */
+const script = {
+	/** The calls, then an answer once their results are in. */
+	tools: (count: number) =>
+		JSON.stringify([...calls(count), { text: "Done.", delay: 0 }]),
+	/** The calls twice over, as when the user asks for more between steps. */
+	twice: JSON.stringify([calls(1), calls(1), [{ text: "Done.", delay: 0 }]]),
+	/** The write in the background, answered as it runs and once it reports. */
+	tasks: JSON.stringify([
+		calls(1, { background: true }),
+		[{ text: "Carrying on meanwhile.", delay: 0 }],
+		[{ text: "The write is done.", delay: 0 }],
+	]),
+	/** A thought and some text before the calls. */
+	mixed: JSON.stringify([
+		{ thought: "Let me look.", delay: 0 },
+		{ text: "Looking now.", delay: 0 },
+		...calls(3),
+		{ text: "Done.", delay: 0 },
+	]),
+	thanks: JSON.stringify([{ text: "You're welcome.", delay: 0 }]),
+};
+
 const config = zConfig.parse({
 	provider: "test",
 	model: "test-generate",
@@ -300,7 +334,7 @@ const interjecting = (text: string) => {
 describe("AgentService prompt prefix", () => {
 	it("keeps the prefix across the steps of parallel tool calls", async () => {
 		const { provider, requests } = recording();
-		await chat(provider).send("%bench tools 2 ~0", { toolset: files() });
+		await chat(provider).send(script.tools(2), { toolset: files() });
 
 		// Calls, their results, then the answer.
 		expect(requests).toHaveLength(2);
@@ -312,7 +346,7 @@ describe("AgentService prompt prefix", () => {
 
 	it("keeps the prefix while a background call runs and reports in", async () => {
 		const { provider, requests } = recording();
-		await chat(provider).send("%bench tasks ~0", {
+		await chat(provider).send(script.tasks, {
 			toolset: files({ background: ["edit_files"] }),
 		});
 
@@ -325,7 +359,7 @@ describe("AgentService prompt prefix", () => {
 	it("keeps the prefix when the user interjects between steps", async () => {
 		const { provider, requests } = recording();
 		const { send } = chat(provider);
-		await send("%bench tools 1 ~0", {
+		await send(script.tools(1), {
 			toolset: files(),
 			interjections: interjecting("Also check the other folder"),
 		});
@@ -344,7 +378,7 @@ describe("AgentService prompt prefix", () => {
 		const toolset = files({ approval: ["edit_files"] });
 
 		// Nobody answers, so the reply stops with the write unsettled.
-		await send("%bench tools 1 ~0", { toolset });
+		await send(script.tools(1), { toolset });
 		expect(requests).toHaveLength(1);
 
 		await resume({ toolset, toolFeedback: async () => ({ approved: true }) });
@@ -356,8 +390,8 @@ describe("AgentService prompt prefix", () => {
 		const { provider, requests } = recording();
 		const { send } = chat(provider);
 
-		await send("%bench tools 1 ~0", { toolset: files() });
-		await send("Thanks!", { toolset: files() });
+		await send(script.tools(1), { toolset: files() });
+		await send(script.thanks, { toolset: files() });
 
 		expectStablePrefix(requests);
 	});
@@ -366,8 +400,8 @@ describe("AgentService prompt prefix", () => {
 		const { provider, requests } = recording();
 		const { send } = chat(provider);
 
-		// The interjection gets the model to call tools a second time.
-		await send("%bench tools 1 ~0", {
+		// The model calls tools a second time, as the interjection asks.
+		await send(script.twice, {
 			toolset: files(),
 			interjections: interjecting("Do it again"),
 		});
@@ -376,7 +410,7 @@ describe("AgentService prompt prefix", () => {
 				request.output.some((part) => part.type === "tool-call"),
 			),
 		).toHaveLength(2);
-		await send("Thanks!", { toolset: files() });
+		await send(script.thanks, { toolset: files() });
 
 		expectStablePrefix(requests);
 	});
@@ -385,18 +419,18 @@ describe("AgentService prompt prefix", () => {
 		const { provider, requests } = recording();
 		const { send, resume, messages } = chat(provider);
 
-		await send("%bench tasks ~0", {
+		await send(script.tasks, {
 			toolset: files({ background: ["edit_files"] }),
 		});
-		await send("%bench tools 2 ~0", {
+		await send(script.tools(2), {
 			toolset: files(),
 			interjections: interjecting("Make it quick"),
 		});
 		const toolset = files({ approval: ["edit_files"] });
-		await send("%bench tools 1 ~0", { toolset });
+		await send(script.tools(1), { toolset });
 		await resume({ toolset, toolFeedback: async () => ({ approved: true }) });
-		await send("%bench mixed 8 ~0", { toolset: files() });
-		await send("Thanks!", { toolset: files() });
+		await send(script.mixed, { toolset: files() });
+		await send(script.thanks, { toolset: files() });
 
 		expect(messages).toHaveLength(10);
 		expectStablePrefix(requests);

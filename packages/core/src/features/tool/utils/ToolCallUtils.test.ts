@@ -51,7 +51,7 @@ const statusOf = (part: ToolCallPart): ToolCallStatus =>
 describe("ToolCallUtils", () => {
 	describe("status lines", () => {
 		it("reads a single call with its subject", () => {
-			const read = call("read_file", { path: "/src/a.txt" });
+			const read = call("read_files", { reads: [{ path: "/src/a.txt" }] });
 			expect(text(ToolCallUtils.resolveStatus(statusOf(read)))).toBe(
 				"Reading file a.txt",
 			);
@@ -75,8 +75,8 @@ describe("ToolCallUtils", () => {
 		it("combines sequential calls by what they count", () => {
 			const done = (part: ToolCallPart) => result(part, []);
 			const summary = ToolCallUtils.resolveSummary([
-				statusOf(done(call("read_file", { path: "a.txt" }))),
-				statusOf(done(call("read_file", { path: "b.txt" }))),
+				statusOf(done(call("read_files", { reads: [{ path: "a.txt" }] }))),
+				statusOf(done(call("read_files", { reads: [{ path: "b.txt" }] }))),
 				statusOf(
 					done(
 						call("edit_files", {
@@ -101,8 +101,10 @@ describe("ToolCallUtils", () => {
 
 		it("keeps a kind in the present tense while any of it runs", () => {
 			const summary = ToolCallUtils.resolveSummary([
-				statusOf(result(call("read_file", { path: "a.txt" }), [])),
-				statusOf(call("read_file", { path: "b.txt" })),
+				statusOf(
+					result(call("read_files", { reads: [{ path: "a.txt" }] }), []),
+				),
+				statusOf(call("read_files", { reads: [{ path: "b.txt" }] })),
 				statusOf(result(call("shell_exec", { command: "ls" }), [])),
 			]);
 			expect(text(summary)).toBe("Reading 2 files, ran 1 command");
@@ -127,7 +129,10 @@ describe("ToolCallUtils", () => {
 
 	describe("groups", () => {
 		it("counts its calls and summarises them", () => {
-			const read = result(call("read_file", { path: "a.txt" }), []);
+			const read = result(
+				call("read_files", { reads: [{ path: "a.txt" }] }),
+				[],
+			);
 			const group = ToolCallUtils.getGroup({ parts: [read], toolsets });
 			expect(group.calls).toBe(1);
 			expect(group.pending).toBe(false);
@@ -276,7 +281,7 @@ describe("ToolCallUtils", () => {
 		it("shows errors and rejections in place of output", () => {
 			const failed = ToolCallUtils.getDisplay({
 				part: result(
-					call("read_file", { path: "a.txt" }),
+					call("read_files", { reads: [{ path: "a.txt" }] }),
 					[{ id: "e", type: "text", value: "missing" }],
 					true,
 				),
@@ -333,8 +338,63 @@ describe("ToolCallUtils", () => {
 					type: "code",
 					value: "web:test:  Test Files \n1 passed\n",
 					title: "output",
+					terminal: true,
 				},
 			]);
+		});
+
+		it("shows Cursor's own calls as their Tiny Chat counterparts", () => {
+			const shell = ToolCallUtils.getDisplay({
+				part: result(call("shell", { command: "git status" }), [
+					{
+						id: "j",
+						type: "json",
+						value: { stdout: "clean\n", stderr: "", code: 1 },
+					},
+				]),
+				toolsets,
+			});
+			expect(text(shell.status)).toBe("Ran git status");
+			expect(shell.output).toEqual([
+				{ type: "code", value: "clean", title: "output", terminal: true },
+				{ type: "text", value: "Exited with code 1", tone: "dimmed" },
+			]);
+
+			// A listing's note on what it left out reads as a notice.
+			const glob = ToolCallUtils.getDisplay({
+				part: result(
+					call("glob", { globPattern: "*.ts", targetDirectory: "/p" }),
+					[
+						{ id: "j", type: "json", value: "/p/a.ts" },
+						{ id: "t", type: "text", value: "Showing 1 of 2" },
+					],
+				),
+				toolsets,
+			});
+			expect(text(glob.status)).toBe("Looked for *.ts in p");
+			expect(glob.output).toEqual([
+				{ type: "directory", path: "/p", entries: [{ path: "/p/a.ts" }] },
+				{ type: "text", value: "Showing 1 of 2", tone: "dimmed" },
+			]);
+
+			// Calls of a kind are counted together, whoever makes them.
+			expect(
+				text(
+					ToolCallUtils.getGroup({
+						parts: [
+							result(call("grep", { pattern: "a" }), []),
+							result(call("Grep", { pattern: "b" }), []),
+						],
+						toolsets,
+					}).status,
+				),
+			).toBe("Grepped 2 patterns");
+			expect(ToolCallUtils.tracksChanges({ tool: null, name: "edit" })).toBe(
+				true,
+			);
+			expect(ToolCallUtils.tracksChanges({ tool: null, name: "read" })).toBe(
+				false,
+			);
 		});
 	});
 });

@@ -123,7 +123,12 @@ export default function Editor({
 								pointerEvents: "none",
 							},
 						}}
-						onClick={() => editor.commands.focus()}
+						onClick={(event) => {
+							// Clicks in its portaled popovers, such as the config's, bubble
+							// here too, but aren't on the editor.
+							if (event.currentTarget.contains(event.target as Node))
+								editor.commands.focus();
+						}}
 					>
 						<ScrollAreaAutosize
 							ref={scrollRef}

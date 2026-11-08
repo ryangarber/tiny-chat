@@ -10,9 +10,7 @@ import { createPlanToolset } from "#core/features/tool/tools/plan.ts";
 import { createQuestionsToolset } from "#core/features/tool/tools/questions.ts";
 import { edit_files } from "#core/features/tool/tools/shell/edit_files.ts";
 import { glob_files } from "#core/features/tool/tools/shell/glob_files.ts";
-import { grep_files } from "#core/features/tool/tools/shell/grep_files.ts";
-import { read_dir } from "#core/features/tool/tools/shell/read_dir.ts";
-import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
+import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import { search_files } from "#core/features/tool/tools/shell/search_files.ts";
 import { shell_exec } from "#core/features/tool/tools/shell/shell_exec.ts";
 import { createShellToolset } from "#core/features/tool/tools/shell.ts";
@@ -129,12 +127,12 @@ The virtual chat (\`${PathUtils.mount}\`) filesystem holds three trees:
 - \`${PathUtils.mount}/chat/<id>\` — this chat's own working directory, and the only place you can write.
 To change a file from an upload or a skill, \`cp\` it into the chat's directory first and work on the copy; the original stays as it is for every other chat that uses it.
 
-Finding things: \`${glob_files.name}\` for a glob when you want to see how the tree is laid out, \`${search_files.name}\` when you know what the code does but not what it says, and \`${grep_files.name}\` when you know the exact text or pattern. Searches skip dependency, build, generated, minified and git-ignored files, and report what they left out — when results are truncated, narrow the query or pass \`include\` instead of asking for more results.
-Reading: \`${read_file.name}\` returns a window of lines. Page through a long file with \`offset\` and \`limit\`, and grep for what you need first rather than reading a large file end to end.
+Finding things: \`${glob_files.name}\` for a glob when you want to see how the tree is laid out, and \`${search_files.name}\` for contents — its default \`relevance\` mode when you know what the code does but not what it says, \`regex\` or \`literal\` when you know the exact text or pattern. Searches skip dependency, build, generated, minified and git-ignored files, and report what they left out — when results are truncated, narrow the query or pass \`include\` instead of asking for more results.
+Reading: \`${read_files.name}\` reads files and lists directories, every path you need in one call. A text file comes back as a window of lines: page through a long one with \`offset\` and \`limit\`, and search for what you need first rather than reading a large file end to end.
 Changing files: read the part of a file you are about to change, then use \`${edit_files.name}\`, giving each edit enough surrounding context that \`old_string\` occurs exactly once, and batching every change you can predict — edits, new files, renames and deletions — into one call. Its result shows the edited lines, so there is no need to re-read the file afterwards.
 
-Always use ${read_dir.name}, ${read_file.name}, ${glob_files.name}, ${search_files.name} and ${grep_files.name} over \`ls\`, \`cat\`, \`find\`, and \`grep\`, and ${edit_files.name} over \`sed\`, \`mv\`, \`rm\` and redirects.
-${search_files.name} and ${grep_files.name} read text, so they pass over images, archives, databases and build output. When you need to know what files exist rather than what they say — and whenever an attachment is a directory the user sent you — use ${glob_files.name} or ${read_dir.name}, which hide nothing of the sort.
+Always use ${read_files.name}, ${glob_files.name} and ${search_files.name} over \`ls\`, \`cat\`, \`find\`, and \`grep\`, and ${edit_files.name} over \`sed\`, \`mv\`, \`rm\` and redirects.
+${search_files.name} reads text, so it passes over images, archives, databases and build output. When you need to know what files exist rather than what they say — and whenever an attachment is a directory the user sent you — use ${glob_files.name} or ${read_files.name}, which hide nothing of the sort.
 When working in a codebase, look before you act: find the relevant files, read the parts you are about to change, then make the smallest edit that does the job. Say what you changed and how you verified it. When a search or a file comes back truncated, ask a narrower question rather than pulling in more of it — context you spend on noise is context you no longer have for the task.
 
 For all file-related tools, the filesystem will be detected automatically from the path provided.

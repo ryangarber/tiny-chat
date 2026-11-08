@@ -2,6 +2,7 @@ import { type DOMElement, useInput, useWindowSize } from "ink";
 import {
 	createContext,
 	type ReactNode,
+	type RefObject,
 	useEffect,
 	useId,
 	useLayoutEffect,
@@ -15,6 +16,7 @@ import ScrollView, {
 } from "#tui/core/components/ScrollView.tsx";
 import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
+import { useScrollSticky } from "#tui/core/hooks/useScrollSticky.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
@@ -36,6 +38,8 @@ const FULLSCREEN_PADDING_X = 6;
  */
 export const ContentWidthContext = createContext<number | null>(null);
 
+const NO_BLOCK: RefObject<DOMElement | null> = { current: null };
+
 /** Text is copied as is; bytes are copied as an encoded image. */
 type ContentFormatted = string | Uint8Array;
 
@@ -49,12 +53,20 @@ function ContentActions({
 	streaming,
 	open,
 	close,
+	blockRef,
 }: {
 	formatter?: ContentFormatter;
 	streaming?: boolean;
 	open?: () => void;
 	close?: () => void;
+	/**
+	 * The block they are drawn over, down which they follow the top of what is
+	 * shown of it as the view it is in scrolls; left out, they stay at its top.
+	 */
+	blockRef?: RefObject<DOMElement | null>;
 }) {
+	const top = useScrollSticky(blockRef ?? NO_BLOCK, { min: 1 });
+
 	const copy = async () => {
 		if (!formatter) return;
 		try {
@@ -72,7 +84,7 @@ function ContentActions({
 			// biome-ignore lint/nursery/useReactCompiler: a ref callback that only marks the node it is handed.
 			ref={TextLayoutUtils.ignore}
 			position="absolute"
-			top={1}
+			top={top}
 			right={2}
 			gap={1}
 		>
@@ -88,6 +100,9 @@ function ContentActions({
  * Wraps a block of content (code, a table, an image, …) with a `[copy]`
  * button in its top right corner, and a `[+]` that draws the same block over
  * the whole screen, where it scrolls on its own.
+ *
+ * The buttons follow the top of what is shown of the block as the view it is
+ * in scrolls, so a long one can be copied or opened from anywhere in it.
  *
  * The app offers every format to copy or download; here only the block's first
  * format is copied, so `formatter` produces just that one.
@@ -107,6 +122,7 @@ export default function Content({
 	children?: ReactNode;
 }) {
 	const id = useId();
+	const blockRef = useRef<DOMElement>(null);
 	// Only whether this block is the one open is read, so a block renders no
 	// more often than it did before for being able to open.
 	const opened = useContentStore((state) => state.open?.id === id);
@@ -128,6 +144,7 @@ export default function Content({
 
 	return (
 		<FindScope
+			ref={blockRef}
 			label={findLabel}
 			flexDirection="column"
 			width="100%"
@@ -136,7 +153,12 @@ export default function Content({
 			{...props}
 		>
 			<Selectable>{children}</Selectable>
-			<ContentActions formatter={formatter} streaming={streaming} open={open} />
+			<ContentActions
+				formatter={formatter}
+				streaming={streaming}
+				open={open}
+				blockRef={blockRef}
+			/>
 		</FindScope>
 	);
 }

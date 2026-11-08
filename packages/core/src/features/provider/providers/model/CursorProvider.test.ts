@@ -105,6 +105,15 @@ describe("CursorProvider", () => {
 				autoReview: true,
 			},
 		});
+		expect(
+			provider.getSdkOptions({
+				user,
+				config: { ...config, args: { "native-mode": "full-access" } },
+				env: {},
+			}),
+		).toMatchObject({
+			cursor: { builtinTools: "cursor", sandbox: false, autoReview: false },
+		});
 	});
 
 	it("preserves the agent cursor for the next turn", () => {
@@ -180,7 +189,7 @@ describe("CursorProvider", () => {
 				toolCallId: "sh",
 				toolName: "shell",
 				providerExecuted: true,
-				output: { status: "error", error: "Blocked" },
+				output: { status: "error", error: { message: "Blocked" } },
 			}),
 		).toMatchObject([
 			{
@@ -191,6 +200,111 @@ describe("CursorProvider", () => {
 					output: [{ type: "text", value: "Blocked" }],
 				},
 			},
+		]);
+	});
+
+	it("reads native results as their Tiny Chat counterparts return them", () => {
+		const output = (toolName: string, value: unknown) =>
+			(
+				transform({
+					type: "tool-result",
+					toolCallId: toolName,
+					toolName,
+					providerExecuted: true,
+					output: { status: "success", value },
+				}) as { value: { output: unknown[] } }[]
+			)[0].value.output;
+
+		expect(
+			output("shell", {
+				exitCode: 1,
+				signal: "",
+				stdout: "out",
+				stderr: "err",
+				executionTime: 5,
+			}),
+		).toMatchObject([
+			{ type: "json", value: { stdout: "out", stderr: "err", code: 1 } },
+		]);
+		expect(
+			output("read", { content: "hello", totalLines: 1, fileSize: 5 }),
+		).toMatchObject([{ type: "json", value: { content: "hello" } }]);
+		expect(output("edit", { linesAdded: 1, diffString: "+a" })).toEqual([]);
+		expect(
+			output("glob", {
+				files: ["/p/a.ts"],
+				totalFiles: 1,
+				clientTruncated: false,
+				ripgrepTruncated: false,
+			}),
+		).toMatchObject([{ type: "json", value: "/p/a.ts" }]);
+		expect(
+			output("grep", {
+				workspaceResults: {
+					"/p": {
+						type: "content",
+						output: {
+							totalMatches: 1,
+							matches: [
+								{
+									file: "/p/a.ts",
+									lineNumber: 3,
+									line: "foo",
+									beforeContext: ["one", "two"],
+									afterContext: ["four"],
+								},
+							],
+						},
+					},
+				},
+			}),
+		).toMatchObject([
+			{
+				type: "json",
+				value: { path: "/p/a.ts", snippet: "1-one\n2-two\n3:foo\n4-four" },
+			},
+		]);
+		expect(
+			output("ls", {
+				directoryTreeRoot: {
+					absPath: "/p",
+					childrenDirs: [
+						{
+							absPath: "/p/src",
+							childrenDirs: [],
+							childrenFiles: [{ name: "b.ts" }],
+						},
+					],
+					childrenFiles: [{ name: "a.ts" }],
+				},
+			}),
+		).toMatchObject([
+			{ type: "json", value: { path: "/p/src", is_dir: true } },
+			{ type: "json", value: { path: "/p/src/b.ts", is_dir: false } },
+			{ type: "json", value: { path: "/p/a.ts", is_dir: false } },
+		]);
+		expect(
+			output("task", {
+				isBackground: false,
+				backgroundReason: "unspecified",
+				conversationSteps: [
+					{ assistantMessage: { text: "Looking" } },
+					{ toolCall: {} },
+					{ assistantMessage: { text: "Done" } },
+				],
+			}),
+		).toMatchObject([{ type: "text", value: "Done" }]);
+		expect(
+			output("mcp", {
+				isError: false,
+				content: [
+					{ text: { text: "Tea" } },
+					{ image: { data: "AAAA", mimeType: "image/jpeg" } },
+				],
+			}),
+		).toMatchObject([
+			{ type: "text", value: "Tea" },
+			{ type: "file", mime: "image/jpeg", data: "AAAA" },
 		]);
 	});
 

@@ -1,205 +1,90 @@
-import type { zData } from "#core/features/data/types/part.ts";
 import { askQuestionDisplay } from "#core/features/tool/tools/questions/ask_question.ts";
-import type {
-	ToolBlock,
-	ToolDisplay,
-	ToolStatusPiece,
-} from "#core/features/tool/types/display.ts";
-import type { ToolDefinition } from "#core/features/tool/types/tool.ts";
-import { ShellUtils } from "#core/features/tool/utils/ShellUtils.ts";
+import {
+	type AgentToolDisplay,
+	type AgentToolInput,
+	AgentToolUtils,
+} from "#core/features/tool/utils/AgentToolUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
-type Input = Record<string, any>;
-type Display = ToolDisplay<ToolDefinition> & {
-	/** Whether it can change files, which are then found and shown as diffs. */
-	tracksChanges?: boolean;
-	/**
-	 * How the text of its result is shown: as `prose` (a subagent's answer) or
-	 * as code, under `title` when given. Beside files, it is a notice.
-	 */
-	text?: { prose?: boolean; title?: string };
-};
+const { make, str } = AgentToolUtils;
 
-/** A display read from the call's input alone, which is all these need. */
-const make = ({
-	status,
-	input,
-	text,
-	tracksChanges,
-}: {
-	status: (input: Input) => ToolStatusPiece[];
-	input?: (input: Input) => ToolBlock[];
-	text?: Display["text"];
-	tracksChanges?: boolean;
-}): Display => ({
-	status: (call) => status((call.input ?? {}) as Input),
-	input: input && ((call) => input((call.input ?? {}) as Input)),
-	text,
-	tracksChanges,
-});
+const diff = (input: AgentToolInput, before: unknown, after: unknown) =>
+	ToolDisplayUtils.diff({
+		path: str(input.file_path),
+		before: str(before),
+		after: str(after),
+	});
 
-const str = (value: unknown) => (typeof value === "string" ? value : "");
-
-const diff = (input: Input, before: string, after: string) => ({
-	type: "diff" as const,
-	path: str(input.file_path),
-	before,
-	after,
-	language: ToolDisplayUtils.language(str(input.file_path)),
-});
+const edit = (input: AgentToolInput) =>
+	ToolDisplayUtils.status.paths({
+		verb: ["Editing", "Edited"],
+		paths: [str(input.file_path)],
+	});
 
 /**
  * How Claude Code's own tools are shown, in the look of their Tiny Chat
  * counterparts. Their results are mostly text, which every call shows as is;
  * the images and documents `Read` takes in are shown as files.
  */
-const displays: Record<string, Display> = {
-	Bash: make({
-		tracksChanges: true,
-		status: (input: Input) => [
-			["Running", "Ran"],
-			{
-				count: ["command", "commands"],
-				subject: ShellUtils.programs(str(input.command)),
-			},
-		],
-		input: (input: Input) => [
-			{
-				type: "code",
-				value: str(input.command),
-				language: "bash",
-				title: "input",
-			},
-		],
-		text: { title: "output" },
-	}),
-	Read: {
-		...make({
-			status: (input: Input) => [
-				["Reading", "Read"],
-				{ count: ["file", "files"] },
-				{ subject: ToolDisplayUtils.name(str(input.file_path)) },
-			],
-		}),
-		// Images, PDFs and notebooks' figures; text comes back as text.
-		output: ({ input, files }) =>
-			files.flatMap(
-				(file) =>
-					ToolDisplayUtils.file({
-						path: str((input as Input).file_path),
-						file,
-					}) ?? [],
-			),
-	},
+const displays: Record<string, AgentToolDisplay> = {
+	Bash: AgentToolUtils.command((input) => str(input.command)),
+	Read: AgentToolUtils.read((input) => str(input.file_path)),
 	Write: make({
 		tracksChanges: true,
-		status: (input: Input) => [
-			["Writing", "Wrote"],
-			{ count: ["file", "files"] },
-			{ subject: ToolDisplayUtils.name(str(input.file_path)) },
-		],
-		input: (input: Input) => [
-			{
-				type: "file",
+		status: (input) =>
+			ToolDisplayUtils.status.paths({
+				verb: ["Writing", "Wrote"],
+				paths: [str(input.file_path)],
+			}),
+		input: (input) => [
+			ToolDisplayUtils.text({
 				path: str(input.file_path),
 				content: str(input.content),
-				language: ToolDisplayUtils.language(str(input.file_path)),
-			},
+			}),
 		],
 	}),
 	Edit: make({
 		tracksChanges: true,
-		status: (input: Input) => [
-			["Editing", "Edited"],
-			{ count: ["file", "files"] },
-			{ subject: ToolDisplayUtils.name(str(input.file_path)) },
-		],
-		input: (input: Input) => [
-			diff(input, str(input.old_string), str(input.new_string)),
-		],
+		status: edit,
+		input: (input) => [diff(input, input.old_string, input.new_string)],
 	}),
 	MultiEdit: make({
 		tracksChanges: true,
-		status: (input: Input) => [
-			["Editing", "Edited"],
-			{ count: ["file", "files"] },
-			{ subject: ToolDisplayUtils.name(str(input.file_path)) },
-		],
-		input: (input: Input) =>
-			(Array.isArray(input.edits) ? input.edits : []).map((edit: Input) =>
-				diff(input, str(edit?.old_string), str(edit?.new_string)),
+		status: edit,
+		input: (input) =>
+			(Array.isArray(input.edits) ? input.edits : []).map(
+				(item: AgentToolInput) =>
+					diff(input, item?.old_string, item?.new_string),
 			),
 	}),
 	Glob: make({
-		status: (input: Input) => [
-			["Finding", "Found"],
-			{ count: ["files", "files"], subject: str(input.pattern) },
-		],
+		status: (input) =>
+			ToolDisplayUtils.status.glob(str(input.pattern), str(input.path)),
 	}),
 	Grep: make({
-		status: (input: Input) => [
-			["Grepping", "Grepped"],
-			{ count: ["pattern", "patterns"], subject: str(input.pattern) },
-		],
+		status: (input) =>
+			ToolDisplayUtils.status.grep(str(input.pattern), str(input.path)),
 	}),
 	WebSearch: make({
-		status: (input: Input) => [
-			["Searching", "Searched"],
-			"web for",
-			{ count: ["query", "queries"], subject: str(input.query) },
-		],
+		status: (input) => ToolDisplayUtils.status.searchWeb(str(input.query)),
 	}),
 	WebFetch: make({
-		status: (input: Input) => [
-			["Viewing", "Viewed"],
-			{ count: ["page", "pages"], subject: str(input.url) },
-		],
+		status: (input) => ToolDisplayUtils.status.viewWeb(str(input.url)),
 	}),
-	TodoWrite: make({
-		status: () => [
-			["Updating", "Updated"],
-			{ count: ["todo list", "todo lists"] },
-		],
-		input: (input: Input) => [
-			{
-				type: "markdown",
-				value: (Array.isArray(input.todos) ? input.todos : [])
-					.map(
-						(todo: Input) =>
-							`- [${todo?.status === "completed" ? "x" : " "}] ${str(todo?.content)}`,
-					)
-					.join("\n"),
-			},
-		],
+	TodoWrite: AgentToolUtils.todos((input) => input.todos),
+	Task: AgentToolUtils.subagent({
+		task: (input) => str(input.description),
+		prompt: (input) => str(input.prompt),
 	}),
-	Task: {
-		...make({
-			status: (input: Input) => [
-				["Using", "Used"],
-				{ count: ["subagent", "subagents"], subject: str(input.description) },
-			],
-			input: (input: Input) => [
-				{ type: "markdown", value: str(input.prompt), quote: true },
-			],
-		}),
-		// Its conversation while it runs, as Tiny Chat's own subagents show
-		// theirs; the answer it gave once it is done.
-		output: ({ state, stream }) => {
-			const data = state === "running" ? stream.at(-1) : undefined;
-			return data ? [{ type: "messages", data: data as zData }] : [];
-		},
-		text: { prose: true },
-		// Its calls are not watched one by one: what it changed shows here.
-		tracksChanges: true,
-	},
 	NotebookEdit: make({
 		tracksChanges: true,
-		status: (input: Input) => [
-			["Editing", "Edited"],
-			{ count: ["notebook", "notebooks"] },
-			{ subject: ToolDisplayUtils.name(str(input.notebook_path)) },
-		],
-		input: (input: Input) => [
+		status: (input) =>
+			ToolDisplayUtils.status.paths({
+				verb: ["Editing", "Edited"],
+				paths: [str(input.notebook_path)],
+				count: ["notebook", "notebooks"],
+			}),
+		input: (input) => [
 			{
 				type: "code",
 				value: str(input.new_source),
@@ -207,15 +92,12 @@ const displays: Record<string, Display> = {
 			},
 		],
 	}),
-	ExitPlanMode: make({
-		status: () => [["Proposing", "Proposed"], { count: ["plan", "plans"] }],
-		input: (input: Input) => [{ type: "markdown", value: str(input.plan) }],
-	}),
+	ExitPlanMode: AgentToolUtils.plan((input) => str(input.plan)),
 	EnterPlanMode: make({
 		status: () => [["Planning", "Planned"]],
 	}),
 	Skill: make({
-		status: (input: Input) => [
+		status: (input) => [
 			["Using", "Used"],
 			{ count: ["skill", "skills"], subject: str(input.skill) },
 		],
@@ -225,12 +107,13 @@ const displays: Record<string, Display> = {
 			["Reading", "Read"],
 			{ count: ["command output", "command outputs"] },
 		],
+		text: { title: "output", terminal: true },
 	}),
 	KillShell: make({
 		status: () => [["Stopping", "Stopped"], { count: ["command", "commands"] }],
 	}),
 	ToolSearch: make({
-		status: (input: Input) => [
+		status: (input) => [
 			["Finding", "Found"],
 			{ count: ["tools", "tools"], subject: str(input.query) },
 		],
@@ -245,6 +128,6 @@ displays.AskUserQuestion = askQuestionDisplay;
 
 export const ClaudeCodeToolUtils = {
 	/** How one of Claude Code's own tools is shown, if it is one. */
-	getDisplay: (name: string): Display | undefined =>
+	getDisplay: (name: string): AgentToolDisplay | undefined =>
 		Object.hasOwn(displays, name) ? displays[name] : undefined,
 } as const;

@@ -203,7 +203,6 @@ export const useEstimatedTokens = <T>({
 		// Each input change keys a new estimate; hold the last total meanwhile
 		// rather than dropping to zero.
 		placeholderData: keepPreviousData,
-		throwOnError: true,
 		refetchOnWindowFocus: false,
 		refetchOnReconnect: false,
 		staleTime: Infinity,

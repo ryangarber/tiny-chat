@@ -46,7 +46,27 @@ export default function Highlight({
 			data-streamdown="code-block-body"
 			style={{ backgroundColor: highlight?.bg?.split(";")[0] }}
 		>
-			<pre className="bg-(--sdm-bg)" style={preStyle}>
+			{filename && (
+				// Outside the code, so it takes the width shown rather than the
+				// code's, and is truncated short of the buttons; held to the left
+				// edge as the code scrolls sideways.
+				<Text
+					c="muted"
+					size="xs"
+					pl={10}
+					pr={75}
+					pt={5}
+					pb={10}
+					truncate="end"
+					pos="sticky"
+					left={0}
+				>
+					{filename}
+				</Text>
+			)}
+			{/* As wide as its longest line, so each line — and the number held
+			    to the left of it — spans everything scrolled through sideways. */}
+			<pre className="w-max min-w-full bg-(--sdm-bg)" style={preStyle}>
 				<code
 					className={
 						lineNumbers
@@ -59,19 +79,6 @@ export default function Highlight({
 							: undefined
 					}
 				>
-					{filename && (
-						<Text
-							c="muted"
-							size="xs"
-							pl={10}
-							pr={75}
-							pt={5}
-							pb={10}
-							truncate="end"
-						>
-							{filename}
-						</Text>
-					)}
 					{children}
 				</code>
 			</pre>

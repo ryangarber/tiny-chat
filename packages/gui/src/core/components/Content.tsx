@@ -345,14 +345,23 @@ export default function Content<T extends string>({
 					{...quoteScope}
 					{...props}
 				>
-					<Box {...actionsProps} className="absolute top-1 right-1">
-						<ContentActions
-							formats={formats}
-							formatter={formatter}
-							streaming={streaming}
-							open={open}
-						/>
-					</Box>
+					{/* As tall as the block, so the buttons in it can stick to the top
+					    of whatever scrolls it — the transcript, a panel — until its
+					    bottom passes; content scrolled sideways inside it never
+					    moves them. Lets presses through everywhere but the buttons. */}
+					<div className="pointer-events-none absolute inset-0 z-10">
+						<Box
+							{...actionsProps}
+							className="pointer-events-auto sticky top-1 mt-1 mr-1 ml-auto w-fit"
+						>
+							<ContentActions
+								formats={formats}
+								formatter={formatter}
+								streaming={streaming}
+								open={open}
+							/>
+						</Box>
+					</div>
 					<ErrorBoundary label="this block" resetKey={children}>
 						{children}
 					</ErrorBoundary>

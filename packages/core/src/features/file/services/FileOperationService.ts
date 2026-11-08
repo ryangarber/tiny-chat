@@ -148,7 +148,7 @@ export const FileOperationService = {
 			total: all.length,
 			truncated,
 			notice: truncated
-				? `Showing lines ${start}-${last} of ${all.length}. Read further with offset ${last + 1}, or use grep_files to jump to what you need.`
+				? `Showing lines ${start}-${last} of ${all.length}. Read further with offset ${last + 1}, or use search_files in regex mode to jump to what you need.`
 				: undefined,
 		};
 	},

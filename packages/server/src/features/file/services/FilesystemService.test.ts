@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { zAgentContext } from "#core/features/agent/types/agent.ts";
 import type { zData, zDataPart } from "#core/features/data/types/part.ts";
-import { read_file } from "#core/features/tool/tools/shell/read_file.ts";
+import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import { shell_exec } from "#core/features/tool/tools/shell/shell_exec.ts";
 import { mockConfig } from "#core/tests.ts";
 import { testClient } from "#server/tests.ts";
@@ -95,14 +95,15 @@ describe("FilesystemService", () => {
 
 	it("resolves a path despite bad unicode", async () => {
 		const output = await api.testing.tool.mutate({
-			name: read_file.name,
+			name: read_files.name,
 			context,
 			input: {
-				path: `/mnt/uploads/${upload2.id}/question nbsp.md`,
-			} satisfies z.infer<typeof read_file.input>,
+				reads: [{ path: `/mnt/uploads/${upload2.id}/question nbsp.md` }],
+			} satisfies z.infer<typeof read_files.input>,
 		});
-		expect.assert(output[0].type === "file");
-		expect(output[0].name).toEqual("question nbsp.md");
+		const file = output.find((part) => part.type === "file");
+		expect.assert(file?.type === "file");
+		expect(file.name).toEqual("question nbsp.md");
 	});
 
 	it("starts in the chat's own directory", async () => {

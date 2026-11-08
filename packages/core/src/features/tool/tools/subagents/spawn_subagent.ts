@@ -10,6 +10,7 @@ import type {
 	ToolDefinition,
 	ToolFactory,
 } from "#core/features/tool/types/tool.ts";
+import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
 const BACKGROUND_DESCRIPTION =
 	"Set to TRUE to run the subagent in the background and carry on working meanwhile. Its result is sent to you when it finishes, and your turn does not end until then.";
@@ -51,20 +52,12 @@ export const spawn_subagent = {
 } as const satisfies ToolDefinition;
 
 const display: ToolDisplay<typeof spawn_subagent> = {
-	status: ({ input }) => [
-		["Using", "Used"],
-		{ count: ["subagent", "subagents"] },
-		{ subject: input.task ?? "" },
-	],
-	input: ({ input }) => [
-		{ type: "markdown", value: input.prompt ?? "", quote: true },
-	],
+	status: ({ input }) => ToolDisplayUtils.status.subagent(input.task),
+	input: ({ input }) => [ToolDisplayUtils.prompt(input.prompt)],
 	// The live conversation while it runs, settling into the answer it gave.
 	output: ({ state, stream, output }) => {
-		if (state === "running") {
-			const data = stream.at(-1);
-			return data ? [{ type: "messages", data }] : [];
-		}
+		if (state === "running")
+			return ToolDisplayUtils.conversation({ state, stream });
 		return output.map((result) => ({
 			type: "messages",
 			data: [[{ id: "response", type: "text", value: result.response }]],

@@ -2,8 +2,10 @@ import { and } from "@prisma/orm-postgres/orm-client";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { MessageBranchUtils } from "#core/features/data/utils/MessageBranchUtils.ts";
+import { edit_memories } from "#core/features/tool/tools/memories/edit_memories.ts";
 import { search_chats } from "#core/features/tool/tools/memories/search_chats.ts";
 import { search_memories } from "#core/features/tool/tools/memories/search_memories.ts";
+import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 import { ServerAgentService } from "#server/features/agent/services/ServerAgentService.ts";
 import { MemoryRetrievalService } from "#server/features/chat/services/MemoryRetrievalService.ts";
 import { MessageUtils } from "#server/features/message/utils/MessageUtils.ts";
@@ -125,12 +127,7 @@ export const DreamRunnerService = {
 							chat,
 							prompt: last,
 							instructions: DREAM_INSTRUCTIONS,
-							toolNames: [
-								"search_memories",
-								"create_memory",
-								"update_memory",
-								"delete_memory",
-							],
+							toolNames: [search_memories.name, edit_memories.name],
 							context: {
 								user,
 								timezone: "UTC",
@@ -186,16 +183,18 @@ export const DreamRunnerService = {
 						});
 
 						if (
-							data
-								.flat()
-								.some(
-									(part) =>
-										part.type === "abort" ||
-										(part.type === "toolResult" &&
-											part.name !== search_memories.name &&
-											part.name !== search_chats.name &&
-											part.error),
-								)
+							data.flat().some(
+								(part) =>
+									part.type === "abort" ||
+									(part.type === "toolResult" &&
+										part.name !== search_memories.name &&
+										part.name !== search_chats.name &&
+										(part.error ||
+											// A step that failed stops the rest of its call.
+											ToolUtils.json<typeof edit_memories>(part).some(
+												(result) => result.steps?.some((step) => step.error),
+											))),
+							)
 						) {
 							throw new Error("tool or stream error");
 						}

@@ -1,16 +1,12 @@
 import { AppShell, LoadingOverlay, MantineProvider } from "@mantine/core";
-import { useHotkeys } from "@mantine/hooks";
-import { ModalsProvider, useModals } from "@mantine/modals";
+import { ModalsProvider } from "@mantine/modals";
 import { useDrag } from "@use-gesture/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
 import { usePersistedPanels } from "#client/core/hooks/usePersistedPanels.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
-import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject.ts";
-import { ChatService } from "#client/features/chat/services/ChatService.ts";
-import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
 import Console from "#gui/core/components/Console.tsx";
 import { RootErrorBoundary } from "#gui/core/components/ErrorBoundary.tsx";
@@ -28,37 +24,6 @@ import Find from "#gui/features/find/components/Find.tsx";
 import FindScope from "#gui/features/find/components/FindScope.tsx";
 import Sidebar from "#gui/features/sidebar/components/Sidebar.tsx";
 import mantineTheme, { cssResolver } from "#gui/theme.tsx";
-
-/**
- * Shift+tab leaves the current chat and cycles projects, matching the CLI. It
- * stands down while a drawer or modal is open, and while the editor has
- * anything in it, which takes the key to unindent. Rendered inside
- * `ModalsProvider` so confirm modals count too.
- */
-function ProjectShortcut() {
-	const { projects } = useChatList();
-	const { modals } = useModals();
-
-	useHotkeys(
-		[
-			[
-				"shift+Tab",
-				(event) => {
-					const { currentDrawer, currentModal } = useAppStore.getState();
-					if (currentDrawer || currentModal || modals.length) return;
-					if (!useComposerStore.getState().isEmpty) return;
-					event.preventDefault();
-					ChatService.cycleProject(
-						projects.data?.pages.flatMap((page) => page.projects) ?? [],
-					);
-				},
-			],
-		],
-		[],
-		true,
-	);
-	return null;
-}
 
 /** The scope of the whole window, searched once nothing narrower is. */
 const FIND_ROOT = "app";
@@ -244,7 +209,6 @@ export default function App() {
 			<RootErrorBoundary>
 				<ModalsProvider>
 					<Tasks />
-					<ProjectShortcut />
 					<FindScope
 						id={FIND_ROOT}
 						label="Window"

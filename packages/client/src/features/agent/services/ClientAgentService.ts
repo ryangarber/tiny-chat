@@ -147,7 +147,10 @@ export const ClientAgentService = {
 			// call that hangs before writing anything is the one to stop.
 			toolSignal: ({ part }) => ToolStreamService.start(part.id).signal,
 			// Only the user can answer, and only in a chat they are in.
-			toolFeedback: context.interactive ? ToolFeedbackService.wait : undefined,
+			toolFeedback: context.interactive
+				? (feedback) =>
+						ToolFeedbackService.wait({ ...feedback, chatId: streamChat })
+				: undefined,
 			toolStream: ({ part, mutation }) => {
 				if (!ToolStreamService.get(part.id)) {
 					ToolStreamService.start(part.id);

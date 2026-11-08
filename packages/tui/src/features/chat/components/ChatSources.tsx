@@ -39,6 +39,9 @@ import type { zWebContext } from "#core/features/provider/types/web.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
 import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
+import Content, {
+	type ContentFormatter,
+} from "#tui/core/components/Content.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
@@ -107,6 +110,29 @@ function Changes({ changes }: { changes: ChatFileChanges }) {
 	);
 }
 
+/**
+ * A preview that is not already a block of its own — a page, a document, a
+ * memory — drawn as one, so it can be copied and opened over the whole screen
+ * as code is. Padded as code is, which leaves its buttons a row to sit in.
+ */
+function Block({
+	formatter,
+	findLabel,
+	children,
+}: {
+	formatter: ContentFormatter;
+	findLabel: string;
+	children: ReactNode;
+}) {
+	return (
+		<Content formatter={formatter} findLabel={findLabel}>
+			<Box flexDirection="column" paddingX={2} paddingY={1}>
+				{children}
+			</Box>
+		</Content>
+	);
+}
+
 function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	const content = useFileViewer({ file });
 	const diff = useFileDiff({ file, repos });
@@ -132,15 +158,21 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		return <Text color="textSubtle">loading…</Text>;
 	}
 	if (content.data.directory) {
+		const items = content.data.items ?? [];
+		const names = items.map(
+			(item) => `${PathUtils.name(item)}${item.directory ? "/" : ""}`,
+		);
 		return (
-			<Box flexDirection="column">
-				{content.data.items?.map((item) => (
-					<Text key={item.path} wrap="truncate-end">
-						{PathUtils.name(item)}
-						{item.directory && "/"}
+			<Block
+				formatter={() => names.join("\n")}
+				findLabel={PathUtils.name(file)}
+			>
+				{names.map((name) => (
+					<Text key={name} wrap="truncate-end">
+						{name}
 					</Text>
 				))}
-			</Box>
+			</Block>
 		);
 	}
 	if (content.data.image) {
@@ -150,30 +182,36 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		typeof content.data.text === "string" &&
 		(content.data.extracted || FileTypeUtils.isMarkdown(file.path))
 	) {
-		return content.data.text.trim() ? (
-			<Markdown source={content.data.text} />
-		) : (
-			<Text color="textSubtle">nothing written yet</Text>
+		const text = content.data.text;
+		return (
+			<Block formatter={() => text} findLabel={PathUtils.name(file)}>
+				{text.trim() ? (
+					<Markdown source={text} />
+				) : (
+					<Text color="textSubtle">nothing written yet</Text>
+				)}
+			</Block>
 		);
 	}
 	if (!content.data.text) {
 		return <Text color="textSubtle">could not decode file</Text>;
 	}
-	return (
-		<Box flexDirection="column">
-			<Code code={content.data.text} language={language} lineNumbers />
-		</Box>
-	);
+	return <Code code={content.data.text} language={language} lineNumbers />;
 }
 
 function WebPreview({ source }: { source: zWebContext }) {
 	return (
-		<Box flexDirection="column" gap={1}>
-			<Anchor href={source.url} color="textSubtle">
-				{source.url}
-			</Anchor>
-			<Markdown source={source.content} />
-		</Box>
+		<Block
+			formatter={() => source.content}
+			findLabel={source.title || URL.parse(source.url)?.hostname || "page"}
+		>
+			<Box flexDirection="column" gap={1}>
+				<Anchor href={source.url} color="textSubtle">
+					{source.url}
+				</Anchor>
+				<Markdown source={source.content} />
+			</Box>
+		</Block>
 	);
 }
 
@@ -191,25 +229,33 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function MemoryPreview({ memory }: { memory: MemoryState }) {
 	const { fact, evidence, details, learned } = ChatSourcesUtils.memory(memory);
 	return (
-		<Box flexDirection="column" gap={1}>
-			<Field label="fact">
-				<Text>{fact}</Text>
-			</Field>
-			{evidence.length > 0 && (
-				<Field label="evidence">
-					{evidence.map((item) => (
-						<Text key={item}>
-							<Text color="textSubtle">│ </Text>
-							{item}
-						</Text>
-					))}
+		<Block
+			// As the app copies it: the fact, and what it was learned from quoted.
+			formatter={() =>
+				[fact, ...evidence.map((item) => `> ${item}`)].join("\n\n")
+			}
+			findLabel="memory"
+		>
+			<Box flexDirection="column" gap={1}>
+				<Field label="fact">
+					<Text>{fact}</Text>
 				</Field>
-			)}
-			<Box flexDirection="column">
-				<Text color="textSubtle">{details}</Text>
-				<Text color="textSubtle">{learned}</Text>
+				{evidence.length > 0 && (
+					<Field label="evidence">
+						{evidence.map((item) => (
+							<Text key={item}>
+								<Text color="textSubtle">│ </Text>
+								{item}
+							</Text>
+						))}
+					</Field>
+				)}
+				<Box flexDirection="column">
+					<Text color="textSubtle">{details}</Text>
+					<Text color="textSubtle">{learned}</Text>
+				</Box>
 			</Box>
-		</Box>
+		</Block>
 	);
 }
 
@@ -218,18 +264,20 @@ function ActionPreview({ action }: { action: ActionState }) {
 		action,
 	});
 	return (
-		<Box flexDirection="column" gap={1}>
-			<Field label="prompt">
-				<Text>{prompt}</Text>
-			</Field>
-			<Field label="schedule">
-				<Text>{schedule}</Text>
-			</Field>
-			<Box flexDirection="column">
-				<Text color="textSubtle">{lastRun}</Text>
-				{nextRun && <Text color="textSubtle">{nextRun}</Text>}
+		<Block formatter={() => prompt} findLabel="action">
+			<Box flexDirection="column" gap={1}>
+				<Field label="prompt">
+					<Text>{prompt}</Text>
+				</Field>
+				<Field label="schedule">
+					<Text>{schedule}</Text>
+				</Field>
+				<Box flexDirection="column">
+					<Text color="textSubtle">{lastRun}</Text>
+					{nextRun && <Text color="textSubtle">{nextRun}</Text>}
+				</Box>
 			</Box>
-		</Box>
+		</Block>
 	);
 }
 

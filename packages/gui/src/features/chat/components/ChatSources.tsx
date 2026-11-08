@@ -100,44 +100,70 @@ function Changes({ changes }: { changes: ChatFileChanges }) {
 }
 
 /**
- * Prose — a Markdown file, or a document's extracted text — read the way a web
- * page is, and quoted from the same way.
+ * A preview that is not already a block of its own — a document, a folder, a
+ * memory — drawn as one, so it can be copied, downloaded and opened over the
+ * whole screen as code is.
  */
-function Prose({ path, text }: { path: string; text: string }) {
-	const name = PathUtils.name(path);
+function Block({
+	title,
+	data,
+	filename,
+	quote,
+	children,
+}: {
+	title: string;
+	/** What is copied: its text as Markdown. */
+	data: string;
+	filename: string;
+	quote?: { source: string };
+	children: ReactNode;
+}) {
 	const formats = useMemo(() => ["Markdown"], []);
 	const formatter = useCallback<ContentFormatterFunction>(
 		() => ({
-			filename: `${name.replace(/\.[^.]*$/, "")}.md`,
+			filename: `${filename.replace(/\.[^.]*$/, "")}.md`,
 			extension: "md",
 			mime: "text/plain",
-			data: text,
+			data,
 		}),
-		[name, text],
+		[filename, data],
 	);
 	return (
 		<Content
 			formats={formats}
 			formatter={formatter}
-			findLabel={name}
-			quote={{ source: path }}
+			findLabel={title}
+			quote={quote}
 			h="100%"
 			bg="var(--tc-surface)"
 			style={{ borderRadius: "var(--mantine-radius-md)" }}
 		>
 			<Box h="100%" p="sm" className="markdown-sm" style={{ overflow: "auto" }}>
 				<Text size="sm" fw={600} pr={110} mb="sm" truncate>
-					{name}
+					{title}
 				</Text>
-				{text.trim() ? (
-					<Markdown source={text} />
-				) : (
-					<Text size="sm" c="dimmed">
-						Nothing written yet
-					</Text>
-				)}
+				{children}
 			</Box>
 		</Content>
+	);
+}
+
+/**
+ * Prose — a Markdown file, or a document's extracted text — read the way a web
+ * page is, and quoted from the same way.
+ */
+function Prose({ path, text }: { path: string; text: string }) {
+	const name = PathUtils.name(path);
+	return (
+		<Block title={name} data={text} filename={name} quote={{ source: path }}>
+			{text.trim() ? (
+				<Markdown source={text} />
+			) : (
+				<Text size="sm" c="dimmed">
+					Nothing written yet
+				</Text>
+			)}
+		</Block>
 	);
 }
 
@@ -170,21 +196,30 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		return <Skeleton width="100%" height="auto" style={{ aspectRatio: 2 }} />;
 	}
 	if (content.data.directory) {
+		const name = PathUtils.name(file.path);
 		return (
-			<Stack gap={5}>
-				{content.data.items?.map((item) => (
-					<SourceChip
-						key={item.path}
-						path={item.path}
-						directory={item.directory}
-					>
-						<Text size="sm" truncate>
-							{PathUtils.name(item)}
-							{item.directory && "/"}
-						</Text>
-					</SourceChip>
-				)) ?? <Loader size="xs" my="md" />}
-			</Stack>
+			<Block
+				title={`${name}/`}
+				filename={name}
+				data={(content.data.items ?? [])
+					.map((item) => `${PathUtils.name(item)}${item.directory ? "/" : ""}`)
+					.join("\n")}
+			>
+				<Stack gap={5}>
+					{content.data.items?.map((item) => (
+						<SourceChip
+							key={item.path}
+							path={item.path}
+							directory={item.directory}
+						>
+							<Text size="sm" truncate>
+								{PathUtils.name(item)}
+								{item.directory && "/"}
+							</Text>
+						</SourceChip>
+					)) ?? <Loader size="xs" my="md" />}
+				</Stack>
+			</Block>
 		);
 	}
 	if (content.data.image) {
@@ -334,41 +369,47 @@ function MemoryPreview({ memory }: { memory: MemoryState }) {
 	const { fact, evidence, details, learned, messageId } =
 		ChatSourcesUtils.memory(memory);
 	return (
-		<Stack gap="sm">
-			<Field label="Fact">
-				<Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-					{fact}
-				</Text>
-			</Field>
-			{evidence.length > 0 && (
-				<Field label="Evidence">
-					<Stack gap={4}>
-						{evidence.map((item) => (
-							<Text
-								key={item}
-								size="sm"
-								pl="xs"
-								style={{
-									whiteSpace: "pre-wrap",
-									borderLeft: "2px solid var(--mantine-color-default-border)",
-								}}
-							>
-								{item}
-							</Text>
-						))}
-					</Stack>
+		<Block
+			title="Memory"
+			filename="memory"
+			data={[fact, ...evidence.map((item) => `> ${item}`)].join("\n\n")}
+		>
+			<Stack gap="sm">
+				<Field label="Fact">
+					<Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+						{fact}
+					</Text>
 				</Field>
-			)}
-			<Text size="xs" c="dimmed">
-				{details}
-				<br />
-				{learned}
-			</Text>
-			<Group gap="xs">
-				<EditButton type="memory" id={memory.id} />
-				{messageId && <GoToMessage id={messageId} />}
-			</Group>
-		</Stack>
+				{evidence.length > 0 && (
+					<Field label="Evidence">
+						<Stack gap={4}>
+							{evidence.map((item) => (
+								<Text
+									key={item}
+									size="sm"
+									pl="xs"
+									style={{
+										whiteSpace: "pre-wrap",
+										borderLeft: "2px solid var(--mantine-color-default-border)",
+									}}
+								>
+									{item}
+								</Text>
+							))}
+						</Stack>
+					</Field>
+				)}
+				<Text size="xs" c="dimmed">
+					{details}
+					<br />
+					{learned}
+				</Text>
+				<Group gap="xs">
+					<EditButton type="memory" id={memory.id} />
+					{messageId && <GoToMessage id={messageId} />}
+				</Group>
+			</Stack>
+		</Block>
 	);
 }
 
@@ -382,29 +423,31 @@ function ActionPreview({
 	const { prompt, schedule, lastRun, nextRun, messageId } =
 		ChatSourcesUtils.action({ action, lastMessageId });
 	return (
-		<Stack gap="sm">
-			<Field label="Prompt">
-				<Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-					{prompt}
+		<Block title="Action" filename="action" data={prompt}>
+			<Stack gap="sm">
+				<Field label="Prompt">
+					<Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+						{prompt}
+					</Text>
+				</Field>
+				<Field label="Schedule">
+					<Text size="sm">{schedule}</Text>
+				</Field>
+				<Text size="xs" c="dimmed">
+					{lastRun}
+					{nextRun && (
+						<>
+							<br />
+							{nextRun}
+						</>
+					)}
 				</Text>
-			</Field>
-			<Field label="Schedule">
-				<Text size="sm">{schedule}</Text>
-			</Field>
-			<Text size="xs" c="dimmed">
-				{lastRun}
-				{nextRun && (
-					<>
-						<br />
-						{nextRun}
-					</>
-				)}
-			</Text>
-			<Group gap="xs">
-				<EditButton type="action" id={action.id} />
-				{messageId && <GoToMessage id={messageId} />}
-			</Group>
-		</Stack>
+				<Group gap="xs">
+					<EditButton type="action" id={action.id} />
+					{messageId && <GoToMessage id={messageId} />}
+				</Group>
+			</Stack>
+		</Block>
 	);
 }
 
@@ -759,15 +802,13 @@ export default function ChatSources() {
 					title={previewedMemory ? "Memory" : "Action"}
 					onClose={() => viewFile(null)}
 				>
-					<ScrollArea h="100%" offsetScrollbars>
-						{previewedMemory && <MemoryPreview memory={previewedMemory} />}
-						{previewedAction && (
-							<ActionPreview
-								action={previewedAction}
-								lastMessageId={lastMessageId}
-							/>
-						)}
-					</ScrollArea>
+					{previewedMemory && <MemoryPreview memory={previewedMemory} />}
+					{previewedAction && (
+						<ActionPreview
+							action={previewedAction}
+							lastMessageId={lastMessageId}
+						/>
+					)}
 				</PreviewPane>
 			)}
 			{previewedFile && (

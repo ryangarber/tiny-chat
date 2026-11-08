@@ -64,7 +64,7 @@ export default function SidebarExpanded({
 					c="dimmed"
 					className="nav-link-like filled"
 					leftSection={<PlusCircleIcon size={20} />}
-					onClick={() => close(() => ChatService.newChat(null))}
+					onClick={() => close(() => ChatService.setChat({ id: null }))}
 					active={!chat.data && !project}
 					flex={1}
 					h={40}

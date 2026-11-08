@@ -23,6 +23,7 @@ import type {
 } from "#core/features/tool/types/tool.ts";
 import { ClaudeCodeToolUtils } from "#core/features/tool/utils/ClaudeCodeToolUtils.ts";
 import { CodexToolUtils } from "#core/features/tool/utils/CodexToolUtils.ts";
+import { CursorToolUtils } from "#core/features/tool/utils/CursorToolUtils.ts";
 import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 import { ToolOutputUtils } from "#core/features/tool/utils/ToolOutputUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
@@ -35,9 +36,11 @@ export interface ToolCallStatus {
 	pending: boolean;
 }
 
-/** How an agent's own tool (Claude Code's, Codex's) is shown, if it is one. */
+/** How an agent's own tool (Claude Code's, Codex's, Cursor's) is shown, if it is one. */
 const getAgentDisplay = (name: string) =>
-	ClaudeCodeToolUtils.getDisplay(name) ?? CodexToolUtils.getDisplay(name);
+	ClaudeCodeToolUtils.getDisplay(name) ??
+	CodexToolUtils.getDisplay(name) ??
+	CursorToolUtils.getDisplay(name);
 
 /** Shown for tools without a display of their own, such as MCP tools. */
 const fallback = (name: string): ToolDisplay<ToolDefinition> => ({
@@ -349,21 +352,22 @@ export const ToolCallUtils = {
 		} else if (state === "rejected") {
 			output = [{ type: "text", value: "Rejected", tone: "dimmed" }];
 		} else if (state === "running" || state === "success") {
+			// Beside a file an agent's call read, its text is a notice (`PDF
+			// file read: …`) rather than output of its own.
+			const text =
+				agentDisplay && context.files.length
+					? "notice"
+					: (display.text ?? (tool?.display ? "notice" : {}));
 			output = [
 				...(display.output?.(context) ?? []),
-				// Notices a tool leaves beside its output — truncation, summaries.
 				...texts.map((value): ToolBlock => {
-					// Beside a file an agent's call read, its text is a notice
-					// (`PDF file read: …`) rather than output of its own.
-					if (tool?.display || (agentDisplay && context.files.length))
-						return { type: "text", value, tone: "dimmed" };
-					// An agent's own call answered in prose, such as a subagent.
-					if (agentDisplay?.text?.prose)
+					if (text === "notice") return { type: "text", value, tone: "dimmed" };
+					if (text === "prose")
 						return {
 							type: "messages",
 							data: [[{ id: `${part.id}:result`, type: "text", value }]],
 						};
-					return { type: "code", value, title: agentDisplay?.text?.title };
+					return { type: "code", value, ...text };
 				}),
 			];
 		}

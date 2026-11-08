@@ -81,6 +81,12 @@ export async function main(options: AppOptions) {
 	// remains (queries, MCP servers, workers) is the process's to end.
 	try {
 		await instance.waitUntilExit();
+	} catch (error) {
+		// Ink ended the app over an error that reached its root. Nothing is drawn
+		// any more, so the process quits and says why rather than running on
+		// with a blank screen.
+		console.error("[main] app ended", error);
+		fatal = error;
 	} finally {
 		process.off("uncaughtException", onError);
 		process.off("unhandledRejection", onError);

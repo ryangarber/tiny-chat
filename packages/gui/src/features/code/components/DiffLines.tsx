@@ -249,7 +249,18 @@ function Block({
 					h={20}
 					fz="sm"
 					c="dimmed"
-					style={{ textAlign: "center" }}
+					style={{
+						textAlign: "center",
+						// Held to the left edge as the row scrolls sideways under it.
+						position: "sticky",
+						left: 0,
+						zIndex: 1,
+						// The row's color laid over the block's, so the line scrolling
+						// under it is hidden rather than showing through.
+						// It sticks at the block's padding, which this covers.
+						boxShadow: "-16px 0 0 var(--sdm-bg, var(--mantine-color-body))",
+						background: `linear-gradient(${DiffUtils.color(type) ?? "transparent"}, ${DiffUtils.color(type) ?? "transparent"}), var(--sdm-bg, var(--mantine-color-body))`,
+					}}
 				>
 					{type === "removed" && "-"}
 					{type === "added" && "+"}

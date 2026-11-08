@@ -129,6 +129,19 @@ type WheelHandler = (event: MouseEvent) => boolean;
 const ScrollContext = createContext<Set<WheelHandler> | null>(null);
 
 /**
+ * A view's viewport, for content inside it that keeps something in sight as it
+ * scrolls — a block's buttons held to the top of what is shown of it. Those
+ * subscribed hear of every layout pass, after it settles where it is scrolled.
+ */
+export interface ScrollViewport {
+	node: () => DOMElement | null;
+	subscribe: (listener: () => void) => () => void;
+	/** The viewport of the view this one sits in, which clips it in turn. */
+	parent: ScrollViewport | null;
+}
+export const ScrollViewportContext = createContext<ScrollViewport | null>(null);
+
+/**
  * Each view's viewport, by which a row anywhere inside it is scrolled to,
  * returning the row it is then drawn at.
  */
@@ -434,6 +447,22 @@ export default function ScrollView({
 	// Views nested in this one, offered the wheel before it.
 	const [nested] = useState(() => new Set<WheelHandler>());
 	const parent = useContext(ScrollContext);
+
+	const parentViewport = useContext(ScrollViewportContext);
+	const [listeners] = useState(() => new Set<() => void>());
+	const scrollViewport = useMemo<ScrollViewport>(
+		() => ({
+			node: () => viewportRef.current,
+			subscribe: (listener) => {
+				listeners.add(listener);
+				return () => {
+					listeners.delete(listener);
+				};
+			},
+			parent: parentViewport,
+		}),
+		[listeners, parentViewport],
+	);
 
 	const [wheelBuffer] = useState(createWheelBuffer);
 	useEffect(() => () => wheelBuffer.cancel(), [wheelBuffer]);
@@ -813,6 +842,8 @@ export default function ScrollView({
 				setTops(measuredTops);
 		}
 
+		for (const listener of listeners) listener();
+
 		if (getViewportHeight() === 0 || content === 0) return;
 
 		const current = getScrollOffset();
@@ -851,44 +882,46 @@ export default function ScrollView({
 				justifyContent={pinned ? "flex-end" : "flex-start"}
 			>
 				<ScrollContext value={nested}>
-					<Box
-						ref={contentRef}
-						flexDirection="column"
-						// Never shrinks, so it keeps the full height of its children and
-						// overflows the viewport rather than being squeezed into it.
-						flexShrink={0}
-						// While pinned, content shorter than the viewport would hang off the
-						// bottom it is laid out against, so it grows into whatever room the
-						// viewport has left to bring it back to the top. Grown rather than
-						// floored at a percentage: a percentage resolves against the height a
-						// view has been offered rather than the one it settles at, so a view
-						// free to size itself to its content — one bounded only by a
-						// maxHeight — would be held open at that bound by content that never
-						// filled it, where growing only ever fills room that is really there.
-						flexGrow={pinned ? 1 : 0}
-						marginTop={pinned ? 0 : -offset}
-					>
-						{items.map((child, index) => (
-							<Box
-								// Keyed by the child so a page arriving above the viewport moves
-								// the wrappers along with it instead of remounting every child
-								// into a new position.
-								key={keys[index]}
-								ref={(node) => {
-									itemsRef.current[index] = node;
-								}}
-								flexShrink={0}
-								flexDirection="column"
-								// Stands in for the child while it is hidden, so the rows it
-								// takes up are still there to be scrolled through and measured.
-								height={
-									hidden[index] ? (measured[index] ?? fallback) : undefined
-								}
-							>
-								{!hidden[index] && child}
-							</Box>
-						))}
-					</Box>
+					<ScrollViewportContext value={scrollViewport}>
+						<Box
+							ref={contentRef}
+							flexDirection="column"
+							// Never shrinks, so it keeps the full height of its children and
+							// overflows the viewport rather than being squeezed into it.
+							flexShrink={0}
+							// While pinned, content shorter than the viewport would hang off the
+							// bottom it is laid out against, so it grows into whatever room the
+							// viewport has left to bring it back to the top. Grown rather than
+							// floored at a percentage: a percentage resolves against the height a
+							// view has been offered rather than the one it settles at, so a view
+							// free to size itself to its content — one bounded only by a
+							// maxHeight — would be held open at that bound by content that never
+							// filled it, where growing only ever fills room that is really there.
+							flexGrow={pinned ? 1 : 0}
+							marginTop={pinned ? 0 : -offset}
+						>
+							{items.map((child, index) => (
+								<Box
+									// Keyed by the child so a page arriving above the viewport moves
+									// the wrappers along with it instead of remounting every child
+									// into a new position.
+									key={keys[index]}
+									ref={(node) => {
+										itemsRef.current[index] = node;
+									}}
+									flexShrink={0}
+									flexDirection="column"
+									// Stands in for the child while it is hidden, so the rows it
+									// takes up are still there to be scrolled through and measured.
+									height={
+										hidden[index] ? (measured[index] ?? fallback) : undefined
+									}
+								>
+									{!hidden[index] && child}
+								</Box>
+							))}
+						</Box>
+					</ScrollViewportContext>
 				</ScrollContext>
 				{metrics && (
 					// Ink's own box, which paints no background, so the column it takes

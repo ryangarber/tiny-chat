@@ -324,7 +324,7 @@ const getSummary = ({
 			? (advice ?? "Narrow the query or pass `include` to see the rest.")
 			: null,
 		unsearchable
-			? `${unsearchable} path(s) here hold no searchable text — use glob_files to list them or read_file to open one`
+			? `${unsearchable} path(s) here hold no searchable text — use glob_files to list them or read_files to open one`
 			: null,
 	].filter(Boolean);
 
@@ -647,7 +647,7 @@ export const FileSearchService = {
 			pattern = new RegExp(source, flags);
 		} catch (error) {
 			throw new Error(
-				`Invalid regular expression: ${error instanceof Error ? error.message : String(error)}. Set literal to true to search for the text as written.`,
+				`Invalid regular expression: ${error instanceof Error ? error.message : String(error)}. Use mode "literal" to search for the text as written.`,
 			);
 		}
 
@@ -918,7 +918,7 @@ export const FileSearchService = {
 				stats,
 				shown: results.length,
 				advice:
-					"Use grep_files for an exact pattern, or pass `include` to filter by path.",
+					"Use search_files in `regex` or `literal` mode for an exact pattern, or pass `include` to filter by path.",
 			}),
 		};
 	},

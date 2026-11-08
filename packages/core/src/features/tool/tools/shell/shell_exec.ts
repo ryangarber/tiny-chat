@@ -10,7 +10,7 @@ import type {
 	ToolFactory,
 } from "#core/features/tool/types/tool.ts";
 import { ShellUtils } from "#core/features/tool/utils/ShellUtils.ts";
-import { ToolOutputUtils } from "#core/features/tool/utils/ToolOutputUtils.ts";
+import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
 const MNT_DESCRIPTION = `MUST set to TRUE any time the command should run in the virtual \`${PathUtils.mount}\` filesystem.`;
 
@@ -45,20 +45,9 @@ export const shell_exec = {
 } as const satisfies ToolDefinition;
 
 const display: ToolDisplay<typeof shell_exec> = {
-	status: ({ input }) => [
-		["Running", "Ran"],
-		{
-			count: ["command", "commands"],
-			subject: ShellUtils.programs(input.command ?? ""),
-		},
-	],
+	status: ({ input }) => ToolDisplayUtils.status.command(input.command),
 	input: ({ input, output }) => [
-		{
-			type: "code",
-			value: input.command ?? "",
-			language: output[0]?.dialect ?? "bash",
-			title: "input",
-		},
+		ToolDisplayUtils.command(input.command, output[0]?.dialect),
 	],
 	output: ({ state, output, stream }) => {
 		if (state === "running") {
@@ -72,33 +61,7 @@ const display: ToolDisplay<typeof shell_exec> = {
 			];
 		}
 		const [result] = output;
-		if (!result) return [];
-		// Results saved before output was cleaned on the way in still carry it.
-		const text = [result.stdout, result.stderr]
-			.map((value) => ToolOutputUtils.getPlain(value).trim())
-			.filter(Boolean)
-			.join("\n");
-		return [
-			...(text
-				? [
-						{
-							type: "code" as const,
-							value: text,
-							title: "output",
-							terminal: true,
-						},
-					]
-				: []),
-			...(result.code
-				? [
-						{
-							type: "text" as const,
-							value: `Exited with code ${result.code}`,
-							tone: "dimmed" as const,
-						},
-					]
-				: []),
-		];
+		return result ? ToolDisplayUtils.commandOutput(result) : [];
 	},
 };
 

@@ -18,6 +18,7 @@ import type {
 	ToolDefinition,
 	ToolFactory,
 } from "#core/features/tool/types/tool.ts";
+import { ToolDisplayUtils } from "#core/features/tool/utils/ToolDisplayUtils.ts";
 
 export const edit_plan = {
 	name: "edit_plan",
@@ -48,12 +49,12 @@ const toSteps = (input: Input, path: string): zFileStep[] =>
 	input.steps.map((step) => ({ ...step, path }));
 
 const display: ToolDisplay<typeof edit_plan> = {
-	status: ({ input }) => [
-		input.steps?.some((step) => step?.action === "write")
-			? ["Writing", "Wrote"]
-			: ["Updating", "Updated"],
-		{ count: ["plan", "plans"] },
-	],
+	status: ({ input }) =>
+		ToolDisplayUtils.status.plan(
+			input.steps?.some((step) => step?.action === "write")
+				? ["Writing", "Wrote"]
+				: ["Updating", "Updated"],
+		),
 	input: ({ input }) => getStepBlocks(input.steps, "plan.md"),
 	output: ({ output }) => getResultBlocks(output),
 };

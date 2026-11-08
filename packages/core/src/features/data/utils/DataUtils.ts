@@ -138,13 +138,24 @@ export const DataUtils = {
 		return data;
 	},
 
+	/**
+	 * Whether the reply waits on results for its calls. A call the provider
+	 * runs itself is only waited on while it asks the user to approve it: one
+	 * that never reported back is the provider's, and nothing will answer it.
+	 */
 	isMissingToolResult: ({ data }: { data: zData }) => {
 		const parts = data.flat();
-		const toolCallCount = parts.filter(
-			(p) => p.type === "toolCall" && !p.partial,
-		).length;
-		const toolResultCount = parts.filter((p) => p.type === "toolResult").length;
-		return toolResultCount < toolCallCount;
+		const results = new Set(
+			parts.flatMap((p) => (p.type === "toolResult" ? [p.id] : [])),
+		);
+		return parts.some(
+			(p) =>
+				p.type === "toolCall" &&
+				!p.partial &&
+				!results.has(p.id) &&
+				(!p.providerExecuted ||
+					(!!p.validation?.approval && p.validation.approved === undefined)),
+		);
 	},
 
 	getRenderedParts: (data: zData, thinking = false) => {

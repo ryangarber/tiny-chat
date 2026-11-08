@@ -67,13 +67,18 @@ Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE
   `ClientContext`, as `packages/gui/src/main.tsx` does (in Vitest, `create()` from `packages/client/src/tests.ts`). It
   signs in a real anonymous test user against the live server. Don't spend time building a custom harness, fake
   client, or seeded user unless this genuinely can't cover the case. For server-only data, use the real `db`.
-- **Test model:** with no API key, `test-generate` replies with a greeting. `%bench [text|code|table|tools|tasks|thought|mixed] [words] [~ms]`
-  in a message streams deterministic content of that kind instead, `%sub` calls `spawn_subagent`, and `%plan` (with `/plan`) writes a plan with `edit_plan`.
+- **Test model:** with no API key, `test-generate` replies with a greeting. A message that is a JSON array (bare or in a
+  code block) is a script it plays instead: strings or `{ "text" }` stream text, `{ "thought" }` streams reasoning (both
+  take `repeat` and `delay`, the ms per word, default 10), `{ "tool", "input" }` calls a tool, `{ "wait": ms }` pauses
+  and `{ "error" }` fails the stream. Each run of tool calls ends a step, and the script picks up after it once the
+  results are in; nest arrays (`[[…], […]]`) to set the steps yourself. E.g.
+  `[{"thought":"Hmm"},{"tool":"spawn_subagent","input":{"task":"…","prompt":"…"}},"Done."]`.
 - **Unit:** Vitest (`*.test.ts`), only for logic that is actually pure.
 - **App UI:** drive it with Playwright (installed at the root, Chromium included) against `http://localhost:$VITE_WEB_PORT`.
 - **CLI:** always pass `--no-keyring` when testing so the CLI stores its session token in a plain-text OS temp file
-  instead of touching the system keyring. Run it in a detached `tmux` session and drive it with `send-keys` /
-  `capture-pane`:
+  instead of touching the system keyring. Inside Tiny Chat, drive it with the `terminal` tool (`open`
+  `pnpm dev:cli --no-keyring`, then type, press, click, wait and capture). Otherwise run it in a detached `tmux` session
+  and drive it with `send-keys` / `capture-pane`:
 
   ```bash
   tmux new-session -d -s cli -x 120 -y 40 'pnpm dev:cli --no-keyring'

@@ -61,7 +61,7 @@ export const ChatService = {
 	 */
 	setNewChatOptions: (options: Partial<NewChatOptions>) => {
 		if (useChatStore.getState().active.status === "open")
-			ChatService.newChat(null);
+			ChatService.setChat({ id: null });
 		useChatStore.getState().setOptions(options);
 	},
 

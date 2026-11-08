@@ -30,22 +30,10 @@ export const glob_files = {
 } as const satisfies ToolDefinition;
 
 const display: ToolDisplay<typeof glob_files> = {
-	status: ({ input }) => [
-		["Looking for", "Looked for"],
-		{ count: ["pattern", "patterns"], subject: input.pattern ?? "" },
-		"in",
-		{ subject: ToolDisplayUtils.name(input.path) },
-	],
+	status: ({ input }) =>
+		ToolDisplayUtils.status.glob(input.pattern, input.path),
 	output: ({ input, output }) =>
-		output.length
-			? [
-					{
-						type: "directory",
-						path: input.path ?? "",
-						entries: output.map((path) => ({ path })),
-					},
-				]
-			: [],
+		ToolDisplayUtils.directory({ path: input.path, entries: output }),
 };
 
 export const createGlobFilesTool: ToolFactory<
@@ -82,7 +70,7 @@ export const createGlobFilesTool: ToolFactory<
 							type: "text" as const,
 							value: scanned
 								? `No path matched. ${scanned} file(s) were checked against the pattern, so try a broader one such as "**/*" to see what is there.`
-								: "No files were found under this path at all. Check the path itself with read_dir.",
+								: "No files were found under this path at all. Check the path itself with read_files.",
 						},
 					]
 				: []),

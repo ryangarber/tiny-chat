@@ -2,7 +2,9 @@ import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQue
 
 const text = (value: string) => [[{ type: "text" as const, id: value, value }]];
 describe("useMessageQueueStore", () => {
-	beforeEach(() => useMessageQueueStore.setState({ queues: {}, active: {} }));
+	beforeEach(() =>
+		useMessageQueueStore.setState({ queues: {}, active: {}, paused: {} }),
+	);
 	it("drains messages once in order and isolates chats", () => {
 		const queue = useMessageQueueStore.getState();
 		const data = text("first");
@@ -33,12 +35,31 @@ describe("useMessageQueueStore", () => {
 		queue.setActive("a", true);
 		queue.finish("a", pending);
 		expect(useMessageQueueStore.getState().queues.a).toHaveLength(1);
+		expect(useMessageQueueStore.getState().paused.a).toBe(true);
 		queue.finish("a", text("done"));
 		expect(useMessageQueueStore.getState().queues.a).toBeUndefined();
 		expect(useMessageQueueStore.getState().active.a).toBe(false);
+		expect(useMessageQueueStore.getState().paused.a).toBe(false);
 		queue.enqueue("a", text("follow-up"));
 		queue.finish("a", pending, true);
 		expect(useMessageQueueStore.getState().queues.a).toBeUndefined();
+	});
+	it("does not wait on the provider's own calls that never reported back", () => {
+		const queue = useMessageQueueStore.getState();
+		const call = {
+			type: "toolCall" as const,
+			id: "tool",
+			name: "shell",
+			input: {},
+			providerExecuted: true,
+		};
+		queue.setActive("a", true);
+		queue.finish("a", [[call]]);
+		expect(useMessageQueueStore.getState().active.a).toBe(false);
+		queue.setActive("a", true);
+		queue.finish("a", [[{ ...call, validation: { approval: true } }]]);
+		expect(useMessageQueueStore.getState().active.a).toBe(true);
+		expect(useMessageQueueStore.getState().paused.a).toBe(true);
 	});
 	it("removes only the selected queued message", () => {
 		const queue = useMessageQueueStore.getState();
