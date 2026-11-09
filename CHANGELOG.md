@@ -1,3 +1,9 @@
+## 0.10.11 (2026-11-09)
+
+### Other
+
+- bump dependencies ([aa74f44](https://github.com/ryangarber/tiny-chat/commit/aa74f446b0e7fb99187be88ca708ec86a168ffb5))
+
 ## 0.10.10 (2026-11-08)
 
 ### Features
