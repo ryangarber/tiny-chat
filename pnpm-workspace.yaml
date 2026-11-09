@@ -56,19 +56,17 @@ catalogs:
     "prisma-orm-extension-zod": 0.3.0
     "better-auth-prisma-orm": 0.2.0
   ai:
-    "ai": ^7.0.164
-    "@ai-sdk/amazon-bedrock": ^5.0.134
-    "@ai-sdk/anthropic": ^4.0.98
-    "@ai-sdk/azure": ^4.0.118
-    "@ai-sdk/google": ^4.0.113
-    "@ai-sdk/openai": ^4.0.110
-    "@ai-sdk/openai-compatible": ^3.0.86
-    "@ai-sdk/provider": ^4.0.36
+    "ai": ^7.0.165
+    "@ai-sdk/amazon-bedrock": ^5.0.135
+    "@ai-sdk/anthropic": ^4.0.99
+    "@ai-sdk/azure": ^4.0.119
+    "@ai-sdk/google": ^4.0.114
+    "@ai-sdk/openai": ^4.0.111
+    "@ai-sdk/openai-compatible": ^3.0.87
+    "@ai-sdk/provider": ^4.0.37
     "@anthropic-ai/sdk": ^1.6.0
     "openai": ^7.53.0
     "voyage-ai-provider": "^5.0.0"
-    "@ryangarber/ai-sdk-providers": ^0.1.2
+    "@ryangarber/ai-sdk-providers": ^0.1.3
     "@afmize/node": "^1.1.0"
     "@afmize/capacitor": "^1.1.0"
-patchedDependencies:
-  native-run: patches/native-run.patch
