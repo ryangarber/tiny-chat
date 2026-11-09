@@ -1,3 +1,17 @@
+## 0.10.12 (2026-11-09)
+
+### Features
+
+- plan tool supports reading back ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+- edit files from within the app ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+- force queued message to send instantly ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+
+### Bug Fixes
+
+- sources panel lists memories without budget ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+- claude code, codex race conditions ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+- clicking outside of scroll view still scrolls it ([e192097](https://github.com/ryangarber/tiny-chat/commit/e192097bc908c419ef0f9e023870a7ec19c58619))
+
 ## 0.10.11 (2026-11-09)
 
 ### Other
