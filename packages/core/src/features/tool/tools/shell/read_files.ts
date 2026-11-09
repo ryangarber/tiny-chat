@@ -33,42 +33,35 @@ const zReadEntry = z.object({
 	not_expanded: z.string().optional(),
 });
 
+export const zFileRead = z.object({
+	path: z.string().describe("Absolute path of a file or directory."),
+	offset: z
+		.number()
+		.optional()
+		.describe("File: first line to read, 1-based (default 1)."),
+	limit: z.number().optional().describe("File: lines to read (default 1000)."),
+	line_numbers: z
+		.boolean()
+		.optional()
+		.describe("File: prefix each line with its number (default false)."),
+	recursive: z
+		.boolean()
+		.optional()
+		.describe(
+			"Directory: list every descendant instead of the immediate children. Dependency and version-control directories are listed but not expanded.",
+		),
+	max_results: z
+		.number()
+		.optional()
+		.describe("Directory: entries to return at most (default 200)."),
+});
+
 export const read_files = {
 	name: "read_files",
 	description:
 		"Read files and list directories. Put every path you want into one call; each is read independently, so one that fails does not stop the rest. A text file comes back as a window of lines (pass offset and limit to page through anything larger), an image or document whole, and a directory as its entries. Use search_files first when you only need part of a long file.",
 	input: z.object({
-		reads: z
-			.array(
-				z.object({
-					path: z.string().describe("Absolute path of a file or directory."),
-					offset: z
-						.number()
-						.optional()
-						.describe("File: first line to read, 1-based (default 1)."),
-					limit: z
-						.number()
-						.optional()
-						.describe("File: lines to read (default 1000)."),
-					line_numbers: z
-						.boolean()
-						.optional()
-						.describe(
-							"File: prefix each line with its number (default false).",
-						),
-					recursive: z
-						.boolean()
-						.optional()
-						.describe(
-							"Directory: list every descendant instead of the immediate children. Dependency and version-control directories are listed but not expanded.",
-						),
-					max_results: z
-						.number()
-						.optional()
-						.describe("Directory: entries to return at most (default 200)."),
-				}),
-			)
-			.min(1),
+		reads: z.array(zFileRead).min(1),
 	}),
 	/**
 	 * One header per read, in order: a directory's entries, an error, or — for
@@ -124,6 +117,30 @@ const display: ToolDisplay<typeof read_files> = {
 
 type Shell = ReturnType<typeof ShellUtils.detect>;
 
+/** A text file's lines as a read asks for them: numbered if wanted, then windowed. */
+export const getReadWindow = ({
+	read,
+	path,
+	content,
+}: {
+	read: Pick<Read, "offset" | "limit" | "line_numbers">;
+	path: string;
+	content: string;
+}) => {
+	if (read.line_numbers) {
+		content = content
+			.split("\n")
+			.map((line, index) => `${index + 1}. ${line}`)
+			.join("\n");
+	}
+	return FileOperationService.getTextWindow({
+		path,
+		content,
+		offset: read.offset,
+		limit: read.limit,
+	});
+};
+
 const readFile = async (shell: Shell, read: Read): Promise<Part[]> => {
 	const file = await shell.readFile({ path: read.path });
 	const mime = await FileTypeUtils.getMime(file);
@@ -151,23 +168,11 @@ const readFile = async (shell: Shell, read: Read): Promise<Part[]> => {
 	// Not binary, but not cleanly decodable either — an unknown encoding or a
 	// few stray bytes. Reading it with replacement characters is far more
 	// useful than refusing to read it at all.
-	let content =
+	const content =
 		FileUtils.getTextFromBytes({ data, mime }) ??
 		new TextDecoder().decode(data);
 
-	if (read.line_numbers) {
-		content = content
-			.split("\n")
-			.map((line, index) => `${index + 1}. ${line}`)
-			.join("\n");
-	}
-
-	const window = FileOperationService.getTextWindow({
-		path: file.path,
-		content,
-		offset: read.offset,
-		limit: read.limit,
-	});
+	const window = getReadWindow({ read, path: file.path, content });
 
 	return [
 		{ type: "json", value: { path: read.path } },

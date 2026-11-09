@@ -16,6 +16,7 @@ export default function Code({
 	streaming,
 	incomplete = false,
 	fillHeight = false,
+	disclosure: controlledDisclosure,
 	...props
 }: Parameters<typeof Content>[0] & {
 	code: string;
@@ -30,7 +31,8 @@ export default function Code({
 }) {
 	const { highlighted } = useCode({ code, language, incomplete });
 
-	const disclosure = useDisclosure();
+	const ownDisclosure = useDisclosure();
+	const disclosure = controlledDisclosure ?? ownDisclosure;
 
 	const formats = useMemo(() => {
 		return ["Original"];

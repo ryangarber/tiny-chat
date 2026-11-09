@@ -155,8 +155,22 @@ export const MessageService = {
 		if (typeof chat === "string") chat = { id: chat };
 		if (typeof previous === "string") previous = { id: previous };
 
-		let project: Pick<Model["Project"], "settings"> | undefined;
-		if (projectId)
+		// An existing chat owns its project and privacy settings. Callers only
+		// supply these options when creating a new chat.
+		const existingChat = chat?.id
+			? requireRow(
+					await globalThis.db.orm.public.Chat.where({
+						id: chat.id,
+						userId: user.id,
+					})
+						.select("incognito")
+						.include("project", (project) => project.select("settings"))
+						.first(),
+				)
+			: undefined;
+		let project: Pick<Model["Project"], "settings"> | null | undefined =
+			existingChat?.project;
+		if (!existingChat && projectId)
 			project = requireRow(
 				await globalThis.db.orm.public.Project.where({
 					id: projectId,
@@ -166,7 +180,7 @@ export const MessageService = {
 					.first(),
 			);
 
-		const retrieval = !incognito
+		const retrieval = !(existingChat?.incognito ?? incognito)
 			? await MemoryRetrievalService.build({
 					user,
 					text: DataUtils.getText(content),

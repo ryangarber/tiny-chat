@@ -10,7 +10,7 @@ import type {
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
-import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { plan } from "#core/features/tool/tools/plan/plan.ts";
 import { edit_files } from "#core/features/tool/tools/shell/edit_files.ts";
 import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import { search_files } from "#core/features/tool/tools/shell/search_files.ts";
@@ -218,10 +218,21 @@ const fromToolCall = ({
 				directory: false,
 			},
 		}));
-	} else if (
-		ToolUtils.is(toolsets, part, edit_files) ||
-		ToolUtils.is(toolsets, part, edit_plan)
-	) {
+	} else if (ToolUtils.is(toolsets, part, plan)) {
+		return ToolUtils.json<typeof plan>(result).flatMap((output) =>
+			output.steps.flatMap((step): Source[] =>
+				step.error
+					? []
+					: [
+							{
+								key: step.path,
+								type: "file",
+								value: { path: step.path, directory: false },
+							},
+						],
+			),
+		);
+	} else if (ToolUtils.is(toolsets, part, edit_files)) {
 		// What each step left behind: nothing of a deleted file, and a renamed
 		// one where it went.
 		return ToolUtils.json<typeof edit_files>(result).flatMap((output) =>

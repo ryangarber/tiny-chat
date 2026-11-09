@@ -198,6 +198,34 @@ export const MouseUtils = {
 	},
 
 	/**
+	 * What can be seen of a node: its {@link MouseUtils.bounds}, cut to every
+	 * view clipping it, or null where none of it is drawn. Rows scrolled out of a
+	 * view are still laid out past its edges, so only these take the mouse.
+	 */
+	visibleBounds: (node: DOMElement, rows: number): MouseBounds | null => {
+		let { x, y, width, height } = MouseUtils.bounds(node, rows);
+		for (let parent = node.parentNode; parent; parent = parent.parentNode) {
+			const { overflow, overflowX, overflowY } = parent.style;
+			const clipsX = overflow === "hidden" || overflowX === "hidden";
+			const clipsY = overflow === "hidden" || overflowY === "hidden";
+			if (!clipsX && !clipsY) continue;
+			const clip = MouseUtils.bounds(parent, rows);
+			if (clipsX) {
+				const right = Math.min(x + width, clip.x + clip.width);
+				x = Math.max(x, clip.x);
+				width = right - x;
+			}
+			if (clipsY) {
+				const bottom = Math.min(y + height, clip.y + clip.height);
+				y = Math.max(y, clip.y);
+				height = bottom - y;
+			}
+			if (width <= 0 || height <= 0) return null;
+		}
+		return { x, y, width, height };
+	},
+
+	/**
 	 * Where an inline run of text (a `<Text>` nested in another) sits on screen,
 	 * or null where it cannot be seen. Inline text has no layout of its own, so
 	 * the block it sits in is wrapped the way Ink wraps it to find the run.
@@ -296,9 +324,10 @@ export const MouseUtils = {
 		ownLayers = false,
 	) => {
 		const top = layers
-			.filter((layer) =>
-				MouseUtils.contains(MouseUtils.bounds(layer, rows), point),
-			)
+			.filter((layer) => {
+				const bounds = MouseUtils.visibleBounds(layer, rows);
+				return !!bounds && MouseUtils.contains(bounds, point);
+			})
 			.sort(byDrawOrder)
 			.at(-1);
 		if (!top || isInside(node, top)) return false;

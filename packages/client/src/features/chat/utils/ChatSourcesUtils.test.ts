@@ -1,6 +1,29 @@
 import type { GitRepo } from "#client/features/chat/types/chatFiles.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 
+describe("ChatSourcesUtils.editable", () => {
+	const editable = (path: string, hasShell = true, directory = false) =>
+		ChatSourcesUtils.editable({
+			file: { path, directory },
+			chatId: "c1",
+			hasShell,
+		});
+
+	it("edits files on the machine only with a shell to write them", () => {
+		expect(editable("/work/repo/a.ts")).toBe(true);
+		expect(editable("/work/repo/a.ts", false)).toBe(false);
+		expect(editable("/work/repo", true, true)).toBe(false);
+	});
+
+	it("edits only the chat's own tree on the mount", () => {
+		expect(editable("/mnt/chat/c1/notes.md", false)).toBe(true);
+		expect(editable("/mnt/chat/c2/notes.md")).toBe(false);
+		expect(editable("/mnt/uploads/u1/a.txt")).toBe(false);
+		expect(editable("/mnt/skills/s1/SKILL.md")).toBe(false);
+		expect(editable("/mnt/chat/c1")).toBe(false);
+	});
+});
+
 const repo: GitRepo = {
 	root: "/work/repo",
 	head: true,

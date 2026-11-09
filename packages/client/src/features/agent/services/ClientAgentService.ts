@@ -22,9 +22,10 @@ import type {
 } from "#core/features/provider/types/provider.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import { ToolService } from "#core/features/tool/services/ToolService.ts";
-import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { isPlanChange, plan } from "#core/features/tool/tools/plan/plan.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
+import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 
 export const ClientAgentService = {
 	/** Run the generation loop, pumping deltas into the stream registry. */
@@ -187,8 +188,9 @@ export const ClientAgentService = {
 						ToolFeedbackService.settle(event.value.id);
 					if (
 						event.value.type === "toolResult" &&
-						event.value.name === edit_plan.name &&
+						event.value.name === plan.name &&
 						!event.value.error &&
+						isPlanChange(ToolUtils.json<typeof plan>(event.value)) &&
 						chat.id
 					) {
 						void ChatSourcesService.showPlan({

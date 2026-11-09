@@ -1,7 +1,8 @@
-import { ActionIcon, Box, Group } from "@mantine/core";
-import { XIcon } from "@phosphor-icons/react";
+import { ActionIcon, Box, Group, Tooltip } from "@mantine/core";
+import { PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { type ReactNode, type Ref, useContext } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQueueStore.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
@@ -12,10 +13,13 @@ import { useAppStore } from "#gui/core/stores/useAppStore.ts";
 function Effect({
 	content,
 	onDelete,
+	onSend,
 	isAny,
 }: {
 	content: ReactNode;
 	onDelete: () => void;
+	/** Sends it now, rather than when it would be. */
+	onSend?: () => void;
 	isAny: boolean;
 }) {
 	return (
@@ -46,6 +50,20 @@ function Effect({
 				<XIcon size={20} />
 			</ActionIcon>
 			<Box>{content}</Box>
+			{onSend && (
+				<Tooltip label="Send now" withArrow>
+					<ActionIcon
+						size={20}
+						variant="subtle"
+						color="dimmed"
+						onClick={onSend}
+						disabled={isAny}
+						aria-label="Send now"
+					>
+						<PaperPlaneTiltIcon size={16} />
+					</ActionIcon>
+				</Tooltip>
+			)}
 		</Group>
 	);
 }
@@ -62,6 +80,7 @@ export default function ChatEffects({
 	disabled: boolean;
 }) {
 	const client = useContext(ClientContext);
+	const { sendQueued } = useMessaging();
 
 	const chatId = useChatStore((s) => s.active.chatId);
 	const queues = useMessageQueueStore((s) => s.queues);
@@ -98,7 +117,8 @@ export default function ChatEffects({
 								onDelete={() =>
 									useMessageQueueStore.getState().remove(chatId, part.id)
 								}
-								isAny={false}
+								onSend={() => sendQueued.mutate({ chatId, id: part.id })}
+								isAny={sendQueued.isPending}
 							/>
 						))}
 					{editing && (

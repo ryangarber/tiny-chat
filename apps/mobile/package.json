@@ -30,7 +30,7 @@
 		"@capacitor/clipboard": "^8.0.1",
 		"@capacitor/core": "^8.6.0",
 		"@capacitor/ios": "^8.6.0",
-		"@capawesome/capacitor-live-update": "^8.7.1",
+		"@capawesome/capacitor-live-update": "^8.8.1",
 		"client": "workspace:*",
 		"core": "workspace:*",
 		"gui": "workspace:*"

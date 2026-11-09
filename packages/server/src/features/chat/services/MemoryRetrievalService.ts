@@ -93,6 +93,8 @@ export const MemoryRetrievalService = {
 		embed?: boolean;
 		more: boolean;
 	}): Promise<{ memories: MemorySearchResult[]; embedding?: number[] }> => {
+		if (tokens <= 0) return { memories: [] };
+
 		const embedding =
 			embed && text.trim()
 				? await MemoryRetrievalService.embed({
@@ -126,6 +128,8 @@ export const MemoryRetrievalService = {
 		messages: MemorySource[];
 		tokens: number;
 	}): Promise<MemorySearchResult[][]> => {
+		if (tokens <= 0) return messages.map(() => []);
+
 		const result: MemorySearchResult[][] = [];
 
 		console.log(

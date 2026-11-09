@@ -88,8 +88,10 @@ export const useMouseInput = ({
 					}
 				}
 
+				const visible = MouseUtils.visibleBounds(element, rows);
 				if (
-					MouseUtils.contains(bounds, event) &&
+					visible &&
+					MouseUtils.contains(visible, event) &&
 					!MouseUtils.isCovered(element, event, rows)
 				) {
 					if (!hovers.current.has(i)) {

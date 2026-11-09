@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { create } from "zustand";
-import type { ContentFormatter } from "#tui/core/components/Content.tsx";
+import type {
+	ContentEdit,
+	ContentFormatter,
+} from "#tui/core/components/Content.tsx";
 import {
 	type Focus,
 	selectFocus,
@@ -14,6 +17,7 @@ interface OpenContent {
 	formatter?: ContentFormatter;
 	streaming?: boolean;
 	findLabel?: string;
+	edit?: ContentEdit;
 	children?: ReactNode;
 }
 
@@ -43,6 +47,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 			(open.formatter === content.formatter &&
 				open.streaming === content.streaming &&
 				open.findLabel === content.findLabel &&
+				open.edit === content.edit &&
 				open.children === content.children)
 		)
 			return;

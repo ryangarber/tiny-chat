@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useContext, useRef } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useSession } from "#client/core/hooks/useSession.ts";
+import { AgentStreamService } from "#client/core/services/StreamService.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { useProviders } from "#client/features/agent/hooks/useProviders.ts";
 import { useSkills } from "#client/features/agent/hooks/useSkills.ts";
@@ -26,7 +27,11 @@ import { ShellCommandUtils } from "#client/features/shell/utils/ShellCommandUtil
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { ChatState } from "#core/features/data/types/chat.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
-import type { zData, zToolCallPart } from "#core/features/data/types/part.ts";
+import type {
+	zData,
+	zDataPart,
+	zToolCallPart,
+} from "#core/features/data/types/part.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { ModelProviderService } from "#core/features/provider/services/ModelProviderService.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
@@ -36,6 +41,7 @@ export const deleteMessageMutationKey = [
 	"deleteMessage",
 ] as const;
 export const sendMessageMutationKey = ["useMessaging", "sendMessage"] as const;
+export const sendQueuedMutationKey = ["useMessaging", "sendQueued"] as const;
 export const sendToolInputMutationKey = [
 	"useMessaging",
 	"sendToolFeedback",
@@ -78,19 +84,25 @@ export const useMessaging = () => {
 
 	const sendMessage = useMutation({
 		mutationKey: sendMessageMutationKey,
-		mutationFn: async () => {
+		/**
+		 * Sends what the composer holds, or `queued`: a message taken out of a
+		 * chat's queue, sent to it as it is, now.
+		 */
+		mutationFn: async (queued?: { chatId: string; data: zData }) => {
 			sendingData.current = undefined;
 			const { mode } = useComposerStore.getState();
-			const editing = mode.kind === "edit" ? mode : null;
-			const insertingAfter = mode.kind === "insert" ? mode.after : null;
+			const editing = !queued && mode.kind === "edit" ? mode : null;
+			const insertingAfter =
+				!queued && mode.kind === "insert" ? mode.after : null;
 
-			const data = ComposerService.getData({ client });
+			const data = queued?.data ?? ComposerService.getData({ client });
 
 			// A command, typed after a `!`, is run rather than sent; the `!` is
 			// left behind for the next one.
-			const command = editing
-				? null
-				: ShellCommandUtils.parse(useComposerStore.getState().text);
+			const command =
+				editing || queued
+					? null
+					: ShellCommandUtils.parse(useComposerStore.getState().text);
 			if (command !== null) {
 				// Kept as it is while there is nothing to run, or one still running.
 				const { run } = useShellStore.getState();
@@ -130,7 +142,11 @@ export const useMessaging = () => {
 
 			const { active } = useChatStore.getState();
 			const selectedId = active.chatId;
+			// Sent to the chat it was queued in, which is the one on screen.
+			if (queued && queued.chatId !== selectedId)
+				throw new Error("the queued message's chat is not open");
 			if (
+				!queued &&
 				selectedId &&
 				(useMessageQueueStore.getState().active[selectedId] ||
 					useStreamStore.getState().chatAgentStreams.has(selectedId) ||
@@ -151,8 +167,10 @@ export const useMessaging = () => {
 				return;
 			}
 
-			sendingData.current = data;
-			ComposerService.reset({ client });
+			if (!queued) {
+				sendingData.current = data;
+				ComposerService.reset({ client });
+			}
 
 			const chatId = selectedId ?? undefined;
 			// A new chat keeps its options until it opens, so a failed send keeps them.
@@ -362,5 +380,89 @@ export const useMessaging = () => {
 		},
 	});
 
-	return { deleteMessage, sendMessage, sendToolFeedback };
+	/**
+	 * Sends a queued message now, as a message of its own: the reply it waits
+	 * on is stopped, and calls left waiting on the user are let go of. The rest
+	 * of the queue stays queued, for the reply it starts.
+	 */
+	const sendQueued = useMutation({
+		mutationKey: sendQueuedMutationKey,
+		mutationFn: async ({ chatId, id }: { chatId: string; id: string }) => {
+			const part = useMessageQueueStore.getState().take(chatId, id);
+			if (!part) return;
+			// Stopping the reply clears the queue: what else was in it goes back.
+			const rest = useMessageQueueStore.getState().queues[chatId] ?? [];
+			try {
+				const stream = useStreamStore.getState().chatAgentStreams.get(chatId);
+				if (stream) AgentStreamService.abort(stream);
+				await ClientMessageService.idle(chatId);
+				useMessageQueueStore.getState().restore(chatId, rest);
+
+				// A reply waiting on the user is let go of: what it waits on is
+				// answered as interrupted, so the next turn follows a whole one.
+				const { active } = useChatStore.getState();
+				const last = (
+					await MessageQueryService.ensure(
+						client,
+						chatId,
+						ActiveChatUtils.branches(active),
+					)
+				).messages.at(-1);
+				if (
+					last?.author === "MODEL" &&
+					DataUtils.isMissingToolResult({ data: last.data }) &&
+					session.data &&
+					chat.data?.id === chatId &&
+					providers.data
+				) {
+					const parts = last.data.flat();
+					const toolResults = parts.flatMap((call): zDataPart[] =>
+						call.type === "toolCall" &&
+						!call.partial &&
+						!parts.some((p) => p.type === "toolResult" && p.id === call.id) &&
+						// As the reply waits on them: the provider's, only to approve.
+						(!call.providerExecuted ||
+							(!!call.validation?.approval &&
+								call.validation.approved === undefined))
+							? [
+									{
+										type: "toolResult",
+										id: call.id,
+										name: call.name,
+										error: true,
+										output: ToolCallUtils.getInterruption(),
+										...(call.providerExecuted && { providerExecuted: true }),
+									},
+								]
+							: [],
+					);
+					for (const result of toolResults)
+						ToolFeedbackService.settle(result.id);
+					await ClientMessageService.onMessage({
+						client,
+						user: session.data.user,
+						message: last,
+						chat: chat.data,
+						providers: providers.data,
+						skills,
+						mcpTools: mcpTools.data ?? [],
+						toolResults,
+						resume: false,
+					});
+					useMessageQueueStore.getState().setActive(chatId, false);
+				}
+
+				await sendMessage.mutateAsync({ chatId, data: [part.value] });
+			} catch (error) {
+				// Back where it was, to send again.
+				useMessageQueueStore.getState().restore(chatId, [part]);
+				throw error;
+			}
+		},
+		onError: (error) => {
+			console.error("[useMessaging] could not send the queued message:", error);
+		},
+	});
+
+	return { deleteMessage, sendMessage, sendToolFeedback, sendQueued };
 };

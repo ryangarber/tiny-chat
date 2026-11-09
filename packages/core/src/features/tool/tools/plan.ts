@@ -1,6 +1,6 @@
 import type { ShellCapability } from "#core/core/types/capability.ts";
 import { PlanService } from "#core/features/agent/services/PlanService.ts";
-import { createEditPlanTool } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { createPlanTool } from "#core/features/tool/tools/plan/plan.ts";
 import type {
 	Toolset,
 	ToolsetFactory,
@@ -16,7 +16,7 @@ export const createPlanToolset: ToolsetFactory<
 	Toolset<{ chatShell: ShellCapability }>
 > = async (options) => ({
 	name: "plan",
-	tools: [await createEditPlanTool(options)],
+	tools: [await createPlanTool(options)],
 	...options,
 	when: (context) =>
 		!!context.chat?.id && PlanService.isActive(context.messages),

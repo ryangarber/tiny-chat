@@ -18,6 +18,10 @@ interface MessageQueueStore {
 	queues: Record<string, zInterjectionPart[]>;
 	enqueue: (chatId: string, data: zData) => void;
 	drain: (chatId: string) => zInterjectionPart[];
+	/** Takes one message out of the queue, to send it some other way. */
+	take: (chatId: string, id: string) => zInterjectionPart | undefined;
+	/** Puts messages back at the head of the queue, as they were. */
+	restore: (chatId: string, parts: zInterjectionPart[]) => void;
 	remove: (chatId: string, id: string) => void;
 	clear: (chatId: string) => void;
 	finish: (chatId: string, data: zData, failed?: boolean) => void;
@@ -88,6 +92,24 @@ export const useMessageQueueStore = create<MessageQueueStore>((set, get) => ({
 		const parts = get().queues[chatId] ?? [];
 		get().clear(chatId);
 		return parts;
+	},
+	take: (chatId, id) => {
+		const part = get().queues[chatId]?.find((part) => part.id === id);
+		if (part) get().remove(chatId, id);
+		return part;
+	},
+	restore: (chatId, parts) => {
+		if (!parts.length) return;
+		set((state) => {
+			const queued = state.queues[chatId] ?? [];
+			const ids = new Set(queued.map((part) => part.id));
+			return {
+				queues: {
+					...state.queues,
+					[chatId]: [...parts.filter((part) => !ids.has(part.id)), ...queued],
+				},
+			};
+		});
 	},
 	remove: (chatId, id) =>
 		set((state) => ({

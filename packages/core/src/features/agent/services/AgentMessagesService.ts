@@ -23,7 +23,8 @@ import {
 	FileUtils,
 } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import { edit_plan } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { plan } from "#core/features/tool/tools/plan/plan.ts";
+import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { VERBOSE } from "#core/logger.ts";
 
 /** Directory levels shown in an attached folder's XML tree. */
@@ -33,9 +34,11 @@ export const AgentMessagesService = {
 	buildMessages: async ({
 		context,
 		capabilities,
+		enabledToolsets = [],
 	}: {
 		context: zAgentContext;
 		capabilities: Capabilities;
+		enabledToolsets?: Pick<Toolset<any>, "name">[];
 	}): Promise<{ messages: zAgentMessage[]; customInstructions?: string }> => {
 		const messages: zAgentMessage[] = [];
 
@@ -107,7 +110,10 @@ export const AgentMessagesService = {
 								extraContext.push(
 									PlanService.getContext({
 										path: PlanService.path(context.chat.id),
-										tool: edit_plan.name,
+										tool: plan.name,
+										shell: enabledToolsets.some(
+											(toolset) => toolset.name === "shell",
+										),
 									}),
 								);
 						} else if (part.name === "system-prompt") {

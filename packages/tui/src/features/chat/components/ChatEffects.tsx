@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
+import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQueueStore.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
@@ -12,19 +13,24 @@ import Text from "#tui/core/components/Text.tsx";
 function Effect({
 	content,
 	onDelete,
+	onSend,
 }: {
 	content: string;
 	onDelete: () => void;
+	/** Sends it now, rather than when it would be. */
+	onSend?: () => void;
 }) {
 	return (
 		<Box gap={1}>
 			<Button label="×" onClick={onDelete} />
 			<Text>{content}</Text>
+			{onSend && <Button label="send now" onClick={onSend} />}
 		</Box>
 	);
 }
 export default function ChatEffects() {
 	const client = useContext(ClientContext);
+	const { sendQueued } = useMessaging();
 	const chatId = useChatStore((s) => s.active.chatId);
 	const queues = useMessageQueueStore((s) => s.queues);
 	const editing = useComposerStore((s) =>
@@ -72,6 +78,11 @@ export default function ChatEffects() {
 						content={`Queued: ${DataUtils.getTextCleaned({ data: [part.value], maxLength: 60 }) || "Attachment"}`}
 						onDelete={() =>
 							useMessageQueueStore.getState().remove(chatId, part.id)
+						}
+						onSend={
+							sendQueued.isPending
+								? undefined
+								: () => sendQueued.mutate({ chatId, id: part.id })
 						}
 					/>
 				))}

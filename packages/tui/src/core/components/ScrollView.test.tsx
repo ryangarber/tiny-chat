@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import Box from "#tui/core/components/Box.tsx";
 import ScrollView from "#tui/core/components/ScrollView.tsx";
 import Text from "#tui/core/components/Text.tsx";
+import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 
 /** SGR wheel report at a 1-based column and row: 64 turns it up, 65 down. */
@@ -219,6 +220,53 @@ describe("scrollbar", () => {
 		screen.stdin.write(`\x1b[<65;100;${at(2)}M`);
 		await screen.idle();
 		expect(firstWord(plain(screen))).toBe("row3");
+		screen.cleanup();
+	});
+});
+
+function ClickableRow({
+	label,
+	onClick,
+}: {
+	label: string;
+	onClick: (label: string) => void;
+}) {
+	const { mouseRef } = useMouseInput({ onClick: () => onClick(label) });
+	return (
+		<Box ref={mouseRef}>
+			<Text>{label}</Text>
+		</Box>
+	);
+}
+
+describe("clicks", () => {
+	it("only reaches the rows a view shows, not those laid out past its edges", async () => {
+		const clicked: string[] = [];
+		const screen = render(
+			<Box height={10} flexDirection="column">
+				<ScrollView height={5} flexShrink={0}>
+					{Array.from({ length: 20 }, (_, index) => `row${index}`).map(
+						(label) => (
+							<ClickableRow
+								key={label}
+								label={label}
+								onClick={(row) => clicked.push(row)}
+							/>
+						),
+					)}
+				</ScrollView>
+				<Text>below</Text>
+			</Box>,
+		);
+		await screen.idle();
+		// Drawn against the bottom of the 24-row terminal, from row 15.
+		screen.stdin.write(press(3, 15 + 7) + release(3, 15 + 7));
+		await screen.idle();
+		expect(clicked).toEqual([]);
+
+		screen.stdin.write(press(3, 15 + 2) + release(3, 15 + 2));
+		await screen.idle();
+		expect(clicked).toEqual(["row2"]);
 		screen.cleanup();
 	});
 });

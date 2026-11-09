@@ -18,49 +18,61 @@ function noPartIds(message: zAgentMessageNoPartIds): zAgentMessage {
 	} as zAgentMessage;
 }
 
+const buildPlanText = async (enabledToolsets: { name: string }[] = []) => {
+	const { messages } = await AgentMessagesService.buildMessages({
+		enabledToolsets,
+		context: {
+			user: { id: "u", name: "u", settings: {}, isEphemeral: true },
+			chat: { id: "c1", project: null, incognito: true, temporary: false },
+			timezone: "UTC",
+			interactive: true,
+			messages: [
+				{
+					id: null,
+					author: "USER",
+					config: null,
+					createdAt: null,
+					data: [
+						[
+							{ id: "a", type: "command", name: "plan", value: "plan" },
+							{ id: "b", type: "text", value: "Tidy the garden" },
+							{
+								id: "c",
+								type: "quote",
+								source: "/mnt/chat/c1/plan.md",
+								text: "Weed the beds",
+							},
+						],
+					],
+				},
+			],
+		},
+		capabilities: {},
+	});
+	return messages[0].data
+		.flat()
+		.map((part) => (part.type === "text" ? part.value : ""))
+		.join("\n");
+};
+
 describe("AgentMessagesService", () => {
 	it("puts a plan in the context of the message that asked for it", async () => {
-		const { messages } = await AgentMessagesService.buildMessages({
-			context: {
-				user: { id: "u", name: "u", settings: {}, isEphemeral: true },
-				chat: { id: "c1", project: null, incognito: true, temporary: false },
-				timezone: "UTC",
-				interactive: true,
-				messages: [
-					{
-						id: null,
-						author: "USER",
-						config: null,
-						createdAt: null,
-						data: [
-							[
-								{ id: "a", type: "command", name: "plan", value: "plan" },
-								{ id: "b", type: "text", value: "Tidy the garden" },
-								{
-									id: "c",
-									type: "quote",
-									source: "/mnt/chat/c1/plan.md",
-									text: "Weed the beds",
-								},
-							],
-						],
-					},
-				],
-			},
-			capabilities: {},
-		});
-
-		const text = messages[0].data
-			.flat()
-			.map((part) => (part.type === "text" ? part.value : ""))
-			.join("\n");
+		const text = await buildPlanText();
 		expect(text).toContain('<context>\n<plan path="/mnt/chat/c1/plan.md">');
-		expect(text).toContain("`edit_plan`");
+		expect(text).toContain("`plan`");
+		// Without the file tools, `plan` is the only way to reach the file.
+		expect(text).toContain("no other tool can reach this file");
 		expect(text).toContain(
 			'<quote source="/mnt/chat/c1/plan.md">\nWeed the beds\n</quote>',
 		);
 		// The command is read as the context it adds, not as text.
 		expect(text).not.toMatch(/(^|\s)\/plan\b/m);
+	});
+
+	it("lets the file tools reach the plan when they are on", async () => {
+		const text = await buildPlanText([{ name: "shell" }]);
+		expect(text).toContain("`plan`");
+		expect(text).not.toContain("no other tool can reach this file");
 	});
 
 	it("builds model parts from a stored attachment without reading it again", () => {

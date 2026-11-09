@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import { DiffUtils } from "#core/features/file/utils/DiffUtils.ts";
-import Content from "#tui/core/components/Content.tsx";
+import Content, { type ContentEdit } from "#tui/core/components/Content.tsx";
 import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import DiffLines from "#tui/features/code/components/DiffLines.tsx";
 import Highlight from "#tui/features/code/components/Highlight.tsx";
@@ -11,8 +11,13 @@ export default function Diff({
 	after,
 	language,
 	maxHeight,
+	edit,
+	contentId,
 	...props
 }: Omit<Parameters<typeof Highlight>[0], "code"> & {
+	/** Edits the text after, which is what is on disk. */
+	edit?: ContentEdit;
+	contentId?: string;
 	before: string;
 	after: string;
 	language?: string | null;
@@ -36,6 +41,8 @@ export default function Diff({
 	return (
 		<Content
 			formatter={() => after}
+			edit={edit}
+			contentId={contentId}
 			backgroundColor={highlighted.bg}
 			maxHeight={maxHeight}
 		>

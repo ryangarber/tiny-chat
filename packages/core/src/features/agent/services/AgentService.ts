@@ -89,6 +89,7 @@ export const AgentService = {
 			await AgentMessagesService.buildMessages({
 				context,
 				capabilities,
+				enabledToolsets,
 			});
 
 		const instructions = skipInstructions

@@ -15,6 +15,7 @@ import {
 	type TreeNodeData,
 	useTree,
 } from "@mantine/core";
+import { type UseDisclosureReturnValue, useDisclosure } from "@mantine/hooks";
 import {
 	CaretDownIcon,
 	CaretLeftIcon,
@@ -36,6 +37,7 @@ import { useChatActions } from "#client/features/chat/hooks/useChatActions.ts";
 import { useChatMemories } from "#client/features/chat/hooks/useChatMemories.ts";
 import { useChatSources } from "#client/features/chat/hooks/useChatSources.ts";
 import { useFileDiff } from "#client/features/chat/hooks/useFileDiff.ts";
+import { useFileEditor } from "#client/features/chat/hooks/useFileEditor.ts";
 import { useFileViewer } from "#client/features/chat/hooks/useFileViewer.ts";
 import { useOpenMessage } from "#client/features/chat/hooks/useOpenMessage.ts";
 import { useChatSourcesStore } from "#client/features/chat/stores/useChatSourcesStore.ts";
@@ -56,6 +58,7 @@ import type { MemoryState } from "#core/features/data/types/memory.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import Content, {
+	type ContentEdit,
 	type ContentFormatterFunction,
 } from "#gui/core/components/Content.tsx";
 import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
@@ -109,6 +112,8 @@ function Block({
 	data,
 	filename,
 	quote,
+	edit,
+	disclosure,
 	children,
 }: {
 	title: string;
@@ -116,6 +121,8 @@ function Block({
 	data: string;
 	filename: string;
 	quote?: { source: string };
+	edit?: ContentEdit;
+	disclosure?: UseDisclosureReturnValue;
 	children: ReactNode;
 }) {
 	const formats = useMemo(() => ["Markdown"], []);
@@ -134,6 +141,8 @@ function Block({
 			formatter={formatter}
 			findLabel={title}
 			quote={quote}
+			edit={edit}
+			disclosure={disclosure}
 			h="100%"
 			bg="var(--tc-surface)"
 			style={{ borderRadius: "var(--mantine-radius-md)" }}
@@ -152,10 +161,27 @@ function Block({
  * Prose — a Markdown file, or a document's extracted text — read the way a web
  * page is, and quoted from the same way.
  */
-function Prose({ path, text }: { path: string; text: string }) {
+function Prose({
+	path,
+	text,
+	edit,
+	disclosure,
+}: {
+	path: string;
+	text: string;
+	edit?: ContentEdit;
+	disclosure?: UseDisclosureReturnValue;
+}) {
 	const name = PathUtils.name(path);
 	return (
-		<Block title={name} data={text} filename={name} quote={{ source: path }}>
+		<Block
+			title={name}
+			data={text}
+			filename={name}
+			quote={{ source: path }}
+			edit={edit}
+			disclosure={disclosure}
+		>
 			{text.trim() ? (
 				<Markdown source={text} />
 			) : (
@@ -170,9 +196,25 @@ function Prose({ path, text }: { path: string; text: string }) {
 function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	const content = useFileViewer({ file });
 	const diff = useFileDiff({ file, repos });
+	const { save } = useFileEditor({ file });
 	const language = (FileTypeUtils.getExtension(file) ?? undefined) as
 		| BundledLanguage
 		| undefined;
+
+	// What is on disk, as text: a document's extracted text is not the file.
+	const text = diff.data
+		? diff.data.after
+		: !content.data?.extracted && typeof content.data?.text === "string"
+			? content.data.text
+			: undefined;
+	const edit = useMemo<ContentEdit | undefined>(
+		() => (save && text !== undefined ? { value: text, save } : undefined),
+		[save, text],
+	);
+	// Shared by however the file is drawn, so saving it into a diff (or out of
+	// one) leaves it open over the screen.
+	const disclosure = useDisclosure();
+
 	if (diff.data) {
 		return (
 			<Diff
@@ -184,6 +226,8 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 				h="100%"
 				fillHeight
 				quote={{ source: file.path }}
+				edit={edit}
+				disclosure={disclosure}
 			/>
 		);
 	}
@@ -229,7 +273,14 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		typeof content.data.text === "string" &&
 		(content.data.extracted || FileTypeUtils.isMarkdown(file.path))
 	) {
-		return <Prose path={file.path} text={content.data.text} />;
+		return (
+			<Prose
+				path={file.path}
+				text={content.data.text}
+				edit={edit}
+				disclosure={disclosure}
+			/>
+		);
 	}
 	if (!content.data.text) {
 		return (
@@ -251,6 +302,8 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 			h="100%"
 			fillHeight
 			quote={{ source: file.path }}
+			edit={edit}
+			disclosure={disclosure}
 		/>
 	);
 }

@@ -53,6 +53,9 @@ export const useSettings = ({
 				});
 				void ChatService.fetchChatList({ client });
 			}
+			void client.queryClient.invalidateQueries({
+				queryKey: client.query.memory.getChatMemoryIds.pathKey(),
+			});
 			return true;
 		},
 		[client, projectId],

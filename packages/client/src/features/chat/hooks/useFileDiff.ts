@@ -59,5 +59,9 @@ export const useFileDiff = ({
 			return { before, after: text };
 		},
 		enabled: !!shell && !!found,
+		// The same file's last diff stands in while its new one is read — after it
+		// is saved, say — rather than its preview blinking out in between.
+		placeholderData: (previous, previousQuery) =>
+			found && previousQuery?.queryKey[1] === file.path ? previous : undefined,
 	});
 };

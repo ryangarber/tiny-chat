@@ -7,13 +7,17 @@ import {
 	useId,
 	useLayoutEffect,
 	useRef,
+	useState,
 } from "react";
+import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
+import HelpText from "#tui/core/components/HelpText.tsx";
 import ScrollView, {
 	type ScrollViewProps,
 } from "#tui/core/components/ScrollView.tsx";
+import Text from "#tui/core/components/Text.tsx";
 import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useScrollSticky } from "#tui/core/hooks/useScrollSticky.ts";
@@ -25,6 +29,7 @@ import { TextLayoutUtils } from "#tui/core/utils/TextLayoutUtils.ts";
 import Find from "#tui/features/find/components/Find.tsx";
 import FindScope from "#tui/features/find/components/FindScope.tsx";
 import Selectable from "#tui/features/selection/components/Selectable.tsx";
+import Textarea from "#tui/features/textarea/components/Textarea.tsx";
 
 /** The scope, and the find bar's id, of the block opened over the screen. */
 const FULLSCREEN = "fullscreen";
@@ -47,18 +52,35 @@ export type ContentFormatter = () =>
 	| ContentFormatted
 	| Promise<ContentFormatted>;
 
-/** `[copy]`, and `[+]` to open the block over the whole screen or `[×]` to close it. */
+/** The text a block shows, and where it is written back to once edited. */
+export interface ContentEdit {
+	value: string;
+	save: (value: string) => Promise<void>;
+}
+
+/** Rows around the editor: the screen's padding, the border, its own padding and the keys below. */
+const EDITOR_CHROME_ROWS = 10;
+
+/**
+ * `[copy]`, and `[+]` to open the block over the whole screen or `[×]` to
+ * close it — with `[edit]` there, for a block that can be written back; while
+ * it is edited, `[save]` and `[cancel]` instead.
+ */
 function ContentActions({
 	formatter,
 	streaming,
 	open,
 	close,
+	onEdit,
+	editor,
 	blockRef,
 }: {
 	formatter?: ContentFormatter;
 	streaming?: boolean;
 	open?: () => void;
 	close?: () => void;
+	onEdit?: () => void;
+	editor?: { save: () => void; cancel: () => void; saving: boolean };
 	/**
 	 * The block they are drawn over, down which they follow the top of what is
 	 * shown of it as the view it is in scrolls; left out, they stay at its top.
@@ -88,10 +110,28 @@ function ContentActions({
 			right={2}
 			gap={1}
 		>
-			{formatter && !streaming && (
-				<Button label="copy" labelOnClick="copied" onClick={copy} />
+			{editor ? (
+				<>
+					<Button
+						label={editor.saving ? "saving…" : "save"}
+						disabled={editor.saving}
+						onClick={editor.save}
+					/>
+					<Button
+						label="cancel"
+						disabled={editor.saving}
+						onClick={editor.cancel}
+					/>
+				</>
+			) : (
+				<>
+					{formatter && !streaming && (
+						<Button label="copy" labelOnClick="copied" onClick={copy} />
+					)}
+					{onEdit && !streaming && <Button label="edit" onClick={onEdit} />}
+					<Button label={open ? "+" : "×"} onClick={open ?? close} />
+				</>
 			)}
-			<Button label={open ? "+" : "×"} onClick={open ?? close} />
 		</Box>
 	);
 }
@@ -111,6 +151,8 @@ export default function Content({
 	formatter,
 	streaming,
 	findLabel = "block",
+	edit,
+	contentId,
 	children,
 	...props
 }: BoxProps & {
@@ -119,9 +161,17 @@ export default function Content({
 	streaming?: boolean;
 	/** What the find bar calls it, while it is what find is scoped to. */
 	findLabel?: string;
+	/** Lets the block be edited once opened over the whole screen. */
+	edit?: ContentEdit;
+	/**
+	 * Who it is while open, for blocks that stand in for one another — a file
+	 * drawn as code, then as a diff once saved — so the open one follows.
+	 */
+	contentId?: string;
 	children?: ReactNode;
 }) {
-	const id = useId();
+	const generatedId = useId();
+	const id = contentId ?? generatedId;
 	const blockRef = useRef<DOMElement>(null);
 	// Only whether this block is the one open is read, so a block renders no
 	// more often than it did before for being able to open.
@@ -130,7 +180,7 @@ export default function Content({
 	const open = () =>
 		useContentStore
 			.getState()
-			.openContent({ id, formatter, streaming, findLabel, children });
+			.openContent({ id, formatter, streaming, findLabel, edit, children });
 
 	// Kept up with while open, so content still streaming in grows there too.
 	// Unmounted while open — as what it sits in may be, once the page goes
@@ -139,7 +189,7 @@ export default function Content({
 		if (!opened) return;
 		useContentStore
 			.getState()
-			.updateContent({ id, formatter, streaming, findLabel, children });
+			.updateContent({ id, formatter, streaming, findLabel, edit, children });
 	});
 
 	return (
@@ -167,6 +217,10 @@ export default function Content({
  * The block opened with `[+]`, over everything else and alone taking the
  * mouse. Mounted only while one is open, it draws the very children that
  * block was given rather than a copy of them.
+ *
+ * A block that can be edited takes `e` or `[edit]` to swap what it draws for
+ * its text in an editor, saved with Ctrl+S and left with Escape — pressed
+ * twice, when there are changes it would throw away.
  */
 export function ContentFullscreen() {
 	const { rows, columns } = useWindowSize();
@@ -179,13 +233,52 @@ export function ContentFullscreen() {
 	const scrollRef =
 		useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
 
+	// The text being edited, held by the block it was opened from.
+	const [draft, setDraft] = useState<{ id: string; value: string } | null>(
+		null,
+	);
+	const [status, setStatus] = useState<
+		"saving" | "confirm" | { error: string } | null
+	>(null);
+	const edit = content && !content.streaming ? content.edit : undefined;
+	const editing = edit && draft?.id === content?.id ? draft : null;
+
+	const startEditing = () => {
+		if (!content || !edit) return;
+		setStatus(null);
+		setDraft({ id: content.id, value: edit.value });
+	};
+	const stopEditing = () => {
+		setDraft(null);
+		setStatus(null);
+	};
+	const save = async () => {
+		if (!edit || !editing || status === "saving") return;
+		setStatus("saving");
+		try {
+			await edit.save(editing.value);
+			stopEditing();
+		} catch (error) {
+			setStatus({ error: CommonUtils.formatError({ error }) });
+		}
+	};
+	const cancel = () => {
+		if (!edit || !editing || status === "saving") return;
+		if (editing.value !== edit.value && status !== "confirm") {
+			setStatus("confirm");
+			return;
+		}
+		stopEditing();
+	};
+
 	useMouseLayer(ref, !!content);
 
 	// Left some other way than closing it, the block is let go of all the same.
 	useEffect(() => () => useContentStore.setState({ open: null }), []);
 
+	// Escape and Backspace are the editor's while it is open.
 	usePage({
-		active,
+		active: active && !editing,
 		onBack: () => {
 			closeContent();
 			return false;
@@ -193,11 +286,12 @@ export function ContentFullscreen() {
 	});
 
 	useInput(
-		(_input, key) => {
+		(input, key) => {
 			if (key.upArrow) scrollRef.current?.scrollBy(-1);
 			if (key.downArrow) scrollRef.current?.scrollBy(1);
+			if (input === "e" && !key.ctrl && !key.meta && edit) startEditing();
 		},
-		{ isActive: active },
+		{ isActive: active && !editing },
 	);
 
 	if (!content) return null;
@@ -237,17 +331,49 @@ export function ContentFullscreen() {
 					{/* What sizes itself to the transcript sizes itself to the block instead. */}
 					<WidthContext.Provider value={width}>
 						<ContentWidthContext.Provider value={width}>
-							<ScrollView
-								ref={scrollRef}
-								paging={active}
-								flexShrink={1}
-								minHeight={0}
-								overscan={Number.POSITIVE_INFINITY}
-							>
-								<ErrorBoundary label="this block" resetKey={content.children}>
-									<Selectable>{content.children}</Selectable>
-								</ErrorBoundary>
-							</ScrollView>
+							{editing ? (
+								<Box
+									flexDirection="column"
+									paddingX={2}
+									paddingY={1}
+									flexShrink={1}
+									minHeight={0}
+								>
+									<Textarea
+										value={editing.value}
+										onChange={(value) => {
+											setDraft({ id: editing.id, value });
+											if (status !== "saving") setStatus(null);
+										}}
+										focus={active && status !== "saving"}
+										maxRows={Math.max(1, rows - EDITOR_CHROME_ROWS)}
+										onKey={(input, key) => {
+											if (key.escape) {
+												cancel();
+												return true;
+											}
+											if (key.ctrl && input === "s") {
+												void save();
+												return true;
+											}
+											return false;
+										}}
+										onSubmit={() => void save()}
+									/>
+								</Box>
+							) : (
+								<ScrollView
+									ref={scrollRef}
+									paging={active}
+									flexShrink={1}
+									minHeight={0}
+									overscan={Number.POSITIVE_INFINITY}
+								>
+									<ErrorBoundary label="this block" resetKey={content.children}>
+										<Selectable>{content.children}</Selectable>
+									</ErrorBoundary>
+								</ScrollView>
+							)}
 						</ContentWidthContext.Provider>
 					</WidthContext.Provider>
 				</FindScope>
@@ -255,8 +381,42 @@ export function ContentFullscreen() {
 					formatter={content.formatter}
 					streaming={content.streaming}
 					close={closeContent}
+					onEdit={edit && startEditing}
+					editor={
+						editing
+							? {
+									save: () => void save(),
+									cancel,
+									saving: status === "saving",
+								}
+							: undefined
+					}
 				/>
 			</Box>
+			{editing && (
+				<Box flexDirection="column" paddingX={1} flexShrink={0}>
+					{typeof status === "object" && status && (
+						<Text color="redBright" wrap="truncate-end">
+							{status.error}
+						</Text>
+					)}
+					<HelpText
+						actions={[
+							{
+								key: "ctrl+s",
+								name: status === "saving" ? "saving…" : "save",
+								onClick: () => void save(),
+							},
+							{
+								key: "esc",
+								name:
+									status === "confirm" ? "again to discard changes" : "cancel",
+								onClick: cancel,
+							},
+						]}
+					/>
+				</Box>
+			)}
 			<Find id={FULLSCREEN} targetRef={ref} root={FULLSCREEN} fixed />
 		</Box>
 	);

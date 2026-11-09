@@ -37,9 +37,22 @@ export const PlanService = {
 	},
 
 	/** What the message that asked for the plan tells the model, in its context. */
-	getContext: ({ path, tool }: { path: string; tool: string }) =>
+	getContext: ({
+		path,
+		tool,
+		shell,
+	}: {
+		path: string;
+		tool: string;
+		/** Whether the file tools are on, which could reach the plan too. */
+		shell: boolean;
+	}) =>
 		`<plan path="${path}">
-The user wants a plan before the work is done. Look into whatever you need first without changing anything, then write the plan to this file with \`${tool}\`: the goal, the approach and the decisions it rests on, concrete steps saying what each one changes, and how the result will be checked. Keep it short enough to skim, and put open questions in it rather than guessing at the answers. Then reply with a brief summary and stop — don't start the work until the user gives the go-ahead. Revise the plan with \`${tool}\` as they give feedback rather than restating it in your reply, and once you carry it out, keep it current by checking off steps as they are done.
+The user wants a plan before the work is done. Look into whatever you need first without changing anything, then write the plan to this file with \`${tool}\`: the goal, the approach and the decisions it rests on, concrete steps saying what each one changes, and how the result will be checked. Keep it short enough to skim, and put open questions in it rather than guessing at the answers. Then reply with a brief summary and stop — don't start the work until the user gives the go-ahead. Revise the plan with \`${tool}\` as they give feedback rather than restating it in your reply, and once you carry it out, keep it current by checking off steps as they are done.${
+			shell
+				? ""
+				: `\nRead and write the plan only with \`${tool}\`: no other tool can reach this file.`
+		}
 </plan>`,
 
 	/** Creates the chat's plan, empty, unless it is already there. */

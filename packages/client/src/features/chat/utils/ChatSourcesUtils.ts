@@ -39,6 +39,31 @@ export const ChatSourcesUtils = {
 		};
 	},
 
+	/**
+	 * Whether a file can be written back to where it was read from: anything on
+	 * the machine, given a shell to write with, and on the mount only what is
+	 * in the chat's own tree — uploads and skills are shared with other chats.
+	 */
+	editable: ({
+		file,
+		chatId,
+		hasShell,
+	}: {
+		file: { path: string; directory: boolean };
+		chatId: string | null | undefined;
+		hasShell: boolean;
+	}) => {
+		if (file.directory) return false;
+		if (!PathUtils.isMounted(file)) return hasShell;
+		const mount = PathUtils.fromMount({ path: file.path });
+		return (
+			!!chatId &&
+			mount?.mount === "chat" &&
+			mount.id === chatId &&
+			mount.rest.length > 0
+		);
+	},
+
 	/** Files on the machine that were attached to a message. */
 	attachments: (message: MessageLike): ChatFile[] =>
 		message.data

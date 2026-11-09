@@ -479,8 +479,8 @@ export default function ScrollView({
 			const node = viewportRef.current;
 			// A scrollbar is part of the view it is drawn in, and of any around it.
 			if (!node || MouseUtils.isCovered(node, event, rows, true)) return false;
-			if (!MouseUtils.contains(MouseUtils.bounds(node, rows), event))
-				return false;
+			const bounds = MouseUtils.visibleBounds(node, rows);
+			if (!bounds || !MouseUtils.contains(bounds, event)) return false;
 			for (const handler of nested) if (handler(event)) return true;
 
 			// Turns still waiting to be moved by count towards the edge, so a view

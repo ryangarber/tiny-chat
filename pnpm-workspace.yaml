@@ -53,7 +53,7 @@ catalogs:
     "@prisma/orm-postgres": 8.0.0-rc.23
     "@prisma/orm-extension-paradedb": 8.0.0-rc.23
     "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.23
-    "prisma-orm-extension-zod": 0.3.0
+    "prisma-orm-extension-zod": 0.3.1
     "better-auth-prisma-orm": 0.2.0
   ai:
     "ai": ^7.0.165
@@ -67,6 +67,6 @@ catalogs:
     "@anthropic-ai/sdk": ^1.6.0
     "openai": ^7.53.0
     "voyage-ai-provider": "^5.0.0"
-    "@ryangarber/ai-sdk-providers": ^0.1.3
+    "@ryangarber/ai-sdk-providers": ^0.1.4
     "@afmize/node": "^1.1.0"
     "@afmize/capacitor": "^1.1.0"

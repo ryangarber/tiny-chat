@@ -1,6 +1,8 @@
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { SettingsUtils } from "#core/core/utils/SettingsUtils.ts";
+import { AgentMessagesService } from "#core/features/agent/services/AgentMessagesService.ts";
 import { zConfig } from "#core/features/data/types/message.ts";
+import { createMemoriesCapability } from "#server/core/capabilities/createMemoriesCapability.ts";
 import { db } from "#server/db.ts";
 import { ChatService } from "#server/features/chat/services/ChatService.ts";
 import { MemoryRetrievalService } from "#server/features/chat/services/MemoryRetrievalService.ts";
@@ -121,6 +123,109 @@ describe("MemoryRetrievalService", () => {
 				})
 			).map((m) => m.id),
 		).toContain(later.id);
+	});
+
+	it("honors a project's zero budget on creation, continuation, edits, sources, and prompts", async () => {
+		await MemoryService.createMemory({ user, ...fact });
+		const project = await db.orm.public.Project.create({
+			id: CommonUtils.getRandomId(),
+			userId: user.id,
+			title: "No automatic memories",
+			settings: { memoryBudget: 0 },
+		});
+		expect(SettingsUtils.of(user, project).memoryBudget).toBe(0);
+		expect(SettingsUtils.of(user).memoryBudget).toBe(2500);
+		const first = await MessageService.createMessage({
+			user,
+			...content,
+			projectId: project.id,
+		});
+		const next = await MessageService.createMessage({
+			user,
+			...content,
+			chat: first.chatId,
+		});
+		const edited = await MessageService.editMessage({
+			user,
+			...content,
+			message: next,
+			truncate: true,
+		});
+		for (const message of [first, next, edited]) {
+			expect(
+				await db.orm.public.MessageContext.where({
+					messageId: message.id,
+				}).all(),
+			).toEqual([]);
+		}
+		expect(
+			await MemoryService.getChatMemoryIds({ user, chat: first.chatId }),
+		).toEqual([]);
+
+		// Old links can survive a budget change or the former creation bug.
+		const memory = await MemoryService.createMemory({ user, ...fact });
+		await db.orm.public.MessageContext.create({
+			messageId: first.id,
+			memoryId: memory.id,
+		});
+		expect(
+			await MemoryRetrievalService.retrieve({
+				user,
+				messages: [first, next],
+				tokens: 0,
+			}),
+		).toEqual([[], []]);
+		expect(
+			await MemoryRetrievalService.retrieve({
+				user,
+				messages: [{ text: "orchids" }],
+				tokens: 0,
+			}),
+		).toEqual([[]]);
+		expect(
+			await MemoryService.getChatMemoryIds({ user, chat: first.chatId }),
+		).toEqual([]);
+
+		const { messages } = await AgentMessagesService.buildMessages({
+			context: {
+				user,
+				chat: { id: first.chatId, project, incognito: false, temporary: false },
+				messages: [first, next],
+				timezone: "UTC",
+				interactive: true,
+			},
+			capabilities: {
+				memories: await createMemoriesCapability({ user }),
+			},
+		});
+		expect(JSON.stringify(messages)).not.toContain("<memory ");
+
+		// Learning a memory is distinct from injecting an automatic reminder.
+		const learned = await MemoryService.createMemory({
+			user,
+			message: first,
+			...fact,
+		});
+		expect(
+			await MemoryService.getChatMemoryIds({ user, chat: first.chatId }),
+		).toEqual([learned.id]);
+	});
+
+	it("uses an existing incognito chat's privacy flag when callers omit it", async () => {
+		await MemoryService.createMemory({ user, ...fact });
+		const first = await MessageService.createMessage({
+			user,
+			...content,
+			incognito: true,
+		});
+		const next = await MessageService.createMessage({
+			user,
+			...content,
+			chat: first.chatId,
+		});
+		expect(
+			await db.orm.public.MessageContext.where({ messageId: next.id }).all(),
+		).toEqual([]);
 	});
 
 	it("allows deleting a chat and its last message after memories were attached", async () => {

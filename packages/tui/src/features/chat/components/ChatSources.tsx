@@ -12,6 +12,7 @@ import { useChatActions } from "#client/features/chat/hooks/useChatActions.ts";
 import { useChatMemories } from "#client/features/chat/hooks/useChatMemories.ts";
 import { useChatSources } from "#client/features/chat/hooks/useChatSources.ts";
 import { useFileDiff } from "#client/features/chat/hooks/useFileDiff.ts";
+import { useFileEditor } from "#client/features/chat/hooks/useFileEditor.ts";
 import { useFileViewer } from "#client/features/chat/hooks/useFileViewer.ts";
 import { useOpenMessage } from "#client/features/chat/hooks/useOpenMessage.ts";
 import {
@@ -40,6 +41,7 @@ import Anchor from "#tui/core/components/Anchor.tsx";
 import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
 import Content, {
+	type ContentEdit,
 	type ContentFormatter,
 } from "#tui/core/components/Content.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
@@ -118,14 +120,23 @@ function Changes({ changes }: { changes: ChatFileChanges }) {
 function Block({
 	formatter,
 	findLabel,
+	edit,
+	contentId,
 	children,
 }: {
 	formatter: ContentFormatter;
 	findLabel: string;
+	edit?: ContentEdit;
+	contentId?: string;
 	children: ReactNode;
 }) {
 	return (
-		<Content formatter={formatter} findLabel={findLabel}>
+		<Content
+			formatter={formatter}
+			findLabel={findLabel}
+			edit={edit}
+			contentId={contentId}
+		>
 			<Box flexDirection="column" paddingX={2} paddingY={1}>
 				{children}
 			</Box>
@@ -136,7 +147,22 @@ function Block({
 function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	const content = useFileViewer({ file });
 	const diff = useFileDiff({ file, repos });
+	const { save } = useFileEditor({ file });
 	const language = FileTypeUtils.getExtension(file);
+
+	// What is on disk, as text: a document's extracted text is not the file.
+	const text = diff.data
+		? diff.data.after
+		: !content.data?.extracted && typeof content.data?.text === "string"
+			? content.data.text
+			: undefined;
+	const edit = useMemo<ContentEdit | undefined>(
+		() => (save && text !== undefined ? { value: text, save } : undefined),
+		[save, text],
+	);
+	// The same while open whichever way the file is drawn, so saving a file into
+	// a diff (or out of one) keeps it open.
+	const contentId = `file:${file.path}`;
 
 	if (diff.data) {
 		return (
@@ -144,6 +170,8 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 				before={diff.data.before}
 				after={diff.data.after}
 				language={language}
+				edit={edit}
+				contentId={contentId}
 			/>
 		);
 	}
@@ -182,11 +210,16 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 		typeof content.data.text === "string" &&
 		(content.data.extracted || FileTypeUtils.isMarkdown(file.path))
 	) {
-		const text = content.data.text;
+		const prose = content.data.text;
 		return (
-			<Block formatter={() => text} findLabel={PathUtils.name(file)}>
-				{text.trim() ? (
-					<Markdown source={text} />
+			<Block
+				formatter={() => prose}
+				findLabel={PathUtils.name(file)}
+				edit={edit}
+				contentId={contentId}
+			>
+				{prose.trim() ? (
+					<Markdown source={prose} />
 				) : (
 					<Text color="textSubtle">nothing written yet</Text>
 				)}
@@ -196,7 +229,15 @@ function FilePreview({ file, repos }: { file: ChatFile; repos: GitRepo[] }) {
 	if (!content.data.text) {
 		return <Text color="textSubtle">could not decode file</Text>;
 	}
-	return <Code code={content.data.text} language={language} lineNumbers />;
+	return (
+		<Code
+			code={content.data.text}
+			language={language}
+			lineNumbers
+			edit={edit}
+			contentId={contentId}
+		/>
+	);
 }
 
 function WebPreview({ source }: { source: zWebContext }) {

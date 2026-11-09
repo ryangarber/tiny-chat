@@ -1,6 +1,6 @@
 import { useContext, useMemo } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
-import Content from "#tui/core/components/Content.tsx";
+import Content, { type ContentEdit } from "#tui/core/components/Content.tsx";
 import Text, { InsideTextContext } from "#tui/core/components/Text.tsx";
 import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import CodeLines from "#tui/features/code/components/CodeLines.tsx";
@@ -14,8 +14,12 @@ export const Code = ({
 	lineNumbers = true,
 	maxHeight,
 	incomplete = false,
+	edit,
+	contentId,
 	...props
 }: Omit<Parameters<typeof Highlight>[0], "code"> & {
+	edit?: ContentEdit;
+	contentId?: string;
 	code: string;
 	filename?: string;
 	language?: string | null;
@@ -51,6 +55,8 @@ export const Code = ({
 			formatter={() => code}
 			streaming={incomplete}
 			findLabel={filename ?? (language ? `${language} code` : "code")}
+			edit={edit}
+			contentId={contentId}
 			backgroundColor={highlighted.bg}
 			maxHeight={maxHeight}
 		>

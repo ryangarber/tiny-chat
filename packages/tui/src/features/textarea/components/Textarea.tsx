@@ -104,6 +104,8 @@ export type TextareaProps = {
 	 * returning true.
 	 */
 	onClick?: (offset: number) => boolean | undefined;
+	/** Rows drawn before the rest scroll. @default half the terminal */
+	maxRows?: number;
 };
 
 /**
@@ -130,6 +132,7 @@ export default function Textarea({
 	onPaste,
 	onKey,
 	onClick,
+	maxRows,
 }: TextareaProps) {
 	const { colorScheme } = useContext(ThemeContext);
 	const { rows: terminalRows } = useWindowSize();
@@ -169,7 +172,7 @@ export default function Textarea({
 	// edit, a step of the cursor, a resize — the viewport moves only as far as it
 	// takes to bring the cursor back into view, and in between it is left
 	// wherever the wheel turned it.
-	const height = Math.max(1, Math.floor(terminalRows / 2));
+	const height = Math.max(1, maxRows ?? Math.floor(terminalRows / 2));
 	const maxTop = Math.max(0, rows.length - height);
 	const [view, setView] = useState({ top: 0, rows });
 

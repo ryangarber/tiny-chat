@@ -10,15 +10,24 @@ import {
 	Menu,
 	Modal,
 	Text,
+	Textarea,
+	Tooltip,
 } from "@mantine/core";
-import { type UseDisclosureReturnValue, useDisclosure } from "@mantine/hooks";
+import {
+	type UseDisclosureReturnValue,
+	useDisclosure,
+	useOs,
+} from "@mantine/hooks";
+import { modals } from "@mantine/modals";
 import {
 	CheckIcon,
 	CopyIcon,
 	DownloadIcon,
+	FloppyDiskIcon,
 	FrameCornersIcon,
 	MagnifyingGlassMinusIcon,
 	MagnifyingGlassPlusIcon,
+	PencilSimpleIcon,
 	XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -36,6 +45,7 @@ import {
 import { ClientContext } from "#client/client.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import type { PromiseOr } from "#core/core/types/common.ts";
+import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { useZoom, type ZoomControls } from "#gui/core/hooks/useZoom.ts";
@@ -62,6 +72,86 @@ type ContentFormatted = {
 	data: string | Blob;
 	html?: string;
 };
+
+/** The text a block shows, and where it is written back to once edited. */
+export interface ContentEdit {
+	value: string;
+	save: (value: string) => Promise<void>;
+}
+
+/**
+ * The block's text in a plain editor, in place of what the block draws. Tab
+ * indents rather than leaving it, as in any editor of code; Escape leaves.
+ */
+function ContentEditor({
+	value,
+	onChange,
+	onSave,
+	onCancel,
+	saving,
+	error,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+	onSave: () => void;
+	onCancel: () => void;
+	saving: boolean;
+	error: string | null;
+}) {
+	return (
+		<Textarea
+			value={value}
+			onChange={(event) => onChange(event.currentTarget.value)}
+			readOnly={saving}
+			error={error}
+			autoFocus
+			spellCheck={false}
+			aria-label="File contents"
+			flex={1}
+			miw={0}
+			p="md"
+			pt={64}
+			styles={{
+				root: { display: "flex", flexDirection: "column" },
+				wrapper: { flex: 1 },
+				input: {
+					height: "100%",
+					resize: "none",
+					fontFamily: "var(--mantine-font-family-monospace)",
+					fontSize: "var(--mantine-font-size-sm)",
+					tabSize: 4,
+				},
+			}}
+			onKeyDown={(event) => {
+				if (
+					(event.metaKey || event.ctrlKey) &&
+					event.key.toLowerCase() === "s"
+				) {
+					event.preventDefault();
+					onSave();
+				} else if (event.key === "Escape") {
+					event.preventDefault();
+					event.stopPropagation();
+					onCancel();
+				} else if (
+					event.key === "Tab" &&
+					!event.shiftKey &&
+					!event.metaKey &&
+					!event.ctrlKey &&
+					!event.altKey
+				) {
+					event.preventDefault();
+					const input = event.currentTarget;
+					const { selectionStart: start, selectionEnd: end } = input;
+					onChange(`${value.slice(0, start)}\t${value.slice(end)}`);
+					requestAnimationFrame(() =>
+						input.setSelectionRange(start + 1, start + 1),
+					);
+				}
+			}}
+		/>
+	);
+}
 
 function useCopy<T extends string>(
 	formatter?: ContentFormatter<T>,
@@ -150,6 +240,8 @@ function ContentActions<T extends string>({
 	open,
 	close,
 	zoom,
+	onEdit,
+	editor,
 	withinPortal,
 	subtleButtons = true,
 }: {
@@ -159,11 +251,15 @@ function ContentActions<T extends string>({
 	open?: () => void;
 	close?: () => void;
 	zoom?: ZoomControls;
+	onEdit?: () => void;
+	/** While the block is edited: its save and cancel, in place of the rest. */
+	editor?: { save: () => void; cancel: () => void; saving: boolean };
 	withinPortal?: boolean;
 	subtleButtons?: boolean;
 }) {
 	const { copy, isCopied } = useCopy<T>(formatter);
 	const { download, isDownloaded } = useDownload<T>(formatter);
+	const os = useOs();
 
 	const actionProps = useMemo<ActionIconProps>(() => {
 		return {
@@ -176,8 +272,48 @@ function ContentActions<T extends string>({
 		};
 	}, [subtleButtons]);
 
+	if (editor) {
+		return (
+			<ActionIcon.Group>
+				<Tooltip
+					label={`Save (${os === "macos" ? "⌘" : "Ctrl+"}S)`}
+					withinPortal={withinPortal}
+				>
+					<ActionIcon
+						aria-label="Save"
+						loading={editor.saving}
+						onClick={editor.save}
+						{...actionProps}
+					>
+						<FloppyDiskIcon size={20} />
+					</ActionIcon>
+				</Tooltip>
+				<Tooltip label="Cancel (Esc)" withinPortal={withinPortal}>
+					<ActionIcon
+						aria-label="Cancel editing"
+						disabled={editor.saving}
+						onClick={editor.cancel}
+						{...actionProps}
+					>
+						<XIcon size={20} />
+					</ActionIcon>
+				</Tooltip>
+			</ActionIcon.Group>
+		);
+	}
+
 	return (
 		<ActionIcon.Group>
+			{onEdit && (
+				<ActionIcon
+					aria-label="Edit"
+					disabled={streaming}
+					onClick={onEdit}
+					{...actionProps}
+				>
+					<PencilSimpleIcon size={20} />
+				</ActionIcon>
+			)}
 			{zoom && (
 				<>
 					<ActionIcon
@@ -283,6 +419,7 @@ export default function Content<T extends string>({
 	findLabel = "Block",
 	findText,
 	quote,
+	edit,
 	...props
 }: HTMLAttributes<HTMLDivElement> &
 	RefAttributes<HTMLDivElement> &
@@ -303,6 +440,8 @@ export default function Content<T extends string>({
 		 * on its own rather than in a message: a file's path, or `web:` and a URL.
 		 */
 		quote?: { source: string };
+		/** Lets the block be edited once opened over the whole screen. */
+		edit?: ContentEdit;
 	}) {
 	const client = useContext(ClientContext);
 	const scope = useId();
@@ -322,6 +461,50 @@ export default function Content<T extends string>({
 		contentStyle,
 		...zoom
 	} = useZoom();
+
+	// The text being edited, while the block is.
+	const [draft, setDraft] = useState<string | null>(null);
+	const [saving, setSaving] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
+	const editable = edit && !streaming ? edit : undefined;
+	const editing = !!editable && draft !== null;
+
+	const stopEditing = () => {
+		setDraft(null);
+		setSaveError(null);
+	};
+	const save = async () => {
+		if (!editable || draft === null || saving) return;
+		setSaving(true);
+		setSaveError(null);
+		try {
+			await editable.save(draft);
+			stopEditing();
+		} catch (error) {
+			setSaveError(CommonUtils.formatError({ error }));
+		} finally {
+			setSaving(false);
+		}
+	};
+	/** Leaves the editor, asking first when that would throw changes away. */
+	const leaveEditor = (then?: () => void) => {
+		if (saving) return;
+		const leave = () => {
+			stopEditing();
+			then?.();
+		};
+		if (!editable || draft === null || draft === editable.value) return leave();
+		modals.openConfirmModal({
+			title: "Discard changes?",
+			children: (
+				<Text size="sm">Your edits to this file have not been saved.</Text>
+			),
+			labels: { confirm: "Discard", cancel: "Keep editing" },
+			confirmProps: { color: "red" },
+			onConfirm: leave,
+		});
+	};
+	const closeModal = () => (editing ? leaveEditor(close) : close());
 
 	return (
 		<>
@@ -369,7 +552,8 @@ export default function Content<T extends string>({
 			</Suspense>
 			<Modal
 				opened={opened}
-				onClose={close}
+				onClose={closeModal}
+				closeOnEscape={!editing}
 				withCloseButton={false}
 				size="100%"
 				centered
@@ -393,12 +577,39 @@ export default function Content<T extends string>({
 						formats={formats}
 						formatter={formatter}
 						streaming={streaming}
-						close={close}
+						close={closeModal}
 						zoom={zoom}
+						onEdit={
+							editable
+								? () => {
+										setSaveError(null);
+										setDraft(editable.value);
+									}
+								: undefined
+						}
+						editor={
+							editing
+								? {
+										save: () => void save(),
+										cancel: () => leaveEditor(),
+										saving,
+									}
+								: undefined
+						}
 						subtleButtons={false}
 					/>
 				</Affix>
-				{opened && (
+				{opened && editing && draft !== null && (
+					<ContentEditor
+						value={draft}
+						onChange={setDraft}
+						onSave={() => void save()}
+						onCancel={() => leaveEditor()}
+						saving={saving}
+						error={saveError}
+					/>
+				)}
+				{opened && !editing && (
 					<FindScope
 						label={findLabel}
 						text={findText}

@@ -3,7 +3,7 @@ import type { zAgentContext } from "#core/features/agent/types/agent.ts";
 import type { zSettings } from "#core/features/data/types/user.ts";
 import { createShell } from "#core/features/file/services/FileSearchService.test.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
-import { createEditPlanTool } from "#core/features/tool/tools/plan/edit_plan.ts";
+import { createPlanTool } from "#core/features/tool/tools/plan/plan.ts";
 import { createEditFilesTool } from "#core/features/tool/tools/shell/edit_files.ts";
 import { createGlobFilesTool } from "#core/features/tool/tools/shell/glob_files.ts";
 import { createReadFilesTool } from "#core/features/tool/tools/shell/read_files.ts";
@@ -445,9 +445,9 @@ describe("shell", () => {
 		).resolves.toEqual({ approval: true });
 	});
 
-	it("writes and edits the chat's plan, wherever the steps say", async () => {
+	it("writes, edits and reads back the chat's plan", async () => {
 		const chatShell = createShell({ "/mnt/chat/c1/plan.md": "" });
-		const tool = await createEditPlanTool({ capabilities: { chatShell } });
+		const tool = await createPlanTool({ capabilities: { chatShell } });
 		const planContext = {
 			chat: { id: "c1" },
 		} satisfies DeepPartial<zAgentContext> as zAgentContext;
@@ -459,16 +459,31 @@ describe("shell", () => {
 					old_string: "- [ ] One",
 					new_string: "- [x] One",
 				},
+				{ action: "read" as const, offset: 3, line_numbers: true },
 			],
 		};
 
 		await expect(
 			tool.validate?.({ input, context: planContext }),
 		).resolves.toEqual({ approval: false });
-		await tool.execute({ input, feedback: undefined, context: planContext });
+		const output = await tool.execute({
+			input,
+			feedback: undefined,
+			context: planContext,
+		});
 
 		const plan = await chatShell.readFile({ path: "/mnt/chat/c1/plan.md" });
 		expect(FileUtils.getTextFromBytes(plan)).toBe("# Plan\n\n- [x] One\n");
+		expect(output[0]).toMatchObject({
+			type: "json",
+			value: {
+				steps: [
+					{ action: "write" },
+					{ action: "edit" },
+					{ action: "read", content: "3. - [x] One\n4. " },
+				],
+			},
+		});
 	});
 
 	it("skips approval for file writes inside the active folder when enabled", async () => {

@@ -1,5 +1,6 @@
 import type { Enum } from "#core/core/services/PostgresService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import { SettingsUtils } from "#core/core/utils/SettingsUtils.ts";
 import type { ChatLike } from "#core/features/data/types/chat.ts";
 import type { MessageLike } from "#core/features/data/types/message.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
@@ -26,6 +27,15 @@ export const MemoryService = {
 	getChatMemoryIds: async ({ user, chat }: { user: zUser; chat: ChatLike }) => {
 		if (typeof chat === "string") chat = { id: chat };
 
+		const existing = await globalThis.db.orm.public.Chat.where({
+			id: chat.id,
+			userId: user.id,
+		})
+			.select("incognito")
+			.include("project", (project) => project.select("settings"))
+			.first();
+		if (!existing) return [];
+
 		const messageIds = (
 			await globalThis.db.orm.public.Message.where({
 				chatId: chat.id,
@@ -40,16 +50,18 @@ export const MemoryService = {
 				.where((memory) => memory.messageId.in(messageIds))
 				.select("id")
 				.all(),
-			globalThis.db.orm.public.MessageContext.where((context) =>
-				context.messageId.in(messageIds),
-			)
-				.select("memoryId")
-				.all(),
+			existing.incognito
+				? []
+				: MemoryRetrievalService.retrieve({
+						user,
+						messages: messageIds.map((id) => ({ id })),
+						tokens: SettingsUtils.of(user, existing.project).memoryBudget,
+					}),
 		]);
 		return [
 			...new Set([
 				...learned.map((memory) => memory.id),
-				...retrieved.map((context) => context.memoryId),
+				...retrieved.flat().map((memory) => memory.id),
 			]),
 		];
 	},
