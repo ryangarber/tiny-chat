@@ -59,9 +59,12 @@ jobs:
         with:
           ref: ${{ inputs.ref || inputs.version || github.ref }}
 
-      # What Electrobun's Linux webview and tray need to run.
+      # What Electrobun's Linux webview and tray need to run. The build itself doesn't use them, so an Ubuntu archive
+      # outage shouldn't hold up the release.
       - name: Install packages
         if: runner.os == 'Linux'
+        continue-on-error: true
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2
