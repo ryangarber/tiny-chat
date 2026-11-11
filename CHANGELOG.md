@@ -1,3 +1,19 @@
+## 0.10.14 (2026-11-11)
+
+### Features
+
+- start macos app in home directory ([cc38d97](https://github.com/ryangarber/tiny-chat/commit/cc38d97f72a031252e441ae0a831e709edcc6a4f))
+
+### Bug Fixes
+
+- computer/browser error can stop attachment menu from loading ([cc38d97](https://github.com/ryangarber/tiny-chat/commit/cc38d97f72a031252e441ae0a831e709edcc6a4f))
+- bundle cua agent in desktop and cli ([cc38d97](https://github.com/ryangarber/tiny-chat/commit/cc38d97f72a031252e441ae0a831e709edcc6a4f))
+- search global node modules for playwright ([cc38d97](https://github.com/ryangarber/tiny-chat/commit/cc38d97f72a031252e441ae0a831e709edcc6a4f))
+
+### Other
+
+- avoid canonical outage for today [skip ci] ([491f1dd](https://github.com/ryangarber/tiny-chat/commit/491f1dd098d17c423c92671ec79eeecae5266150))
+
 ## 0.10.13 (2026-11-11)
 
 ### Features
