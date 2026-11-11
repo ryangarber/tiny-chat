@@ -128,6 +128,55 @@ export const CommandUtils = {
 	},
 
 	/**
+	 * Read the command being typed at the end of `line`, the text of one line
+	 * up to the cursor: its name while that is being written, or its argument
+	 * once the name is followed by a space and names a command that takes one.
+	 * Offsets are into `line`. Every editor reads its text through this, so
+	 * typing a command and a space opens its choices the same way in each.
+	 */
+	match: ({
+		line,
+		groups,
+	}: {
+		line: string;
+		groups: CommandGroup[];
+	}): CommandQuery | null => {
+		const match = QUERY_REGEX.exec(line);
+		if (!match) return null;
+
+		const [raw, name, argument] = match;
+		const from = match.index + raw.indexOf("/");
+		const to = line.length;
+
+		if (argument === undefined) {
+			return {
+				command: null,
+				text: name,
+				from,
+				textFrom: to - name.length,
+				to,
+			};
+		}
+
+		const command = CommandUtils.find({ groups, name });
+		if (!command || !CommandUtils.acceptsContent(command)) return null;
+
+		return {
+			command,
+			text: argument,
+			from,
+			textFrom: to - argument.length,
+			to,
+		};
+	},
+
+	/** What an empty list says: an argument without choices is typed out. */
+	empty: (query: Pick<CommandQuery, "command"> | null) =>
+		query?.command && !query.command.choices
+			? "type a value, then enter"
+			: "no matches",
+
+	/**
 	 * Locate the command being typed at `cursor` in a plain text buffer.
 	 */
 	query: ({
@@ -152,36 +201,22 @@ export const CommandUtils = {
 		const line = lines[row];
 		if (line === undefined) return null;
 
-		const match = QUERY_REGEX.exec(line.slice(0, column));
+		const match = CommandUtils.match({ line: line.slice(0, column), groups });
 		if (!match) return null;
 
-		const [raw, name, argument] = match;
 		const offset = lines
 			.slice(0, row)
 			.reduce((total, line) => total + line.length + 1, 0);
-		const from = offset + match.index + raw.indexOf("/");
-		const to = offset + column;
-
-		if (argument === undefined) {
-			return {
-				command: null,
-				text: content.slice(to - name.length, to),
-				from,
-				textFrom: to - name.length,
-				to,
-			};
-		}
-
-		const command = CommandUtils.find({ groups, name });
-		if (!command || !CommandUtils.acceptsContent(command)) return null;
+		const textFrom = offset + match.textFrom;
+		const to = offset + match.to;
 
 		return {
-			command,
+			command: match.command,
 			// Taken from the buffer rather than the mask, so an atom the argument
 			// reaches over is read as what it stands for.
-			text: content.slice(to - argument.length, to),
-			from,
-			textFrom: to - argument.length,
+			text: content.slice(textFrom, to),
+			from: offset + match.from,
+			textFrom,
 			to,
 		};
 	},

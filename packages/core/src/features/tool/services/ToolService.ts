@@ -15,6 +15,7 @@ import { search_files } from "#core/features/tool/tools/shell/search_files.ts";
 import { shell_exec } from "#core/features/tool/tools/shell/shell_exec.ts";
 import { createShellToolset } from "#core/features/tool/tools/shell.ts";
 import { createSubagentsToolset } from "#core/features/tool/tools/subagents.ts";
+import { createTerminalToolset } from "#core/features/tool/tools/terminal.ts";
 import { createWebToolset } from "#core/features/tool/tools/web.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 
@@ -110,6 +111,15 @@ export const ToolService = {
 					needs: ["computer"],
 					instructions:
 						"You can use the apps on the user's computer — to test and debug what they are building, or to do something in an app for them. It is their real machine and their open windows, so prefer the shell, browser and web tools whenever they can do the job, and stay in the apps the user asked about. Batch predictable steps into one call, read a window before acting in it, and take a screenshot when layout or visual state matters. Never type passwords or other secrets, and ask before anything that cannot be undone — sending, deleting, buying, or changing settings.",
+				}),
+			),
+
+			await createTerminalToolset(
+				forToolset({
+					capabilities,
+					needs: ["terminal"],
+					instructions:
+						"You can run and drive interactive terminal programs on the user's machine — TUIs, REPLs, prompts, anything you have to type into or watch — in tmux sessions. Use `terminal` for those rather than a plain shell command or tmux by hand, and keep commands that just print and exit to the shell. Wait for what you expect rather than sleeping. When you open a session the user may want to watch, tell them its attach command.",
 				}),
 			),
 

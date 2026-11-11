@@ -505,542 +505,599 @@ export const AgentService = {
 			);
 		};
 
-		// A background call the user approved settles with its placeholder before
-		// this generation resumes, and starts here.
-		for (const part of data.flat()) {
-			if (
-				part.type !== "toolResult" ||
-				!ToolCallUtils.isBackground(part.output) ||
-				data
+		try {
+			// A background call the user approved settles with its placeholder before
+			// this generation resumes, and starts here.
+			for (const part of data.flat()) {
+				if (
+					part.type !== "toolResult" ||
+					!ToolCallUtils.isBackground(part.output) ||
+					data
+						.flat()
+						.some((p) => p.type === "interjection" && p.task?.id === part.id)
+				)
+					continue;
+				const toolCall = data
 					.flat()
-					.some((p) => p.type === "interjection" && p.task?.id === part.id)
-			)
-				continue;
-			const toolCall = data
-				.flat()
-				.find(
-					(p): p is zToolCallPart => p.type === "toolCall" && p.id === part.id,
-				);
-			const { tool } = toolCall
-				? ToolUtils.find({ toolsets: lookupToolsets, part: toolCall })
-				: { tool: null };
-			if (toolCall && tool) runInBackground(toolCall, tool);
-		}
-
-		/**
-		 * Settles one step's calls, running them together except that a
-		 * sequential one runs alone. Results land as calls finish, then are put
-		 * back in the order of the calls.
-		 *
-		 * A call that waits on the user is answered here while there is anything
-		 * else to wait on — a call still running, or one in the background — so
-		 * the user is never kept from answering by work they are not waiting
-		 * for. Once there is nothing else, the generation ends and the call is
-		 * answered when it resumes. Returns whether it must stop: a call is
-		 * still waiting, or the user interrupted one.
-		 */
-		const settleCalls = async function* (
-			toolCalls: zToolCallPart[],
-		): AsyncGenerator<zAgentEvent, boolean> {
-			let interrupted = false;
-
-			/** Calls to run, in the order they were made or answered. */
-			const queue: {
-				toolCall: zToolCallPart;
-				tool: Tool<any, any>;
-				feedback?: unknown;
-			}[] = [];
-			/** Calls waiting on the user, by call id. */
-			const waiting = new Map<
-				string,
-				{ toolCall: zToolCallPart; tool: Tool<any, any> | null }
-			>();
-
-			for (const toolCall of toolCalls) {
-				// The provider's own: only its approval is Tiny Chat's to settle.
-				if (toolCall.providerExecuted) {
-					waiting.set(toolCall.id, { toolCall, tool: null });
-					continue;
-				}
-
-				const { tool } = ToolUtils.find({
-					toolsets: lookupToolsets,
-					part: toolCall,
-				});
-
-				if (!tool) {
-					yield push({
-						type: "toolResult",
-						id: toolCall.id,
-						name: toolCall.name,
-						error: true,
-						output: [
-							{
-								id: CommonUtils.getRandomId(),
-								type: "text",
-								value: `Tool "${toolCall.name}" not found`,
-							},
-						],
-					});
-					continue;
-				}
-
-				if (toolValidationErrors.has(toolCall.id)) {
-					yield push({
-						type: "toolResult",
-						id: toolCall.id,
-						name: toolCall.name,
-						error: true,
-						output: [
-							{
-								id: CommonUtils.getRandomId(),
-								type: "text",
-								value: CommonUtils.formatError({
-									error: toolValidationErrors.get(toolCall.id),
-									details: true,
-								}),
-							},
-						],
-					});
-					continue;
-				}
-
-				if (tool.feedback || toolCall.validation?.approval) {
-					waiting.set(toolCall.id, { toolCall, tool });
-					continue;
-				}
-
-				queue.push({ toolCall, tool });
-			}
-
-			type Settled =
-				| {
-						type: "result";
-						result: zToolResultPart;
-						interrupted: boolean;
-				  }
-				| { type: "answer"; id: string; answer?: ToolFeedback }
-				| { type: "background" };
-
-			const answering = new AbortController();
-			const answers = new Map<string, Promise<Settled>>();
-			if (toolFeedback) {
-				const signal = AbortSignal.any(
-					[answering.signal, options?.abortSignal].filter((s) => !!s),
-				);
-				for (const [id, { toolCall }] of waiting) {
-					answers.set(
-						id,
-						toolFeedback({ part: toolCall, signal }).then(
-							(answer): Settled => ({ type: "answer", id, answer }),
-							(): Settled => ({ type: "answer", id }),
-						),
+					.find(
+						(p): p is zToolCallPart =>
+							p.type === "toolCall" && p.id === part.id,
 					);
-				}
+				const { tool } = toolCall
+					? ToolUtils.find({ toolsets: lookupToolsets, part: toolCall })
+					: { tool: null };
+				if (toolCall && tool) runInBackground(toolCall, tool);
 			}
 
-			/** Rejects an answered call, or queues it to run. */
-			const accept = async function* (
-				settled: Settled,
-			): AsyncGenerator<zAgentEvent> {
-				if (settled.type !== "answer" || !settled.answer) return;
-				const call = waiting.get(settled.id);
-				if (!call) return;
-				waiting.delete(settled.id);
-				// The provider runs it, or not, once it reads the answer next step.
-				if (!call.tool) {
-					call.toolCall.validation = {
-						...call.toolCall.validation,
-						approved: !!settled.answer.approved,
-					};
-					yield { type: "data", value: call.toolCall };
-					return;
-				}
-				if (call.toolCall.validation?.approval && !settled.answer.approved) {
-					yield push({
-						type: "toolResult",
-						id: call.toolCall.id,
-						name: call.toolCall.name,
-						error: true,
-						output: ToolCallUtils.getRejection(),
-					});
-				} else {
-					queue.push({
-						toolCall: call.toolCall,
-						tool: call.tool,
-						feedback: settled.answer.feedback,
-					});
-				}
-			};
+			/**
+			 * Settles one step's calls, running them together except that a
+			 * sequential one runs alone. Results land as calls finish, then are put
+			 * back in the order of the calls.
+			 *
+			 * A call that waits on the user is answered here while there is anything
+			 * else to wait on — a call still running, or one in the background — so
+			 * the user is never kept from answering by work they are not waiting
+			 * for. Once there is nothing else, the generation ends and the call is
+			 * answered when it resumes. Returns whether it must stop: a call is
+			 * still waiting, or the user interrupted one.
+			 */
+			const settleCalls = async function* (
+				toolCalls: zToolCallPart[],
+			): AsyncGenerator<zAgentEvent, boolean> {
+				let interrupted = false;
 
-			const running = new Map<
-				string,
-				{
-					sequential: boolean;
-					done: Promise<{ result: zToolResultPart; interrupted: boolean }>;
-				}
-			>();
+				/** Calls to run, in the order they were made or answered. */
+				const queue: {
+					toolCall: zToolCallPart;
+					tool: Tool<any, any>;
+					feedback?: unknown;
+				}[] = [];
+				/** Calls waiting on the user, by call id. */
+				const waiting = new Map<
+					string,
+					{ toolCall: zToolCallPart; tool: Tool<any, any> | null }
+				>();
 
-			try {
-				while (true) {
-					while (queue.length && !interrupted) {
-						const [{ toolCall, tool, feedback }] = queue;
-						const sequential = !!tool.sequential;
-						const blocked = [...running.values()].some(
-							(call) => call.sequential || sequential,
-						);
-						if (blocked) break;
-						queue.shift();
-
-						if (ToolCallUtils.isBackgrounded({ tool, part: toolCall })) {
-							runInBackground(toolCall, tool, feedback);
-							yield push({
-								type: "toolResult",
-								id: toolCall.id,
-								name: toolCall.name,
-								output: ToolCallUtils.getBackground({ id: toolCall.id }),
-							});
-							continue;
-						}
-
-						running.set(toolCall.id, {
-							sequential,
-							done: run({ toolCall, tool, feedback }),
-						});
-					}
-
-					// Calls not yet started are not run: the user stepped in.
-					if (interrupted) {
-						for (const { toolCall } of queue.splice(0)) {
-							yield push({
-								type: "toolResult",
-								id: toolCall.id,
-								name: toolCall.name,
-								error: true,
-								output: ToolCallUtils.getInterruption(),
-							});
-						}
-					}
-
-					// Nothing else to wait on: what is still unanswered is answered
-					// once the generation resumes.
-					if (
-						answers.size &&
-						(interrupted ||
-							options?.abortSignal?.aborted ||
-							(!running.size && !queue.length && !background.size))
-					) {
-						answering.abort();
-						// Every wait settles on the abort; an answer given just before
-						// it still counts.
-						const late = await Promise.all(answers.values());
-						answers.clear();
-						for (const settled of late) yield* accept(settled);
+				for (const toolCall of toolCalls) {
+					// The provider's own: only its approval is Tiny Chat's to settle.
+					if (toolCall.providerExecuted) {
+						waiting.set(toolCall.id, { toolCall, tool: null });
 						continue;
 					}
 
-					if (!running.size && !answers.size) break;
+					const { tool } = ToolUtils.find({
+						toolsets: lookupToolsets,
+						part: toolCall,
+					});
 
-					const settled = await Promise.race<Settled>([
-						...[...running.values()].map(({ done }) =>
-							done.then((done): Settled => ({ type: "result", ...done })),
-						),
-						...answers.values(),
-						// A background call finishing may leave nothing else to wait on.
-						...(answers.size
-							? [...background.values()].map(
-									(done): Promise<Settled> =>
-										done.then(() => ({ type: "background" })),
-								)
-							: []),
-					]);
+					if (!tool) {
+						yield push({
+							type: "toolResult",
+							id: toolCall.id,
+							name: toolCall.name,
+							error: true,
+							output: [
+								{
+									id: CommonUtils.getRandomId(),
+									type: "text",
+									value: `Tool "${toolCall.name}" not found`,
+								},
+							],
+						});
+						continue;
+					}
 
-					if (settled.type === "result") {
-						running.delete(settled.result.id);
-						if (settled.interrupted) interrupted = true;
-						yield push(settled.result);
-					} else if (settled.type === "answer") {
-						answers.delete(settled.id);
-						yield* accept(settled);
+					if (toolValidationErrors.has(toolCall.id)) {
+						yield push({
+							type: "toolResult",
+							id: toolCall.id,
+							name: toolCall.name,
+							error: true,
+							output: [
+								{
+									id: CommonUtils.getRandomId(),
+									type: "text",
+									value: CommonUtils.formatError({
+										error: toolValidationErrors.get(toolCall.id),
+										details: true,
+									}),
+								},
+							],
+						});
+						continue;
+					}
+
+					if (tool.feedback || toolCall.validation?.approval) {
+						waiting.set(toolCall.id, { toolCall, tool });
+						continue;
+					}
+
+					queue.push({ toolCall, tool });
+				}
+
+				type Settled =
+					| {
+							type: "result";
+							result: zToolResultPart;
+							interrupted: boolean;
+					  }
+					| { type: "answer"; id: string; answer?: ToolFeedback }
+					| { type: "background" };
+
+				const answering = new AbortController();
+				const answers = new Map<string, Promise<Settled>>();
+				if (toolFeedback) {
+					const signal = AbortSignal.any(
+						[answering.signal, options?.abortSignal].filter((s) => !!s),
+					);
+					for (const [id, { toolCall }] of waiting) {
+						answers.set(
+							id,
+							toolFeedback({ part: toolCall, signal }).then(
+								(answer): Settled => ({ type: "answer", id, answer }),
+								(): Settled => ({ type: "answer", id }),
+							),
+						);
 					}
 				}
-			} finally {
-				answering.abort();
-			}
 
-			parts.splice(
-				0,
-				parts.length,
-				...AgentUtils.getToolResultsSorted({ data: parts }),
-			);
+				/** Rejects an answered call, or queues it to run. */
+				const accept = async function* (
+					settled: Settled,
+				): AsyncGenerator<zAgentEvent> {
+					if (settled.type !== "answer" || !settled.answer) return;
+					const call = waiting.get(settled.id);
+					if (!call) return;
+					waiting.delete(settled.id);
+					// The provider runs it, or not, once it reads the answer next step.
+					if (!call.tool) {
+						call.toolCall.validation = {
+							...call.toolCall.validation,
+							approved: !!settled.answer.approved,
+						};
+						yield { type: "data", value: call.toolCall };
+						return;
+					}
+					if (call.toolCall.validation?.approval && !settled.answer.approved) {
+						yield push({
+							type: "toolResult",
+							id: call.toolCall.id,
+							name: call.toolCall.name,
+							error: true,
+							output: ToolCallUtils.getRejection(),
+						});
+					} else {
+						queue.push({
+							toolCall: call.toolCall,
+							tool: call.tool,
+							feedback: settled.answer.feedback,
+						});
+					}
+				};
 
-			return interrupted || waiting.size > 0;
-		};
+				const running = new Map<
+					string,
+					{
+						sequential: boolean;
+						done: Promise<{ result: zToolResultPart; interrupted: boolean }>;
+					}
+				>();
 
-		// A generation resumed with calls still to settle settles them before the
-		// model goes on: the user has answered at least one of them.
-		const unsettled =
-			parts?.filter(
-				(part): part is zToolCallPart =>
-					part.type === "toolCall" &&
-					!part.partial &&
-					!parts.some((p) => p.type === "toolResult" && p.id === part.id) &&
-					// The provider's own wait only on an approval not yet given.
-					(!part.providerExecuted || AgentService.isApproving(part)),
-			) ?? [];
-		const resumed = unsettled.length ? !(yield* settleCalls(unsettled)) : true;
+				try {
+					while (true) {
+						while (queue.length && !interrupted) {
+							const [{ toolCall, tool, feedback }] = queue;
+							const sequential = !!tool.sequential;
+							const blocked = [...running.values()].some(
+								(call) => call.sequential || sequential,
+							);
+							if (blocked) break;
+							queue.shift();
 
-		/** The provider's calls that can be stopped on their own. */
-		const stoppable = new Set<string>();
+							if (ToolCallUtils.isBackgrounded({ tool, part: toolCall })) {
+								runInBackground(toolCall, tool, feedback);
+								yield push({
+									type: "toolResult",
+									id: toolCall.id,
+									name: toolCall.name,
+									output: ToolCallUtils.getBackground({ id: toolCall.id }),
+								});
+								continue;
+							}
 
-		// Agentic loop: keep generating until the model stops calling tools
-		while (resumed) {
-			/** Why the step ended, and whether the provider asks to go on. */
-			let finishReason: string | undefined;
-			let goOn = false;
-			messages[messages.length - 1].data = data;
+							running.set(toolCall.id, {
+								sequential,
+								done: run({ toolCall, tool, feedback }),
+							});
+						}
 
-			parts = data[data.length - 1];
+						// Calls not yet started are not run: the user stepped in.
+						if (interrupted) {
+							for (const { toolCall } of queue.splice(0)) {
+								yield push({
+									type: "toolResult",
+									id: toolCall.id,
+									name: toolCall.name,
+									error: true,
+									output: ToolCallUtils.getInterruption(),
+								});
+							}
+						}
 
-			/**
-			 * Drop calls the model never finished writing. They carry no usable
-			 * input and must not be persisted or sent back to the model.
-			 */
-			const settle = () => {
-				toolInputs.clear();
-				for (let i = (parts?.length ?? 0) - 1; i >= 0; i--) {
-					const part = parts[i];
-					if (part.type === "toolCall" && part.partial) parts.splice(i, 1);
+						// Nothing else to wait on: what is still unanswered is answered
+						// once the generation resumes.
+						if (
+							answers.size &&
+							(interrupted ||
+								options?.abortSignal?.aborted ||
+								(!running.size && !queue.length && !background.size))
+						) {
+							answering.abort();
+							// Every wait settles on the abort; an answer given just before
+							// it still counts.
+							const late = await Promise.all(answers.values());
+							answers.clear();
+							for (const settled of late) yield* accept(settled);
+							continue;
+						}
+
+						if (!running.size && !answers.size) break;
+
+						const settled = await Promise.race<Settled>([
+							...[...running.values()].map(({ done }) =>
+								done.then((done): Settled => ({ type: "result", ...done })),
+							),
+							...answers.values(),
+							// A background call finishing may leave nothing else to wait on.
+							...(answers.size
+								? [...background.values()].map(
+										(done): Promise<Settled> =>
+											done.then(() => ({ type: "background" })),
+									)
+								: []),
+						]);
+
+						if (settled.type === "result") {
+							running.delete(settled.result.id);
+							if (settled.interrupted) interrupted = true;
+							yield push(settled.result);
+						} else if (settled.type === "answer") {
+							answers.delete(settled.id);
+							yield* accept(settled);
+						}
+					}
+				} finally {
+					answering.abort();
 				}
+
+				parts.splice(
+					0,
+					parts.length,
+					...AgentUtils.getToolResultsSorted({ data: parts }),
+				);
+
+				return interrupted || waiting.size > 0;
 			};
 
-			/** Whether this step holds a window open for the provider's calls. */
-			let stepWindow = false;
+			// A generation resumed with calls still to settle settles them before the
+			// model goes on: the user has answered at least one of them.
+			const unsettled =
+				parts?.filter(
+					(part): part is zToolCallPart =>
+						part.type === "toolCall" &&
+						!part.partial &&
+						!parts.some((p) => p.type === "toolResult" && p.id === part.id) &&
+						// The provider's own wait only on an approval not yet given.
+						(!part.providerExecuted || AgentService.isApproving(part)),
+				) ?? [];
+			const resumed = unsettled.length
+				? !(yield* settleCalls(unsettled))
+				: true;
 
-			try {
-				if (options?.abortSignal?.aborted) break;
-				for (const part of [
-					...finished.splice(0),
-					...((await interjections?.()) ?? []),
-				])
-					yield push(part);
-				if (runsTools && changes) {
-					stepWindow = true;
-					await changes.begin();
-					// What the user approved, the provider runs in this step.
-					for (const part of data.flat())
-						if (
-							part.type === "toolCall" &&
-							part.providerExecuted &&
-							part.validation?.approved &&
-							!AgentService.hasResult(data, part.id)
-						)
-							await watch(part);
-				}
-				// A provider that keeps its own context is sent the chat whole.
-				const sent = provider.keepsContext
-					? messages
-					: (
-							await AgentTokensService.compactMessages({
-								instructions,
-								messages,
-								config,
-								tools: supportsTools ? enabledTools : [],
-							})
-						).messages;
-				const stream = ModelProviderService.runLanguageModel({
-					user: context.user,
-					provider,
-					messages: sent,
-					config,
-					tools: enabledTools,
-					env,
-					context,
-					folders: await AgentService.getLocalFolders(capabilities),
-					options: {
-						system: instructions,
-						...options,
-					},
-				});
+			/** The provider's calls that can be stopped on their own. */
+			const stoppable = new Set<string>();
 
-				for await (const event of stream) {
-					if (event.type === "start") {
-						console.log("[AgentService] starting step", {
-							warnings: event.warnings,
-						});
-						data.push([]);
-						parts = data[data.length - 1];
+			// Agentic loop: keep generating until the model stops calling tools
+			while (resumed) {
+				/** Why the step ended, and whether the provider asks to go on. */
+				let finishReason: string | undefined;
+				let goOn = false;
+				messages[messages.length - 1].data = data;
+
+				parts = data[data.length - 1];
+
+				/**
+				 * Drop calls the model never finished writing. They carry no usable
+				 * input and must not be persisted or sent back to the model.
+				 */
+				const settle = () => {
+					toolInputs.clear();
+					for (let i = (parts?.length ?? 0) - 1; i >= 0; i--) {
+						const part = parts[i];
+						if (part.type === "toolCall" && part.partial) parts.splice(i, 1);
 					}
+				};
 
-					if (event.type === "toolInput") {
-						if (event.name !== undefined) {
-							toolInputs.set(event.id, { text: "", parsedAt: 0 });
-							parts.push({
-								type: "toolCall",
-								id: event.id,
-								name: event.name,
-								input: {},
-								partial: true,
+				/** Whether this step holds a window open for the provider's calls. */
+				let stepWindow = false;
+
+				try {
+					if (options?.abortSignal?.aborted) break;
+					for (const part of [
+						...finished.splice(0),
+						...((await interjections?.()) ?? []),
+					])
+						yield push(part);
+					if (runsTools && changes) {
+						stepWindow = true;
+						await changes.begin();
+						// What the user approved, the provider runs in this step.
+						for (const part of data.flat())
+							if (
+								part.type === "toolCall" &&
+								part.providerExecuted &&
+								part.validation?.approved &&
+								!AgentService.hasResult(data, part.id)
+							)
+								await watch(part);
+					}
+					// A provider that keeps its own context is sent the chat whole.
+					const sent = provider.keepsContext
+						? messages
+						: (
+								await AgentTokensService.compactMessages({
+									instructions,
+									messages,
+									config,
+									tools: supportsTools ? enabledTools : [],
+								})
+							).messages;
+					const stream = ModelProviderService.runLanguageModel({
+						user: context.user,
+						provider,
+						messages: sent,
+						config,
+						tools: enabledTools,
+						env,
+						context,
+						folders: await AgentService.getLocalFolders(capabilities),
+						options: {
+							system: instructions,
+							...options,
+						},
+					});
+
+					for await (const event of stream) {
+						if (event.type === "start") {
+							console.log("[AgentService] starting step", {
+								warnings: event.warnings,
 							});
-						} else if (event.delta) {
-							const raw = toolInputs.get(event.id);
-							const part = parts.find(
-								(p): p is zToolCallPart =>
-									p.type === "toolCall" && p.id === event.id && !!p.partial,
-							);
-							if (raw && part) {
-								raw.text += event.delta;
-								// Re-parsing the whole input on every token is quadratic in
-								// its length, which a long file write makes noticeable.
-								if (Date.now() - raw.parsedAt >= PARTIAL_INPUT_MS) {
-									raw.parsedAt = Date.now();
-									const { value } = await parsePartialJson(raw.text);
-									// Replaced whole, so anything keyed on it sees the change.
-									if (value && typeof value === "object") part.input = value;
+							data.push([]);
+							parts = data[data.length - 1];
+						}
+
+						if (event.type === "toolInput") {
+							if (event.name !== undefined) {
+								toolInputs.set(event.id, { text: "", parsedAt: 0 });
+								parts.push({
+									type: "toolCall",
+									id: event.id,
+									name: event.name,
+									input: {},
+									partial: true,
+								});
+							} else if (event.delta) {
+								const raw = toolInputs.get(event.id);
+								const part = parts.find(
+									(p): p is zToolCallPart =>
+										p.type === "toolCall" && p.id === event.id && !!p.partial,
+								);
+								if (raw && part) {
+									raw.text += event.delta;
+									// Re-parsing the whole input on every token is quadratic in
+									// its length, which a long file write makes noticeable.
+									if (Date.now() - raw.parsedAt >= PARTIAL_INPUT_MS) {
+										raw.parsedAt = Date.now();
+										const { value } = await parsePartialJson(raw.text);
+										// Replaced whole, so anything keyed on it sees the change.
+										if (value && typeof value === "object") part.input = value;
+									}
 								}
 							}
 						}
-					}
 
-					if (event.type === "approval") {
-						const call = AgentService.findCall(data, event.id);
-						if (call) call.validation = { ...call.validation, approval: true };
-						// It runs once approved, in a step of its own.
-						unwatch(event.id);
-					}
-
-					if (event.type === "toolStream") {
-						const call = AgentService.findCall(data, event.id);
-						if (call && toolStream) {
-							// Stoppable once it shows it runs, as a subagent does.
-							if (
-								provider.stopToolCall &&
-								toolSignal &&
-								!stoppable.has(call.id)
-							) {
-								stoppable.add(call.id);
-								toolSignal({ part: call })?.addEventListener(
-									"abort",
-									() => void provider.stopToolCall?.({ part: call }),
-									{ once: true },
-								);
-							}
-							toolStream({
-								part: call,
-								mutation: { mode: "replace", data: event.data },
-							});
+						if (event.type === "approval") {
+							const call = AgentService.findCall(data, event.id);
+							if (call)
+								call.validation = { ...call.validation, approval: true };
+							// It runs once approved, in a step of its own.
+							unwatch(event.id);
 						}
-					}
 
-					if (event.type === "end") {
-						const finish = (event.metadata as { type?: string }[]).findLast(
-							(part) => part.type === "finish",
-						) as { finishReason?: string } | undefined;
-						finishReason = finish?.finishReason;
-						goOn = !!provider.shouldContinue?.({ events: event.metadata });
-					}
+						if (event.type === "toolStream") {
+							const call = AgentService.findCall(data, event.id);
+							if (call && toolStream) {
+								// Stoppable once it shows it runs, as a subagent does.
+								if (
+									provider.stopToolCall &&
+									toolSignal &&
+									!stoppable.has(call.id)
+								) {
+									stoppable.add(call.id);
+									toolSignal({ part: call })?.addEventListener(
+										"abort",
+										() => void provider.stopToolCall?.({ part: call }),
+										{ once: true },
+									);
+								}
+								toolStream({
+									part: call,
+									mutation: { mode: "replace", data: event.data },
+								});
+							}
+						}
 
-					if (event.type === "data") {
-						if (event.value.type === "text") {
-							type Text = typeof event.value;
-							const existing = parts.find(
-								(p): p is Text =>
-									p.type === "text" && p.id === (event.value as Text).id,
-							);
-							if (existing) {
-								existing.value += event.value.value;
-								if (event.value?.signature)
-									existing.signature = event.value.signature;
-							} else {
-								parts.push(event.value);
-							}
-						} else if (event.value.type === "thought") {
-							type Thought = typeof event.value;
-							const existing = parts.find(
-								(p): p is Thought =>
-									p.type === "thought" && p.id === (event.value as Thought).id,
-							);
-							if (existing) {
-								existing.value += event.value.value;
-								if (event.value?.signature)
-									existing.signature = event.value.signature;
-							} else {
-								parts.push(event.value);
-							}
-						} else if (
-							event.value.type === "toolCall" &&
-							event.value.providerExecuted
-						) {
-							// Streamed again with an approval asked for later: it moves
-							// to the step that asks.
-							for (const slot of data) {
-								const index = slot.findIndex(
+						if (event.type === "end") {
+							const finish = (event.metadata as { type?: string }[]).findLast(
+								(part) => part.type === "finish",
+							) as { finishReason?: string } | undefined;
+							finishReason = finish?.finishReason;
+							goOn = !!provider.shouldContinue?.({ events: event.metadata });
+						}
+
+						if (event.type === "data") {
+							if (event.value.type === "text") {
+								type Text = typeof event.value;
+								const existing = parts.find(
+									(p): p is Text =>
+										p.type === "text" && p.id === (event.value as Text).id,
+								);
+								if (existing) {
+									existing.value += event.value.value;
+									if (event.value?.signature)
+										existing.signature = event.value.signature;
+								} else {
+									parts.push(event.value);
+								}
+							} else if (event.value.type === "thought") {
+								type Thought = typeof event.value;
+								const existing = parts.find(
+									(p): p is Thought =>
+										p.type === "thought" &&
+										p.id === (event.value as Thought).id,
+								);
+								if (existing) {
+									existing.value += event.value.value;
+									if (event.value?.signature)
+										existing.signature = event.value.signature;
+								} else {
+									parts.push(event.value);
+								}
+							} else if (
+								event.value.type === "toolCall" &&
+								event.value.providerExecuted
+							) {
+								// Streamed again with an approval asked for later: it moves
+								// to the step that asks.
+								for (const slot of data) {
+									const index = slot.findIndex(
+										(p) => p.type === "toolCall" && p.id === event.value.id,
+									);
+									if (index !== -1 && slot !== parts) slot.splice(index, 1);
+								}
+								toolInputs.delete(event.value.id);
+								const existing = parts.findIndex(
 									(p) => p.type === "toolCall" && p.id === event.value.id,
 								);
-								if (index !== -1 && slot !== parts) slot.splice(index, 1);
-							}
-							toolInputs.delete(event.value.id);
-							const existing = parts.findIndex(
-								(p) => p.type === "toolCall" && p.id === event.value.id,
-							);
-							if (existing === -1) parts.push(event.value);
-							else parts[existing] = event.value;
-							if (!AgentService.isApproving(event.value))
-								await watch(event.value);
-						} else if (event.value.type === "toolCall") {
-							const { tool } = ToolUtils.find({
-								toolsets: lookupToolsets,
-								part: event.value,
-							});
-							if (tool?.validate) {
-								try {
-									event.value.validation = await tool.validate({
-										input: event.value.input,
-										context,
-									});
-								} catch (error) {
-									console.warn(
-										`[AgentService] tool ${event.value.name} failed validation:`,
-										error,
-									);
-									toolValidationErrors.set(event.value.id, error);
+								if (existing === -1) parts.push(event.value);
+								else parts[existing] = event.value;
+								if (!AgentService.isApproving(event.value))
+									await watch(event.value);
+							} else if (event.value.type === "toolCall") {
+								const { tool } = ToolUtils.find({
+									toolsets: lookupToolsets,
+									part: event.value,
+								});
+								if (tool?.validate) {
+									try {
+										event.value.validation = await tool.validate({
+											input: event.value.input,
+											context,
+										});
+									} catch (error) {
+										console.warn(
+											`[AgentService] tool ${event.value.name} failed validation:`,
+											error,
+										);
+										toolValidationErrors.set(event.value.id, error);
+									}
 								}
-							}
-							if (event.value.validation?.approval && !context.interactive) {
-								toolValidationErrors.set(
-									event.value.id,
-									new Error(
-										"This tool call cannot be completed as the user is not available to approve it.",
-									),
+								if (event.value.validation?.approval && !context.interactive) {
+									toolValidationErrors.set(
+										event.value.id,
+										new Error(
+											"This tool call cannot be completed as the user is not available to approve it.",
+										),
+									);
+								}
+								toolInputs.delete(event.value.id);
+								const partial = parts.findIndex(
+									(p) => p.type === "toolCall" && p.id === event.value.id,
 								);
+								if (partial === -1) parts.push(event.value);
+								else parts[partial] = event.value;
+							} else if (event.value.type === "toolResult") {
+								await watched(event.value);
+								// A provider may report a call's result again.
+								const existing = parts.findIndex(
+									(p) => p.type === "toolResult" && p.id === event.value.id,
+								);
+								if (existing === -1) parts.push(event.value);
+								else parts[existing] = event.value;
+							} else {
+								parts.push(event.value);
 							}
-							toolInputs.delete(event.value.id);
-							const partial = parts.findIndex(
-								(p) => p.type === "toolCall" && p.id === event.value.id,
-							);
-							if (partial === -1) parts.push(event.value);
-							else parts[partial] = event.value;
-						} else if (event.value.type === "toolResult") {
-							await watched(event.value);
-							// A provider may report a call's result again.
-							const existing = parts.findIndex(
-								(p) => p.type === "toolResult" && p.id === event.value.id,
-							);
-							if (existing === -1) parts.push(event.value);
-							else parts[existing] = event.value;
-						} else {
-							parts.push(event.value);
 						}
+
+						if (event.type === "end") {
+							metadata.push(event.metadata);
+						}
+
+						yield event;
 					}
 
-					if (event.type === "end") {
-						metadata.push(event.metadata);
-					}
+					settle();
 
-					yield event;
+					if (options?.abortSignal?.aborted) {
+						yield push({
+							id: CommonUtils.getRandomId(),
+							type: "abort",
+							reason: "user",
+							message: "Aborted",
+							details: "",
+						});
+						break;
+					}
+				} catch (e: any) {
+					console.error("[AgentService] error during stream:", e);
+					settle();
+					backgroundAbort.abort();
+					yield push({
+						id: CommonUtils.getRandomId(),
+						type: "abort",
+						reason: e.name === "AbortError" ? "user" : "error",
+						message: e.message,
+						details: JSON.stringify(e),
+					});
+					break;
+				} finally {
+					if (stepWindow) changes?.cancel();
 				}
 
-				settle();
+				// Tiny Chat's calls, and approvals of the provider's own it asked for.
+				const toolCalls = [
+					...parts.filter(
+						(p): p is zToolCallPart =>
+							p.type === "toolCall" && !p.providerExecuted,
+					),
+					...data
+						.flat()
+						.filter(
+							(p): p is zToolCallPart =>
+								p.type === "toolCall" &&
+								AgentService.isApproving(p) &&
+								!data
+									.flat()
+									.some((r) => r.type === "toolResult" && r.id === p.id),
+						),
+				];
+				if (VERBOSE)
+					console.log(
+						`[AgentService] ${toolCalls.length} tools called:`,
+						toolCalls,
+					);
+
+				const stop = yield* settleCalls(toolCalls);
 
 				if (options?.abortSignal?.aborted) {
 					yield push({
@@ -1048,78 +1105,43 @@ export const AgentService = {
 						type: "abort",
 						reason: "user",
 						message: "Aborted",
-						details: "",
 					});
 					break;
 				}
-			} catch (e: any) {
-				console.error("[AgentService] error during stream:", e);
-				settle();
-				backgroundAbort.abort();
-				yield push({
-					id: CommonUtils.getRandomId(),
-					type: "abort",
-					reason: e.name === "AbortError" ? "user" : "error",
-					message: e.message,
-					details: JSON.stringify(e),
-				});
-				break;
-			} finally {
-				if (stepWindow) changes?.cancel();
-			}
-
-			// Tiny Chat's calls, and approvals of the provider's own it asked for.
-			const toolCalls = [
-				...parts.filter(
-					(p): p is zToolCallPart =>
-						p.type === "toolCall" && !p.providerExecuted,
-				),
-				...data
-					.flat()
-					.filter(
-						(p): p is zToolCallPart =>
-							p.type === "toolCall" &&
-							AgentService.isApproving(p) &&
-							!data
-								.flat()
-								.some((r) => r.type === "toolResult" && r.id === p.id),
-					),
-			];
-			if (VERBOSE)
-				console.log(
-					`[AgentService] ${toolCalls.length} tools called:`,
-					toolCalls,
-				);
-
-			const stop = yield* settleCalls(toolCalls);
-
-			if (options?.abortSignal?.aborted) {
-				yield push({
-					id: CommonUtils.getRandomId(),
-					type: "abort",
-					reason: "user",
-					message: "Aborted",
-				});
-				break;
-			}
-			if (stop) break;
-			// A provider running its own calls goes on with the next step.
-			if (!toolCalls.length && finishReason !== "tool-calls" && !goOn) {
-				if (!background.size) {
-					console.log("[AgentService] loop complete");
-					break;
+				if (stop) break;
+				// A provider running its own calls goes on with the next step.
+				if (!toolCalls.length && finishReason !== "tool-calls" && !goOn) {
+					if (!background.size) {
+						console.log("[AgentService] loop complete");
+						break;
+					}
+					// The model is done for now, but a background call is not: wait for
+					// one to report in, and let the model pick up from there.
+					await Promise.race(background.values());
 				}
-				// The model is done for now, but a background call is not: wait for
-				// one to report in, and let the model pick up from there.
-				await Promise.race(background.values());
 			}
+
+			// What never reported back is not waited for.
+			for (const id of [...watching]) unwatch(id);
+
+			// The generation does not end with calls still running in the background.
+			await Promise.all(background.values());
+			for (const part of finished.splice(0)) yield push(part);
+		} finally {
+			await Promise.all(
+				lookupToolsets
+					.flatMap((toolset) => toolset.tools)
+					.map((tool) =>
+						tool
+							.finish?.()
+							.catch((error) =>
+								console.warn(
+									`[AgentService] error finishing tool ${tool.name}:`,
+									error,
+								),
+							),
+					),
+			);
 		}
-
-		// What never reported back is not waited for.
-		for (const id of [...watching]) unwatch(id);
-
-		// The generation does not end with calls still running in the background.
-		await Promise.all(background.values());
-		for (const part of finished.splice(0)) yield push(part);
 	},
 } as const;

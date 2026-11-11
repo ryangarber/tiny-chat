@@ -1,6 +1,5 @@
 import {
 	ActionIcon,
-	Badge,
 	Box,
 	Button,
 	Card,
@@ -37,13 +36,13 @@ import { hashKey, useIsFetching } from "@tanstack/react-query";
 import { type ReactNode, useContext, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useBrowser } from "#client/features/agent/hooks/useBrowser.ts";
-import { useComputer } from "#client/features/agent/hooks/useComputer.ts";
 import { useConfig } from "#client/features/agent/hooks/useConfig.ts";
 import { mcpServerQueryKey } from "#client/features/agent/hooks/useMcp.ts";
 import {
 	localSkillsQueryKey,
 	useSkills,
 } from "#client/features/agent/hooks/useSkills.ts";
+import { useSurface } from "#client/features/agent/hooks/useSurface.ts";
 import {
 	type McpToolset,
 	useTools,
@@ -52,6 +51,8 @@ import {
 	selectMcpLogs,
 	useMcpLogStore,
 } from "#client/features/agent/stores/useMcpLogStore.ts";
+import type { ComputahSurface } from "#client/features/agent/types/computah.ts";
+import { SurfaceUtils } from "#client/features/agent/utils/SurfaceUtils.ts";
 import { useMcpServerSettings } from "#client/features/settings/hooks/useMcpServerSettings.ts";
 import { useModelSettings } from "#client/features/settings/hooks/useModelSettings.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
@@ -63,7 +64,6 @@ import { read_files } from "#core/features/tool/tools/shell/read_files.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 import { LogList } from "#gui/core/components/Console.tsx";
-import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import {
 	type CapabilitiesType,
 	useAppStore,
@@ -74,8 +74,12 @@ import ConfigPanel from "#gui/features/editor/components/ConfigPanel.tsx";
 import Dropzone from "#gui/features/upload/components/Dropzone.tsx";
 
 const SHELL_TOOLSET = "shell";
-const BROWSER_TOOLSET = "browser";
-const COMPUTER_TOOLSET = "computer";
+/** Toolsets over computah's surfaces, each with its status beside it. */
+const SURFACE_TOOLSETS: Record<string, ComputahSurface> = {
+	browser: "browser",
+	terminal: "terminal",
+	computer: "computer",
+};
 const SUBAGENTS_TOOLSET = "subagents";
 const MODAL_Z_INDEX = 1000;
 type McpServers = NonNullable<zMCPServers>;
@@ -548,10 +552,8 @@ function ToolsetView({
 				key={toolsetName}
 				toolset={toolset}
 				panel={
-					toolsetName === BROWSER_TOOLSET && client.desktop ? (
-						<BrowserView />
-					) : toolsetName === COMPUTER_TOOLSET && client.computer ? (
-						<ComputerView />
+					SURFACE_TOOLSETS[toolsetName] && client.computah ? (
+						<SurfaceView surface={SURFACE_TOOLSETS[toolsetName]} />
 					) : toolsetName === SUBAGENTS_TOOLSET ? (
 						<SubagentView />
 					) : undefined
@@ -561,7 +563,7 @@ function ToolsetView({
 	});
 }
 
-function BrowserRequirement({
+function Requirement({
 	label,
 	found,
 	optional,
@@ -601,188 +603,151 @@ const pathStyle = {
 	whiteSpace: "nowrap",
 } as const;
 
-function BrowserView() {
-	const { browserStatus, browserSettings, recheckBrowser, setBrowserSettings } =
-		useBrowser();
-	const isChecking =
-		browserStatus.isFetching || recheckBrowser.isPending || !browserStatus.data;
-	const status = recheckBrowser.data ?? browserStatus.data;
+const SURFACE_DESCRIPTIONS: Record<ComputahSurface, string> = {
+	browser: "Drives a browser of its own, with its own sign-ins.",
+	terminal: "Runs interactive programs in tmux sessions you can attach to.",
+	computer:
+		"Uses apps through their accessibility trees, in the background, with a cursor of its own.",
+};
 
+/** Whether to show the browser's window, which only the browser has. */
+function BrowserWindowSetting({ display }: { display?: boolean }) {
+	const { browserSettings, setBrowserSettings } = useBrowser();
 	return (
-		<Stack gap="xs">
-			<Group justify="space-between" wrap="nowrap">
-				<Switch
-					size="xs"
-					label="Show the browser window"
-					description={
-						status?.display?.available === false
-							? "Not available here; the browser runs headless"
-							: undefined
-					}
-					checked={browserSettings.data?.headed ?? false}
-					onChange={(event) =>
-						setBrowserSettings.mutate({
-							headed: event.currentTarget.checked,
-						})
-					}
-				/>
-				<ActionIcon
-					variant="transparent"
-					loading={isChecking}
-					aria-label="Recheck browsers"
-					onClick={() => recheckBrowser.mutate()}
-				>
-					<ArrowClockwiseIcon size={18} />
-				</ActionIcon>
-			</Group>
-			{status && !isChecking && (
-				<>
-					<BrowserRequirement label="Node.js" found={!!status.node}>
-						<Text size="xs" c="dimmed" style={pathStyle}>
-							{status.node
-								? `${status.node.version} · ${status.node.path}`
-								: "Not found"}
-						</Text>
-					</BrowserRequirement>
-					<BrowserRequirement label="Playwright" found={!!status.playwright}>
-						<Text size="xs" c="dimmed" style={pathStyle}>
-							{status.playwright
-								? `${status.playwright.name}@${status.playwright.version} · ${status.playwright.path}`
-								: "Not found · npm install -g playwright"}
-						</Text>
-					</BrowserRequirement>
-					<BrowserRequirement label="Browsers" found={!!status.browsers.length}>
-						{status.browsers.length ? (
-							status.browsers.map((browser) => (
-								<Stack key={browser.path} gap={2} miw={0}>
-									<Group gap={5}>
-										<Text size="xs">{browser.name}</Text>
-										{browser.version && (
-											<Text size="xs" c="dimmed">
-												{browser.version}
-											</Text>
-										)}
-										<Badge size="xs" variant="light" color="gray">
-											{browser.source}
-										</Badge>
-										{browser.path === status.browser?.path && (
-											<Badge size="xs" variant="light">
-												In use
-											</Badge>
-										)}
-									</Group>
-									<Text size="xs" c="dimmed" style={pathStyle}>
-										{browser.path}
-									</Text>
-								</Stack>
-							))
-						) : (
-							<Text size="xs" c="dimmed">
-								Not found · npx playwright install chromium
-							</Text>
-						)}
-					</BrowserRequirement>
-					{status.display && (
-						<BrowserRequirement
-							label="Browser window"
-							found={status.display.available}
-							optional
-						>
-							<Text size="xs" c="dimmed">
-								{status.display.available
-									? "Can be shown on this desktop"
-									: `${status.display.error ?? "No desktop to show it on"} · runs headless instead`}
-							</Text>
-						</BrowserRequirement>
-					)}
-					{status.error && (
-						<Group gap="xs" c="red" wrap="nowrap">
-							<WarningCircleIcon size={14} />
-							<Text size="xs">{status.error}</Text>
-						</Group>
-					)}
-				</>
-			)}
-		</Stack>
+		<Switch
+			size="xs"
+			label="Show the browser window"
+			description={
+				display === false
+					? "Not available here; the browser runs headless"
+					: undefined
+			}
+			checked={browserSettings.data?.headed ?? false}
+			onChange={(event) =>
+				setBrowserSettings.mutate({ headed: event.currentTarget.checked })
+			}
+		/>
 	);
 }
 
-/** macOS's own panes for the permissions computer use needs. */
-const PRIVACY_PANES = {
-	accessibility:
-		"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-	screen:
-		"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-};
-
-function ComputerView() {
-	const runtime = useRuntime();
-	const { computerStatus, recheckComputer } = useComputer();
+/**
+ * A computah surface's status beside its toolset: what it needs and has, the
+ * grants it is missing, and installing what it lacks.
+ */
+function SurfaceView({ surface }: { surface: ComputahSurface }) {
+	const {
+		surfaceStatus,
+		recheckSurface,
+		installSurface,
+		installProgress,
+		requestPermission,
+	} = useSurface(surface);
 	const isChecking =
-		computerStatus.isFetching ||
-		recheckComputer.isPending ||
-		!computerStatus.data;
-	const status = recheckComputer.data ?? computerStatus.data;
-	const macos = status?.os === "macos";
-	const missing = status?.missing ?? [];
-
-	const permission = (key: keyof typeof PRIVACY_PANES, label: string) => {
-		const found = !!status?.os && !missing.includes(key);
-		return (
-			<BrowserRequirement label={label} found={found}>
-				{!found && macos ? (
-					<Button
-						size="compact-xs"
-						variant="light"
-						w="fit-content"
-						onClick={() => void runtime.open(PRIVACY_PANES[key])}
-					>
-						Open settings
-					</Button>
-				) : (
-					<Text size="xs" c="dimmed">
-						{found ? "Granted" : "Not available"}
-					</Text>
-				)}
-			</BrowserRequirement>
-		);
-	};
+		surfaceStatus.isFetching || recheckSurface.isPending || !surfaceStatus.data;
+	const report = recheckSurface.data ?? surfaceStatus.data;
+	const busy = isChecking || installSurface.isPending;
 
 	return (
 		<Stack gap="xs">
 			<Group justify="space-between" wrap="nowrap">
-				<Text size="xs" c="dimmed">
-					Reads and uses apps through their accessibility trees.
-				</Text>
+				{surface === "browser" ? (
+					<BrowserWindowSetting
+						display={
+							report?.requirements.find(
+								(requirement) => requirement.key === "display",
+							)?.found
+						}
+					/>
+				) : (
+					<Text size="xs" c="dimmed">
+						{SURFACE_DESCRIPTIONS[surface]}
+					</Text>
+				)}
 				<ActionIcon
 					variant="transparent"
 					loading={isChecking}
-					aria-label="Recheck computer use"
-					onClick={() => recheckComputer.mutate()}
+					aria-label={`Recheck ${surface}`}
+					onClick={() => recheckSurface.mutate()}
 				>
 					<ArrowClockwiseIcon size={18} />
 				</ActionIcon>
 			</Group>
-			{status && !isChecking && (
+			{report && !isChecking && (
 				<>
-					{permission("accessibility", "Accessibility")}
-					{permission("screen", "Screen recording")}
-					<BrowserRequirement
-						label="Pointer and keyboard"
-						found={!!status.input}
-					>
-						<Text size="xs" c="dimmed">
-							{status.input
-								? "Available"
-								: "Unavailable here; elements can still be used directly"}
-						</Text>
-					</BrowserRequirement>
-					{status.error && (
-						<Group gap="xs" c="red" wrap="nowrap">
-							<WarningCircleIcon size={14} />
-							<Text size="xs">{status.error}</Text>
+					{report.requirements.map((requirement) => (
+						<Requirement
+							key={requirement.key}
+							label={requirement.label}
+							found={requirement.found}
+							optional={requirement.optional}
+						>
+							<Text size="xs" c="dimmed" style={pathStyle}>
+								{requirement.detail}
+							</Text>
+						</Requirement>
+					))}
+					{report.permissions.map((permission) => (
+						<Requirement
+							key={permission.key}
+							label={permission.label}
+							found={permission.granted}
+						>
+							{permission.granted ? (
+								<Text size="xs" c="dimmed">
+									Granted
+								</Text>
+							) : (
+								<Button
+									size="compact-xs"
+									variant="light"
+									w="fit-content"
+									loading={
+										requestPermission.isPending &&
+										requestPermission.variables.key === permission.key
+									}
+									onClick={() => requestPermission.mutate(permission)}
+								>
+									{permission.promptable ? "Request" : "Open settings"}
+								</Button>
+							)}
+						</Requirement>
+					))}
+					{report.install && (
+						<Group gap="xs" wrap="nowrap">
+							<Button
+								size="compact-xs"
+								variant="light"
+								loading={installSurface.isPending}
+								disabled={busy && !installSurface.isPending}
+								onClick={() => installSurface.mutate()}
+							>
+								Install {report.install}
+							</Button>
+							{installProgress && (
+								<Text size="xs" c="dimmed" truncate>
+									{SurfaceUtils.progress(installProgress)}
+								</Text>
+							)}
 						</Group>
 					)}
+					{report.note && (
+						<Text size="xs" c="dimmed">
+							{report.note}
+						</Text>
+					)}
+					{[
+						report.error,
+						installSurface.data,
+						installSurface.error?.message,
+						requestPermission.error?.message,
+					]
+						.filter(Boolean)
+						.map((message) => (
+							<Group key={message} gap="xs" c="red" wrap="nowrap">
+								<WarningCircleIcon size={14} />
+								<Text size="xs">{message}</Text>
+							</Group>
+						))}
 				</>
 			)}
 		</Stack>

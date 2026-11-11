@@ -5,6 +5,7 @@ import { mcpServerQueryKey } from "#client/features/agent/hooks/useMcp.ts";
 import { useSkills } from "#client/features/agent/hooks/useSkills.ts";
 import { useTools } from "#client/features/agent/hooks/useTools.ts";
 import { ClientMcpService } from "#client/features/agent/services/ClientMcpService.ts";
+import type { ComputahSurface } from "#client/features/agent/types/computah.ts";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
 import { useMcpServerSettings } from "#client/features/settings/hooks/useMcpServerSettings.ts";
 import { useModelSettings } from "#client/features/settings/hooks/useModelSettings.ts";
@@ -18,17 +19,22 @@ import Completions from "#tui/core/components/Completions.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import type { Page } from "#tui/core/stores/useAppStore.ts";
-import BrowserSettings from "#tui/features/agent/components/BrowserSettings.tsx";
 import ConfigItemText, {
 	type ConfigItem,
 } from "#tui/features/agent/components/ConfigItem.tsx";
 import McpServerEditor, {
 	type McpServer,
 } from "#tui/features/agent/components/McpServerEditor.tsx";
+import SurfaceSettings from "#tui/features/agent/components/SurfaceSettings.tsx";
 import Choice from "#tui/features/settings/components/Choice.tsx";
 import ModelChoice from "#tui/features/settings/components/ModelChoice.tsx";
 
-const BROWSER_TOOLSET = "browser";
+/** Toolsets over computah's surfaces, each with a page of what it needs. */
+const SURFACE_TOOLSETS: readonly string[] = [
+	"browser",
+	"terminal",
+	"computer",
+] satisfies ComputahSurface[];
 const SUBAGENTS_TOOLSET = "subagents";
 
 /** The toolset an MCP server's tools are listed under, as `useTools` names it. */
@@ -42,7 +48,7 @@ const getMcpToolsetName = (name: string) =>
 type Route =
 	| "model"
 	| `arg:${string}`
-	| "browser"
+	| `surface:${ComputahSurface}`
 	| "subagents"
 	| `mcp:${string}`;
 
@@ -123,12 +129,11 @@ export default function ConfigEditor({
 	const toolsetItem = useCallback(
 		(toolset: Toolset<any>): ConfigItem => {
 			const name = ToolUtils.name({ toolset });
-			const page =
-				name === BROWSER_TOOLSET
-					? "browser"
-					: name === SUBAGENTS_TOOLSET && subagents
-						? "subagents"
-						: undefined;
+			const page: Route | undefined = SURFACE_TOOLSETS.includes(name)
+				? `surface:${name as ComputahSurface}`
+				: name === SUBAGENTS_TOOLSET && subagents
+					? "subagents"
+					: undefined;
 			return {
 				name,
 				value: `toolset:${name}`,
@@ -310,12 +315,15 @@ export default function ConfigEditor({
 		);
 	}
 
-	if (route === "browser") {
+	if (route?.startsWith("surface:")) {
+		const surface = route.slice("surface:".length) as ComputahSurface;
 		const toolset = (nativeTools.data ?? []).find(
-			(toolset) => ToolUtils.name({ toolset }) === BROWSER_TOOLSET,
+			(toolset) => ToolUtils.name({ toolset }) === surface,
 		);
 		return (
-			<BrowserSettings
+			<SurfaceSettings
+				key={surface}
+				surface={surface}
 				toolset={toolset && { ...toolsetItem(toolset), onOpen: undefined }}
 			/>
 		);

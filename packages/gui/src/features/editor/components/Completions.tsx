@@ -36,10 +36,23 @@ export interface CompletionProps<
 	T1 extends CompletionGroup<T2>,
 	T2 extends CompletionItem,
 > extends SuggestionProps<T1, T2> {
-	renderEmpty: () => ReactNode;
-	renderItem?: (item: T2) => ReactNode;
+	renderEmpty: (args: { query: string }) => ReactNode;
+	renderItem?: (item: T2, args: { query: string }) => ReactNode;
 	/** Narrows the list to one of its named groups at a time with ←→. */
 	tabs?: boolean;
+	/**
+	 * What the list is of, for one that changes what it lists as it is typed
+	 * into (a command's name, then its argument): the tab goes back to every
+	 * item whenever it changes, as it would for a list opened afresh.
+	 */
+	getScope?: (query: string) => string;
+	/** Enter with nothing listed, for a value typed out. True when it was taken. */
+	onEnterEmpty?: (args: {
+		editor: Editor;
+		range: Range;
+		query: string;
+	}) => boolean;
+	/** Tab on an item: fill it in, short of choosing it. */
 	onTab?: (args: {
 		item: T2;
 		editor: Editor;
@@ -56,7 +69,8 @@ function Completions<
 	return forwardRef<SuggestionRenderer<T1, T2>, CompletionProps<T1, T2>>(
 		(
 			{
-				items: _groups,
+				items: fetched,
+				loading,
 				command,
 				editor,
 				range,
@@ -64,18 +78,32 @@ function Completions<
 				renderEmpty,
 				renderItem,
 				tabs: withTabs,
+				getScope,
+				onEnterEmpty,
 				onTab,
 			},
 			ref,
 		) => {
 			const combobox = useCombobox();
 
+			// Every keystroke hands over an empty list while its items are fetched,
+			// so the last list stands until they come rather than flashing away.
+			const [settled, setSettled] = useState(fetched);
+			if (!loading && settled !== fetched) setSettled(fetched);
+			const _groups = loading ? settled : fetched;
+
 			const tabs = useMemo(
 				() => (withTabs ? CompletionUtils.tabs(_groups) : []),
 				[withTabs, _groups],
 			);
 			const [_tab, setTab] = useState<string | null>(null);
-			const tab = tabs.includes(_tab) ? _tab : null;
+			const scope = getScope?.(query) ?? "";
+			const [tabScope, setTabScope] = useState(scope);
+			if (tabScope !== scope) {
+				setTabScope(scope);
+				setTab(null);
+			}
+			const tab = tabs.includes(_tab) && tabScope === scope ? _tab : null;
 
 			const [groups, items] = useMemo(() => {
 				const shown = CompletionUtils.inTab({ groups: _groups, tab });
@@ -122,7 +150,14 @@ function Completions<
 							return true;
 						}
 						if (event.key === "Enter") {
-							combobox.clickSelectedOption();
+							// Ctrl or Cmd with Enter sends, as it does with nothing open.
+							if (event.ctrlKey || event.metaKey) return false;
+							if (!items.length) {
+								onEnterEmpty?.({ editor, range, query });
+								return true;
+							}
+							const item = items[combobox.getSelectedOptionIndex()] ?? items[0];
+							if (item) select(item.value);
 							return true;
 						}
 						if (event.key === "Tab") {
@@ -146,7 +181,18 @@ function Completions<
 						return false;
 					},
 				}),
-				[combobox, editor, items, onTab, query, range, select, tabs, tab],
+				[
+					combobox,
+					editor,
+					items,
+					onEnterEmpty,
+					onTab,
+					query,
+					range,
+					select,
+					tabs,
+					tab,
+				],
 			);
 
 			// biome-ignore lint/correctness/useExhaustiveDependencies: auto select
@@ -200,9 +246,9 @@ function Completions<
 						<Combobox.Options>
 							<ScrollAreaAutosize mah={300} w={250} p={5}>
 								<Box>
-									{groups.length === 0 && (
-										<Text size="sm" p="xs">
-											{renderEmpty()}
+									{groups.length === 0 && !(loading && !settled.length) && (
+										<Text size="sm" p="xs" c="dimmed">
+											{renderEmpty({ query })}
 										</Text>
 									)}
 									{groups.map((group) => (
@@ -215,7 +261,9 @@ function Completions<
 												<Combobox.Option
 													key={item.value}
 													value={item.value}
-													disabled={item.active}
+													// What is already in effect reads as such, but can still be
+													// picked again.
+													style={item.active ? { opacity: 0.5 } : undefined}
 												>
 													<Group
 														gap={5}
@@ -228,7 +276,9 @@ function Completions<
 															textOverflow: "ellipsis",
 														}}
 													>
-														{renderItem ? renderItem(item) : item.name}
+														{renderItem
+															? renderItem(item, { query })
+															: item.name}
 													</Group>
 												</Combobox.Option>
 											))}
@@ -237,6 +287,29 @@ function Completions<
 								</Box>
 							</ScrollAreaAutosize>
 						</Combobox.Options>
+						<Group
+							gap={8}
+							px={10}
+							pb={5}
+							w={250}
+							wrap="wrap"
+							onMouseDown={(event) => event.preventDefault()}
+						>
+							{[
+								["↑↓", "move"],
+								...(tabs.length ? [["←→", "group"]] : []),
+								["tab", "fill"],
+								["↵", "select"],
+								["esc", "close"],
+							].map(([key, name]) => (
+								<Text key={name} size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+									<Text span size="xs" fw={600} inherit>
+										{key}
+									</Text>{" "}
+									{name}
+								</Text>
+							))}
+						</Group>
 					</Paper>
 				</Combobox>
 			);

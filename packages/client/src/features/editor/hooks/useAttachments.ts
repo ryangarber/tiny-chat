@@ -1,8 +1,6 @@
 import { useCallback, useContext, useMemo, useRef } from "react";
-import { z } from "zod";
 import { ClientContext } from "#client/client.ts";
 import { useLatestCallback } from "#client/core/hooks/useLatestCallback.ts";
-import { ClientBrowserService } from "#client/features/agent/services/ClientBrowserService.ts";
 import { useChatFiles } from "#client/features/chat/hooks/useChatFiles.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
@@ -14,7 +12,6 @@ import { FileOperationService } from "#core/features/file/services/FileOperation
 import { FileSearchService } from "#core/features/file/services/FileSearchService.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import { ComputerService } from "#core/features/tool/services/ComputerService.ts";
 
 /** How long a walked tree answers searches before it is walked again. */
 const TREE_TTL = 30_000;
@@ -171,12 +168,12 @@ export const useAttachments = () => {
 		if (cached && Date.now() - cached.at < LIVE_TTL) return cached.groups;
 
 		const getTabs = async (): Promise<AttachmentGroup[]> => {
-			const tabs = await ClientBrowserService.getTabs({ client }).catch(
-				(error) => {
-					console.warn("[useAttachments] failed to list tabs", error);
-					return [];
-				},
-			);
+			const browser = client.computah?.browser;
+			if (!browser) return [];
+			const tabs = await browser.tabs().catch((error) => {
+				console.warn("[useAttachments] failed to list tabs", error);
+				return [];
+			});
 			// A fresh page has nothing on it to attach.
 			const open = tabs.filter((tab) => tab.url !== "about:blank");
 			return open.length
@@ -190,29 +187,14 @@ export const useAttachments = () => {
 		};
 
 		const getWindows = async (): Promise<AttachmentGroup[]> => {
-			if (!client.computer) return [];
-			const status = await ComputerService.status(client.computer);
+			const computer = client.computah?.computer;
+			if (!computer) return [];
+			const status = await computer.status();
 			if (!status.available) return [];
-			const result = await ComputerService.run({
-				capability: client.computer,
-				steps: [{ action: "windows" }],
-			}).catch((error) => {
+			const shown = await computer.windows().catch((error) => {
 				console.warn("[useAttachments] failed to list windows", error);
-				return null;
+				return [];
 			});
-			const windows = z
-				.array(
-					z.object({
-						id: z.string(),
-						app: z.string(),
-						title: z.string().optional(),
-						minimized: z.boolean().optional(),
-					}),
-				)
-				.safeParse(result?.steps[0]?.value);
-			const shown = windows.success
-				? windows.data.filter((window) => !window.minimized)
-				: [];
 			return shown.length
 				? [
 						{

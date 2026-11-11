@@ -1,3 +1,5 @@
+import "electrobun-menu/menu";
+
 import {
 	type AfmEvent,
 	type AfmizeClient,
@@ -20,7 +22,10 @@ import {
 	type CursorChannelMessage,
 	connectCursorHost,
 } from "@ryangarber/ai-sdk-providers/cursor";
+import type { InstallProgress } from "computah/schema";
 import { Electroview } from "electrobun/view";
+import { ComputahRemoteService } from "#client/features/agent/services/ComputahRemoteService.ts";
+import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createAFMProvider } from "#core/features/provider/providers/model/AFMProvider.ts";
@@ -52,6 +57,10 @@ const claudeCodeListeners = new Set<
 const cursorListeners = new Set<(message: CursorChannelMessage) => void>();
 const codexListeners = new Set<(message: CodexChannelMessage) => void>();
 let updateListener: ((fraction: number) => void) | undefined;
+/** Install progress from the main process's computah, for the call it belongs to. */
+let computahProgress:
+	| ((_: { id: string; progress: InstallProgress }) => void)
+	| undefined;
 const urlListeners = new Set<(url: string) => void>();
 let launched = false;
 
@@ -64,6 +73,7 @@ function connect(): DesktopView {
 		handlers: {
 			requests: {},
 			messages: {
+				newChat: () => ChatService.setChat({ id: null }),
 				spawnOutput: ({ id, ...output }) => spawnListeners.get(id)?.(output),
 				mcpMessage: ({ id, message }) =>
 					mcpTransports.get(id)?.onmessage?.(message),
@@ -88,6 +98,7 @@ function connect(): DesktopView {
 				codex: (message) => {
 					for (const listener of codexListeners) listener(message);
 				},
+				computahProgress: (payload) => computahProgress?.(payload),
 				updateProgress: ({ fraction }) => updateListener?.(fraction),
 				openUrl: ({ url }) => {
 					for (const listener of urlListeners) listener(url);
@@ -96,6 +107,9 @@ function connect(): DesktopView {
 		},
 	});
 	new Electroview({ rpc });
+	const menu = document.querySelector("electrobun-menu");
+	if (!menu) throw new Error("missing electrobun-menu");
+	menu.rpc = rpc;
 	return rpc;
 }
 
@@ -141,6 +155,13 @@ class RpcTransport implements Transport {
 
 /** The desktop app's runtime over its main process. */
 function create(rpc: DesktopView): ClientRuntime {
+	// The browser, terminal and computer live in the main process.
+	const remote = ComputahRemoteService.create({
+		call: (request) => rpc.request.computah(request),
+		abort: (request) => rpc.request.computahAbort(request),
+	});
+	computahProgress = remote.progress;
+
 	// afmize runs in the main process (`AfmHostService`); this reaches it.
 	const afmize: AfmizeClient = {
 		availability: async () =>
@@ -282,14 +303,7 @@ function create(rpc: DesktopView): ClientRuntime {
 					headers,
 				}),
 		},
-		// A call already in the main process finishes; the tool stops between
-		// calls.
-		computer: {
-			call: async ({ method, params, abort }) => {
-				abort?.throwIfAborted();
-				return await rpc.request.computerCall({ method, params });
-			},
-		},
+		computah: remote.computah,
 		quit: () => rpc.request.quit(),
 		update: {
 			check: () => rpc.request.updateCheck(),

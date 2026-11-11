@@ -80,7 +80,7 @@ namespace Task {
 		status: "pending" | "success" | "error";
 		parts: StatusPart[];
 	}) {
-		const { colorScheme } = useContext(ThemeContext);
+		const { colorScheme, colorPalette } = useContext(ThemeContext);
 
 		const { expanded, setExpanded } = useContext(TaskContext);
 		if (!setExpanded) throw new Error("missing task context");
@@ -104,13 +104,17 @@ namespace Task {
 
 		// Only a pending task shimmers, so only one ticks: every tick is a frame
 		// for the whole screen, and a settled one would draw it the same each time.
+		// The wave moves under a column a tick at this rate, so it glides rather
+		// than steps.
 		const shimmer = useAnimation({
-			interval: 200,
+			interval: 60,
 			isActive: status === "pending",
 		});
-		const offset = useMemo(() => Math.random() * 1000, []);
 
-		const current = status === "pending" ? shimmer : null;
+		// Keep wall-clock phase across remounts, but advance it with the hook's
+		// reactive time: the compiler can cache Date.now() inside the text memo.
+		const [shimmerStart] = useState(Date.now);
+		const current = status === "pending" ? shimmerStart + shimmer.time : null;
 
 		const text = useMemo(() => {
 			if (status === "error") {
@@ -120,12 +124,13 @@ namespace Task {
 					join: " ",
 				});
 			}
-			if (current) {
+			if (current !== null) {
 				return TaskUtils.shimmer({
 					parts,
 					style: (style) => (hovered ? style.dim : style),
-					time: current.time,
-					offset,
+					time: current,
+					base: colorPalette[3],
+					highlight: colorScheme.text,
 				});
 			}
 			return TaskUtils.plain({
@@ -136,7 +141,15 @@ namespace Task {
 						: style.hex(colorScheme.textSubtle),
 				join: " ",
 			});
-		}, [hovered, offset, current, status, parts, colorScheme.textSubtle]);
+		}, [
+			hovered,
+			current,
+			status,
+			parts,
+			colorScheme.textSubtle,
+			colorScheme.text,
+			colorPalette,
+		]);
 
 		// The emoji is held to its width, and set off by a margin rather than a
 		// trailing space, so the gap stays put when the text wraps against the

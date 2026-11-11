@@ -1,3 +1,4 @@
+import type { ResolvedPos } from "@tiptap/pm/model";
 import type { EditorState } from "@tiptap/pm/state";
 import type { NodeConfig } from "@tiptap/react";
 import {
@@ -36,6 +37,22 @@ export const NodeUtils = {
 		const char = state.doc.nodeAt(pos);
 		return !!char?.marks.some((mark) => mark.type.spec.code);
 	},
+
+	/**
+	 * The text of the block a position is in, up to it, read the way a plain
+	 * buffer's line is: each chip stands as one character that is not a space,
+	 * so a trigger can't be typed straight after one, and an offset into the
+	 * text plus `start` is the position it is at.
+	 */
+	textBefore: ($position: ResolvedPos) => ({
+		text: $position.parent.textBetween(
+			0,
+			$position.parentOffset,
+			undefined,
+			"￼",
+		),
+		start: $position.start(),
+	}),
 
 	/**
 	 * The Markdown a part node is serialized as and parsed from: the marker of

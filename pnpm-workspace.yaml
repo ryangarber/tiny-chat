@@ -26,6 +26,8 @@ minimumReleaseAgeExclude:
   - better-auth-prisma-orm
   - prisma-orm-extension-zod
   - ink-nightly
+  - electrobun-menu
+  - computah
 peerDependencyRules:
   allowedVersions:
     "@browser-ai/web-llm>ai": "7"
@@ -56,7 +58,7 @@ catalogs:
     "prisma-orm-extension-zod": 0.3.1
     "better-auth-prisma-orm": 0.2.0
   ai:
-    "ai": ^7.0.165
+    "ai": ^7.0.166
     "@ai-sdk/amazon-bedrock": ^5.0.135
     "@ai-sdk/anthropic": ^4.0.99
     "@ai-sdk/azure": ^4.0.119
@@ -64,8 +66,8 @@ catalogs:
     "@ai-sdk/openai": ^4.0.111
     "@ai-sdk/openai-compatible": ^3.0.87
     "@ai-sdk/provider": ^4.0.37
-    "@anthropic-ai/sdk": ^1.6.0
-    "openai": ^7.53.0
+    "@anthropic-ai/sdk": ^1.7.0
+    "openai": ^7.54.0
     "voyage-ai-provider": "^5.0.0"
     "@ryangarber/ai-sdk-providers": ^0.1.4
     "@afmize/node": "^1.1.0"

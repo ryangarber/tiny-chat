@@ -5,11 +5,19 @@ import type {
 	CapabilityFactory,
 } from "#core/core/types/capability.ts";
 
+/** The host's browser, run headed or not as the user last chose. */
 export const createBrowserCapability: CapabilityFactory<
 	{ client: Client },
 	BrowserCapability
-> = async ({ client }) => ({
-	status: () => ClientBrowserService.getStatus({ client }),
-	run: ({ steps, screenshot, abort }) =>
-		ClientBrowserService.run({ client, steps, screenshot, abort }),
-});
+> = async ({ client }) => {
+	const browser = client.computah?.browser;
+	if (!browser) throw new Error("missing client browser");
+	return {
+		...browser,
+		run: (input) =>
+			browser.run({
+				...input,
+				headless: !ClientBrowserService.getSettings({ client }).headed,
+			}),
+	};
+};

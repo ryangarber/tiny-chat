@@ -5,7 +5,9 @@ import type { JSONRPCMessage } from "@modelcontextprotocol/client";
 import type { ClaudeCodeChannelMessage } from "@ryangarber/ai-sdk-providers/claude";
 import type { CodexChannelMessage } from "@ryangarber/ai-sdk-providers/codex";
 import type { CursorChannelMessage } from "@ryangarber/ai-sdk-providers/cursor";
+import type { InstallProgress } from "computah/schema";
 import type { RPCSchema } from "electrobun/view";
+import type { ComputahRequest } from "#client/features/agent/types/computah.ts";
 
 /** A file's bytes, base64 encoded, since RPC carries JSON. */
 type Bytes = string;
@@ -29,7 +31,8 @@ export type McpServer =
  * What the webview (`client-runtime.ts`) asks of the main process (`index.ts`),
  * and what the main process tells it in return. The main process does what a
  * webview cannot: the device's shell and file system, processes and network
- * for MCP servers, Apple Foundation Models, the apps on the computer, URLs the
+ * for MCP servers, Apple Foundation Models, the browser, terminal and apps the
+ * agent drives, URLs the
  * app is opened with, and updates to the app itself.
  */
 export type DesktopRPC = {
@@ -138,11 +141,14 @@ export type DesktopRPC = {
 			cursor: { params: CursorChannelMessage; response: void };
 			cursorSignIn: { params: undefined; response: void };
 
-			/** `ComputerHostService`'s raw `{ ok, result }` or `{ ok, error }`. */
-			computerCall: {
-				params: { method: string; params: unknown };
-				response: unknown;
-			};
+			/**
+			 * One method of one of computah's surfaces, as
+			 * `ComputahHostService.serve` answers it; install progress arrives as
+			 * `computahProgress` under `id`.
+			 */
+			computah: { params: ComputahRequest; response: unknown };
+			/** The call still answers, with however far it got. */
+			computahAbort: { params: { id: string }; response: void };
 
 			quit: { params: undefined; response: void };
 
@@ -173,8 +179,10 @@ export type DesktopRPC = {
 			claudeCode: ClaudeCodeChannelMessage;
 			codex: CodexChannelMessage;
 			cursor: CursorChannelMessage;
+			computahProgress: { id: string; progress: InstallProgress };
 			updateProgress: { fraction: number };
 			openUrl: { url: string };
+			newChat: undefined;
 		};
 	}>;
 };

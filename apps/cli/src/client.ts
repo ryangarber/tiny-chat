@@ -4,7 +4,7 @@ import { TokenService } from "#cli/core/services/TokenService.ts";
 import { createClient } from "#client/client.ts";
 import { ClaudeCodeRunService } from "#client/features/agent/services/ClaudeCodeRunService.ts";
 import { CodexRunService } from "#client/features/agent/services/CodexRunService.ts";
-import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
+import { ComputahHostService } from "#client/features/agent/services/ComputahHostService.ts";
 import { CursorRunService } from "#client/features/agent/services/CursorRunService.ts";
 import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
@@ -65,6 +65,6 @@ export const client = createClient({
 	},
 	input: EditorInputService,
 	shell: NodeShellService.create(),
-	computer: ComputerHostService.create(),
+	computah: ComputahHostService.create(),
 	desktop: true,
 });

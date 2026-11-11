@@ -225,6 +225,7 @@ describe("AgentService", () => {
 		/** The calls the test model makes, never settling or looking at a signal. */
 		const hang = () => {
 			let started = 0;
+			let finished = 0;
 			const tools = ["edit_files", "read_files"].map(
 				(name) =>
 					({
@@ -237,6 +238,9 @@ describe("AgentService", () => {
 							started++;
 							return new Promise(() => {});
 						},
+						finish: async () => {
+							finished++;
+						},
 					}) satisfies Tool<any, void>,
 			);
 			const toolset: Toolset<void> = {
@@ -245,7 +249,11 @@ describe("AgentService", () => {
 				capabilities: undefined,
 				status: { valid: true },
 			};
-			return { toolset, started: () => started };
+			return {
+				toolset,
+				started: () => started,
+				finished: () => finished,
+			};
 		};
 
 		const generate = (toolset: Toolset<void>, abort: AbortController) => {
@@ -295,7 +303,7 @@ describe("AgentService", () => {
 		};
 
 		it("lets go of hung calls and waits for the user", async () => {
-			const { toolset, started } = hang();
+			const { toolset, started, finished } = hang();
 			const abort = new AbortController();
 			const { data, events } = generate(toolset, abort);
 
@@ -304,6 +312,8 @@ describe("AgentService", () => {
 			}, 10);
 			for await (const _ of events);
 			clearInterval(timer);
+			// Each tool offered is finished once, as the generation ends.
+			expect(finished()).toBe(2);
 
 			// Both calls run together, so both are started and both let go of.
 			const results = data.flat().filter((part) => part.type === "toolResult");

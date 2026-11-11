@@ -1,18 +1,14 @@
 import chalk, { type ChalkInstance } from "chalk";
 import { ColorUtils } from "#core/core/utils/ColorUtils.ts";
 
-const SHIMMER_BASE = "#666666";
-const SHIMMER_HIGHLIGHT = "#ffffff";
-const SHIMMER_BAND_WIDTH = 6;
-const SHIMMER_SPEED = 1;
+/** How long a crest takes to travel one wavelength, as in the GUI's. */
+const SHIMMER_CYCLE = 2000;
+/** The shortest wavelength, so a short label still reads as a gradient. */
+const SHIMMER_MIN_WAVELENGTH = 24;
 
 export type StatusPart = { text: string; style?: ChalkInstance };
 
 export const TaskUtils = {
-	smoothstep: (t: number) => {
-		return t * t * (3 - 2 * t);
-	},
-
 	style: (
 		parts: StatusPart[],
 		apply?: (style: ChalkInstance) => ChalkInstance,
@@ -40,50 +36,46 @@ export const TaskUtils = {
 			.join(join);
 	},
 
+	/**
+	 * A triangle wave of brightness, one wavelength the width of the text,
+	 * drifting rightward, like the GUI's gradient. Its phase is wall-clock time
+	 * rather than length times time, so a label that grows as it streams only
+	 * stretches the wave instead of throwing the crest somewhere else.
+	 */
 	shimmer: ({
 		parts,
 		style,
 		time,
-		offset = 0,
+		base,
+		highlight,
 	}: {
 		parts: StatusPart[];
 		style?: (style: ChalkInstance) => ChalkInstance;
 		time: number;
-		offset?: number;
+		base: string;
+		highlight: string;
 	}): string => {
 		const characters = parts.flatMap((part, partIndex) =>
-			part.text
-				.split("")
-				.map((character, characterIndex): StatusPart & { join: boolean } => ({
+			[...(partIndex > 0 ? " " : ""), ...part.text].map(
+				(character): StatusPart => ({
 					text: character,
-					style: style?.(part.style ?? chalk),
-					join: partIndex > 0 && characterIndex === 0,
-				})),
+					style: style?.(part.style ?? chalk) ?? part.style,
+				}),
+			),
 		);
-		const period = characters.length + SHIMMER_BAND_WIDTH * 2;
-		const speed = (period / 2) * SHIMMER_SPEED;
-		const distance = (time / 1000) * speed + offset;
-		const center = (distance % period) - SHIMMER_BAND_WIDTH;
+		const wavelength = Math.max(characters.length, SHIMMER_MIN_WAVELENGTH);
+		const phase = (time % SHIMMER_CYCLE) / SHIMMER_CYCLE;
 
 		return characters
-			.flatMap((part, i) => {
-				const delta = Math.abs(i - center);
-				const falloff = TaskUtils.smoothstep(
-					Math.max(0, 1 - delta / SHIMMER_BAND_WIDTH),
-				);
+			.map((part, i) => {
+				const position = ((i + 0.5) / wavelength - phase + 1) % 1;
+				const brightness = 1 - Math.abs(2 * position - 1);
 
-				return (
-					(part.join
-						? TaskUtils.plain({ parts: [{ ...part, text: " " }] })
-						: "") +
-					TaskUtils.plain({
-						parts: [part],
-						style: (style) =>
-							style.hex(
-								ColorUtils.lerp(SHIMMER_BASE, SHIMMER_HIGHLIGHT, falloff),
-							),
-					})
-				);
+				return TaskUtils.plain({
+					parts: [part],
+					style: (style) =>
+						style.hex(ColorUtils.lerp(base, highlight, brightness)),
+				});
 			})
 			.join("");
 	},

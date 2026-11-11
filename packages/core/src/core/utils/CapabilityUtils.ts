@@ -60,6 +60,7 @@ export const CapabilityUtils = {
 			legiscan: !!ProviderUtils.isValid(providers, { provider: "legiscan" }),
 			shell: desktop,
 			browser: desktop,
+			terminal: desktop,
 			computer: desktop,
 			actions: !incognito && message,
 			memories: !incognito,

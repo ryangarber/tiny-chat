@@ -82,21 +82,16 @@ const Attachment = Node.create({
 				editor: this.editor,
 				char: "@",
 				pluginKey,
-				allowToIncludeChar: true,
+				// Escape keeps the list closed until the cursor leaves the path, even
+				// as an escaped space is typed into it.
+				allowSpaces: true,
 				findSuggestionMatch: ({ $position }) => {
-					const text =
-						$position.nodeBefore?.isText && $position.nodeBefore.text;
-					if (!text) return null;
-
+					const { text, start } = NodeUtils.textBefore($position);
 					const match = AttachmentUtils.match(text);
 					if (!match) return null;
 
-					const textFrom = $position.pos - text.length;
 					return {
-						range: {
-							from: textFrom + match.from,
-							to: textFrom + match.to,
-						},
+						range: { from: start + match.from, to: start + match.to },
 						query: match.text,
 						text: text.slice(match.from, match.to),
 					};

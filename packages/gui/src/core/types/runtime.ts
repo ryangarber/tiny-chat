@@ -1,5 +1,5 @@
 import type {
-	ClientComputer,
+	ClientComputah,
 	ClientShell,
 	ClientTransports,
 } from "#client/client.ts";
@@ -79,8 +79,11 @@ export interface ClientRuntime {
 	/** The device's shell and file system; only a desktop has them. */
 	shell?: ClientShell;
 
-	/** The apps on the computer, through xa11y; only a desktop has them. */
-	computer?: ClientComputer;
+	/**
+	 * The browser, terminal and computer the agent drives (computah's); only a
+	 * desktop has them.
+	 */
+	computah?: ClientComputah;
 
 	/** MCP transports for servers the webview cannot reach itself. */
 	transports?: ClientTransports;

@@ -1,3 +1,19 @@
+import type {
+	BrowserRunResult,
+	BrowserStatus,
+	BrowserStep,
+	BrowserTab,
+	ComputerRunResult,
+	ComputerStatus,
+	ComputerStep,
+	ComputerWindow,
+	InstallProgress,
+	InstallResult,
+	Permission,
+	TerminalRunResult,
+	TerminalStatus,
+	TerminalStep,
+} from "computah/schema";
 import type { z } from "zod";
 import type { Enum } from "#core/core/services/PostgresService.ts";
 import type { zAgentContext } from "#core/features/agent/types/agent.ts";
@@ -14,11 +30,6 @@ import type {
 import type { zData } from "#core/features/data/types/part.ts";
 import type { FileNode } from "#core/features/file/types/file.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
-import type {
-	zBrowserRunResult,
-	zBrowserStatus,
-	zBrowserStep,
-} from "#core/features/tool/types/browser.ts";
 import type {
 	zLegiscanBill,
 	zLegiscanBillInput,
@@ -255,36 +266,97 @@ export interface ShellCapability {
 }
 
 /**
- * A real browser on the user's machine, driven through Playwright. The page and
- * its state outlive a call, so one run can pick up where the last left off.
+ * What every computah surface answers the same way (`computah`'s controllers,
+ * held by the host in `ComputahHostService`): what was found and whether it is
+ * enough, installing what is missing, and the OS grants it still needs.
  */
-export interface BrowserCapability {
-	status: () => Promise<zBrowserStatus>;
+export interface SurfaceCapability<TStatus> {
+	/** `refresh` lets go of what was found and looks again. */
+	status: (_?: { refresh?: boolean }) => Promise<TStatus>;
+
+	/** Downloads and installs whatever the surface is missing. */
+	install: (_?: {
+		onProgress?: (progress: InstallProgress) => void;
+		abort?: AbortSignal;
+	}) => Promise<InstallResult>;
+
+	/** The OS grants that matter, read without asking for any. */
+	permissions: () => Promise<Permission[]>;
 
 	/**
-	 * Runs steps in order against the active tab, stopping at the first that
-	 * fails. `screenshot` adds one of the viewport once they are done.
+	 * Raises the OS's prompts for the grants still missing: the host's own, or
+	 * (`owner: "app"`) a helper app's. `settings` opens the settings pane where
+	 * the OS will not prompt.
 	 */
-	run: (_: {
-		steps: zBrowserStep[];
-		screenshot?: boolean;
-		abort?: AbortSignal;
-	}) => Promise<zBrowserRunResult>;
+	requestPermissions: (_?: {
+		owner?: "host" | "app";
+		settings?: boolean;
+	}) => Promise<Permission[]>;
 }
 
 /**
- * The apps on the user's machine, through xa11y on the host
- * (`ComputerHostService`): accessibility trees, element actions, input, and
- * screenshots. The host only carries calls; what they mean is decided in
- * `ComputerService`.
+ * A browser on the user's machine, driven through Playwright. The page and its
+ * state outlive a call, so one run can pick up where the last left off.
  */
-export interface ComputerCapability {
-	/** Resolves with the host's raw `{ ok, result }` or `{ ok, error }`. */
-	call: (_: {
-		method: string;
-		params: unknown;
+export interface BrowserCapability extends SurfaceCapability<BrowserStatus> {
+	/**
+	 * Runs steps in order against the active tab, stopping at the first that
+	 * fails. `screenshot` adds one of the viewport once they are done;
+	 * `headless` is the user's choice, applied when the browser next launches.
+	 */
+	run: (_: {
+		steps: BrowserStep[];
+		screenshot?: boolean;
+		headless?: boolean;
 		abort?: AbortSignal;
-	}) => Promise<unknown>;
+	}) => Promise<BrowserRunResult>;
+
+	/** The open tabs. Never starts the browser. */
+	tabs: () => Promise<BrowserTab[]>;
+
+	/** One tab as its rendered text, without switching to it. */
+	readTab: (_: {
+		index: number;
+		maxLength?: number;
+	}) => Promise<{ url: string; title: string; text: string }>;
+}
+
+/** Interactive programs in tmux sessions on the user's machine. */
+export interface TerminalCapability extends SurfaceCapability<TerminalStatus> {
+	/** Runs steps in order, stopping at the first that fails. */
+	run: (_: {
+		session?: string;
+		steps: TerminalStep[];
+		capture?: boolean;
+		abort?: AbortSignal;
+	}) => Promise<TerminalRunResult>;
+
+	/**
+	 * Whether a run would act on a session that was not opened here — one of
+	 * the user's own — with more than looking at it.
+	 */
+	touchesForeign: (_: {
+		session?: string;
+		steps: TerminalStep[];
+	}) => Promise<boolean>;
+}
+
+/**
+ * The apps on the user's machine, through the Cua Driver: accessibility trees,
+ * background input with a virtual cursor, and screenshots. One controller for
+ * the life of the host, which is what lets the target window and refs carry
+ * over between messages.
+ */
+export interface ComputerCapability extends SurfaceCapability<ComputerStatus> {
+	/** Runs steps in order against the target window, stopping at the first that fails. */
+	run: (_: {
+		window?: string;
+		steps: ComputerStep[];
+		screenshot?: boolean;
+		abort?: AbortSignal;
+	}) => Promise<ComputerRunResult>;
+
+	windows: (_?: { app?: string }) => Promise<ComputerWindow[]>;
 }
 
 export interface Capabilities {
@@ -298,6 +370,7 @@ export interface Capabilities {
 	chatShell?: ShellCapability;
 	shell?: ShellCapability;
 	browser?: BrowserCapability;
+	terminal?: TerminalCapability;
 	computer?: ComputerCapability;
 	persistence?: boolean;
 }

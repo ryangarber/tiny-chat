@@ -1,36 +1,24 @@
 import type { ComputerCapability } from "#core/core/types/capability.ts";
-import { ComputerService } from "#core/features/tool/services/ComputerService.ts";
 import { createComputerTool } from "#core/features/tool/tools/computer/computer.ts";
 import type {
 	Toolset,
 	ToolsetFactory,
 } from "#core/features/tool/types/tool.ts";
+import { SurfaceUtils } from "#core/features/tool/utils/SurfaceUtils.ts";
 
 /**
- * Valid only once the host can read accessibility trees, so the toolset
- * carries the reason it cannot run (often a permission to grant) rather than
- * failing on use.
+ * Valid only once the host can read accessibility trees, which is often a
+ * permission to grant.
  */
 export const createComputerToolset: ToolsetFactory<
 	Toolset<{ computer: ComputerCapability }>
-> = async (options) => {
-	let status = options.status;
-	if (status.valid) {
-		const computer = await ComputerService.status(
-			options.capabilities.computer,
-		);
-		status = computer.available
-			? status
-			: {
-					valid: false,
-					error: computer.error ?? "Computer use is unavailable",
-				};
-	}
-
-	return {
-		name: "computer",
-		tools: [await createComputerTool(options)],
-		...options,
-		status,
-	};
-};
+> = async (options) => ({
+	name: "computer",
+	tools: [await createComputerTool(options)],
+	...options,
+	status: await SurfaceUtils.toolsetStatus({
+		status: options.status,
+		surface: options.capabilities.computer,
+		unavailable: "Computer use is unavailable",
+	}),
+});

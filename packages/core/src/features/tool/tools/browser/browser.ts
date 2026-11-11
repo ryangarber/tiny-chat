@@ -1,9 +1,6 @@
+import { type BrowserStep, zBrowserStep, zStepResult } from "computah/schema";
 import { z } from "zod";
 import type { BrowserCapability } from "#core/core/types/capability.ts";
-import {
-	zBrowserStep,
-	zBrowserStepResult,
-} from "#core/features/tool/types/browser.ts";
 import type {
 	ToolBlock,
 	ToolDisplay,
@@ -30,14 +27,14 @@ Chain whatever you can predict in one call — navigate, wait, click, type, read
 	output: z.object({
 		url: z.string(),
 		title: z.string(),
-		steps: z.array(zBrowserStepResult),
+		steps: z.array(zStepResult),
 		skipped: z.number().optional(),
 		notice: z.string().optional(),
 	}),
 } as const satisfies ToolDefinition;
 
 /** `navigate example.com, click e3, read` */
-const getSummary = (steps: Partial<zBrowserStep>[] = []) =>
+const getSummary = (steps: Partial<BrowserStep>[] = []) =>
 	steps
 		.map((step) => {
 			if (!step?.action) return "";
@@ -65,7 +62,7 @@ const display: ToolDisplay<typeof browser> = {
 		["Performing", "Performed"],
 		{
 			count: ["action", "actions"],
-			subject: getSummary(input.steps as Partial<zBrowserStep>[]),
+			subject: getSummary(input.steps as Partial<BrowserStep>[]),
 		},
 		"in a browser",
 	],

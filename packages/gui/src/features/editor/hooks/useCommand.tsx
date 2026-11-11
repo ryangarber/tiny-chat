@@ -1,9 +1,8 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
+import { PluginKey } from "@tiptap/pm/state";
 import {
 	type Editor,
 	Node,
-	NodeViewContent,
 	NodeViewWrapper,
 	type Range,
 	ReactNodeViewRenderer,
@@ -12,17 +11,19 @@ import { Suggestion } from "@tiptap/suggestion";
 import { useMemo } from "react";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useCommands } from "#client/features/editor/hooks/useCommands.ts";
-import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
 import {
 	getEditorPart,
 	useEditorPartStore,
 } from "#client/features/editor/stores/useEditorPartStore.ts";
 import type {
-	CommandChoiceGroup,
 	CommandChoiceItem,
 	CommandGroup,
 	CommandItem,
 } from "#client/features/editor/types/command.ts";
+import type {
+	CompletionGroup,
+	CompletionItem,
+} from "#client/features/editor/types/completion.ts";
 import { CommandUtils } from "#client/features/editor/utils/CommandUtils.ts";
 import { useRuntime } from "#gui/core/hooks/useRuntime.ts";
 import { AppService } from "#gui/core/services/AppService.ts";
@@ -37,14 +38,22 @@ interface CommandOptions {
 
 const nodeName = "command";
 const pluginKey = new PluginKey("command");
-const pluginKeyChoices = new PluginKey("command-choices");
 
+/** The shared lists' lower-case wording, as the app's sentences are written. */
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * A command is written as the text it is — its name, then a space and its
+ * argument — the way it is in a plain buffer, and read with the same
+ * {@link CommandUtils.match}, so typing a name and a space opens its choices
+ * here just as it does in the terminal. Only once it is chosen does it become
+ * a chip, which holds the command and its argument and is never edited.
+ */
 const Command = Node.create({
 	name: nodeName,
 	group: "inline",
-	content: "inline*",
 	inline: true,
-	isolating: false,
+	atom: true,
 	selectable: true,
 	draggable: false,
 	addOptions(): CommandOptions {
@@ -69,206 +78,117 @@ const Command = Node.create({
 		return [{ tag: `command` }];
 	},
 	renderHTML({ HTMLAttributes }) {
-		return ["command", HTMLAttributes, 0];
+		return ["command", HTMLAttributes];
 	},
 	addNodeView() {
 		return ReactNodeViewRenderer(
-			({ node, editor }) => (
-				<CommandNodeView id={node.attrs.id} editor={editor} />
-			),
+			({ node }) => <CommandNodeView id={node.attrs.id} />,
 			{ as: "command", attrs: ({ node }) => node.attrs },
 		);
 	},
-	...NodeUtils.createPartMarker({
-		nodeName,
-		getContent: (part) => (part.type === "command" ? part.argument : undefined),
-	}),
+	...NodeUtils.createPartMarker({ nodeName }),
 	addProseMirrorPlugins() {
+		const getCommands = () => (this.options as CommandOptions).getCommands();
+		/** The command a suggestion's query, everything after its slash, is of. */
+		const resolve = (query: string) =>
+			CommandUtils.match({ line: `/${query}`, groups: getCommands() });
+
 		return [
-			new Plugin({
-				key: new PluginKey("command-sync"),
-				// The chip's content is where an argument is typed, but the part is
-				// where it is kept: the document only ever carries the pointer, so
-				// what was typed has to be written back after every change.
-				appendTransaction: (transactions, _oldState, newState) => {
-					const docChanged = transactions.some(
-						(transaction) => transaction.docChanged,
-					);
-					if (!docChanged) return null;
-
-					const { addPart } = useEditorPartStore.getState();
-					const groups = (this.options as CommandOptions).getCommands();
-
-					let tr: Transaction | null = null;
-					newState.doc.descendants((node, pos) => {
-						if (node.type.name !== nodeName) return true;
-
-						const part = getEditorPart("command", node.attrs.id);
-						if (!part) return true;
-
-						const command = CommandUtils.find({ groups, name: part.name });
-						if (command && CommandUtils.acceptsContent(command)) {
-							// Emptied down to the zero-width padding, which is the chip
-							// having been deleted rather than an empty argument.
-							if (node.textContent.length <= 1) {
-								if (!tr) tr = newState.tr;
-								tr.deleteRange(pos, pos + node.nodeSize);
-								return true;
-							}
-
-							const argument = node.textContent.replace(/\u200B/g, "");
-							if ((part.argument ?? "") !== argument) {
-								addPart({ ...part, argument: argument || undefined });
-							}
-						}
-
-						return true;
-					});
-
-					return tr;
-				},
-			}),
-			Suggestion<CommandGroup, CommandItem>({
+			Suggestion<CompletionGroup, CompletionItem>({
 				editor: this.editor,
 				char: "/",
 				pluginKey,
 				placement: "top-start",
-				allow: ({ editor, state, range }) => {
-					// A slash written as code is only ever the text it is.
-					if (NodeUtils.isInCode(state, range.from)) return false;
-					const { command } = getSelectedCommandNode(
-						editor,
-						(this.options as CommandOptions).getCommands(),
-					);
-					return command?.choices === undefined;
+				// Escape keeps the list closed until the cursor leaves the command,
+				// even as its argument is typed on with spaces.
+				allowSpaces: true,
+				findSuggestionMatch: ({ $position }) => {
+					const { text, start } = NodeUtils.textBefore($position);
+					const match = CommandUtils.match({
+						line: text,
+						groups: getCommands(),
+					});
+					if (!match) return null;
+					return {
+						range: { from: start + match.from, to: start + match.to },
+						query: text.slice(match.from + 1, match.to),
+						text: text.slice(match.from, match.to),
+					};
 				},
-				items: async ({ editor, query }) =>
-					CommandUtils.filter({
-						groups: (this.options as CommandOptions).getCommands(),
-						query,
+				// A slash written as code is only ever the text it is.
+				allow: ({ state, range }) => !NodeUtils.isInCode(state, range.from),
+				items: async ({ editor, query }) => {
+					const match = resolve(query);
+					if (!match) return [];
+					if (match.command) {
+						return CommandUtils.filterChoices({
+							command: match.command,
+							query: match.text,
+						});
+					}
+					return CommandUtils.filter({
+						groups: getCommands(),
+						query: match.text,
 						used: getCommandNodes(editor).flatMap(({ node }) => {
 							const value = getEditorPart("command", node.attrs.id)?.value;
 							return value ? [value] : [];
 						}),
-					}),
-				render: renderCompletions({
-					tabs: true,
-					renderEmpty: () => "No matches",
-					renderItem: (item) => `/${item.name}`,
-					onTab: ({ item, editor, range }) => {
-						editor
-							.chain()
-							.focus()
-							.insertContentAt(range, `/${item.name}`)
-							.run();
-						return true;
-					},
-				}),
-				command: ({ editor, props, range }) => {
-					applyCommand(editor, props, range);
-				},
-			}),
-			Suggestion<CommandChoiceGroup, CommandChoiceItem>({
-				editor: this.editor,
-				char: "\u200B",
-				pluginKey: pluginKeyChoices,
-				placement: "top-start",
-				allow: ({ editor }) => {
-					const { command } = getSelectedCommandNode(
-						editor,
-						(this.options as CommandOptions).getCommands(),
-					);
-					return command?.choices !== undefined;
-				},
-				items: async ({ editor, query }) => {
-					const { command } = getSelectedCommandNode(
-						editor,
-						(this.options as CommandOptions).getCommands(),
-					);
-					return CommandUtils.filterChoices({
-						command,
-						query: query.replaceAll("\u200B", ""),
 					});
 				},
 				render: renderCompletions({
-					renderEmpty: () => "No matches",
-					renderItem: (item) => item.name,
-					onTab: ({ item, editor, range }) => {
-						editor
-							.chain()
-							.focus()
-							.insertContentAt(range, `\u200B${item.name}\u200B`)
-							.setTextSelection(range.from + 1 + (item.name?.length ?? 0))
-							.run();
+					tabs: true,
+					getScope: (query) => resolve(query)?.command?.name ?? "",
+					renderEmpty: ({ query }) =>
+						sentence(CommandUtils.empty(resolve(query))),
+					renderItem: (item, { query }) =>
+						resolve(query)?.command ? item.name : `/${item.name}`,
+					onTab: ({ item, editor, range, query }) => {
+						const match = resolve(query);
+						if (!match) return true;
+						if (match.command) {
+							applyChoice({
+								editor,
+								range,
+								command: match.command,
+								choice: item,
+								complete: true,
+							});
+						} else {
+							applyCommand({ editor, range, command: item, complete: true });
+						}
 						return true;
 					},
+					onEnterEmpty: ({ editor, range, query }) => {
+						const command = resolve(query)?.command;
+						if (!command) return false;
+						return applyContent({
+							editor,
+							range,
+							command,
+							value: resolve(query)?.text ?? "",
+						});
+					},
 				}),
-				command: ({ editor, props }) => {
-					const { command } = getSelectedCommandNode(
-						editor,
-						(this.options as CommandOptions).getCommands(),
+				command: ({ editor, range, props }) => {
+					const match = resolve(
+						editor.state.doc
+							.textBetween(range.from, range.to, undefined, "\uFFFC")
+							.slice(1),
 					);
-					if (!command) {
-						return;
+					if (!match) return;
+					if (match.command) {
+						applyChoice({
+							editor,
+							range,
+							command: match.command,
+							choice: props,
+						});
+					} else {
+						applyCommand({ editor, range, command: props });
 					}
-
-					if (CommandUtils.runChoice({ command, choice: props })) {
-						editor.chain().focus().deleteNode(nodeName).run();
-					}
-					// TODO - apply choice value?
 				},
 			}),
 		];
-	},
-	addKeyboardShortcuts() {
-		return {
-			Enter: () => {
-				const { command, commandNode } = getSelectedCommandNode(
-					this.editor,
-					(this.options as CommandOptions).getCommands(),
-				);
-				if (!command || !commandNode) {
-					return false;
-				}
-
-				const { isCompletionsOpen, isCompletionsEmpty } =
-					useCompletionStore.getState();
-				if (isCompletionsOpen && !isCompletionsEmpty) {
-					return false;
-				}
-
-				const value = commandNode.textContent.replace(/[\s\u200B]/g, "");
-				if (!CommandUtils.run({ command, value })) {
-					return false;
-				}
-
-				this.editor.chain().focus().deleteNode(nodeName).run();
-				return true;
-			},
-			Space: () => {
-				const range = this.editor.state.selection;
-				if (range.from !== range.to) return false;
-
-				const { isCompletionsOpen } = useCompletionStore.getState();
-				if (!isCompletionsOpen) return false;
-
-				const { node } = this.editor.state.doc.childBefore(range.to);
-				const text = node?.textContent?.split(" ").at(-1);
-				if (!text) return false;
-
-				const commands = (this.options as CommandOptions)
-					.getCommands()
-					.flatMap((group) => group.items);
-				const command = commands.find((command) => `/${command.name}` === text);
-				if (!command) return false;
-
-				applyCommand(this.editor, command, {
-					from: range.to - 1 - text.length,
-					to: range.to,
-				});
-				return true;
-			},
-		};
 	},
 });
 
@@ -304,60 +224,126 @@ export const useCommand = () => {
 	);
 };
 
-function CommandNodeView({ id, editor }: { id: string; editor: Editor }) {
+function CommandNodeView({ id }: { id: string }) {
 	const part = useEditorPartStore((state) => state.parts[id]);
-	const command =
-		part?.type === "command"
-			? CommandUtils.find({
-					groups: getCommandOptions(editor)?.getCommands() ?? [],
-					name: part.name,
-				})
-			: null;
-
 	if (part?.type !== "command") return null;
 
 	return (
-		<NodeViewWrapper as="span">
-			<CommandView
-				name={part.name}
-				content={
-					command && CommandUtils.acceptsContent(command) ? (
-						<NodeViewContent />
-					) : undefined
-				}
-			/>
+		<NodeViewWrapper as="span" contentEditable={false}>
+			<CommandView name={part.name} content={part.argument} />
 		</NodeViewWrapper>
 	);
 }
 
-function applyCommand(editor: Editor, command: CommandItem, range: Range) {
-	const nodes = getCommandNodes(editor);
-	const end = nodes.at(-1)?.range.to ?? 0;
-	const acceptsContent = CommandUtils.acceptsContent(command);
-	const focus = end + (acceptsContent ? 3 : 6);
-
-	if (!acceptsContent && CommandUtils.run({ command })) {
-		editor.chain().focus().deleteRange(range).run();
-		return;
-	}
-
-	const node = CommandUtils.toNode({ command });
-
+/** Write a chip standing for a command, and its argument, over `range`. */
+function insertNode({
+	editor,
+	range,
+	command,
+	value,
+}: {
+	editor: Editor;
+	range: Range;
+	command: CommandItem;
+	value?: string;
+}) {
+	const node = CommandUtils.toNode({ command, value });
 	editor
 		.chain()
 		.focus()
-		.deleteRange(range)
-		.insertContentAt(end + 1, [
-			{
-				type: nodeName,
-				attrs: { id: node.id },
-				// awful hidden zero-width hack to fix prosemirror fuckery
-				content: [{ type: "text", text: "\u200B\u200B" }],
-			},
+		.insertContentAt(range, [
+			{ type: nodeName, attrs: { id: node.id } },
 			{ type: "text", text: " " },
 		])
-		.setTextSelection({ from: focus, to: focus })
 		.run();
+}
+
+/** Replace `range` with plain text, the cursor after it. */
+function write({
+	editor,
+	range,
+	text,
+}: {
+	editor: Editor;
+	range: Range;
+	text: string;
+}) {
+	editor.chain().focus().insertContentAt(range, text).run();
+}
+
+/**
+ * A command chosen from the list, as {@link CommandUtils.applyCommand} writes
+ * one into a plain buffer: one taking an argument is written out with a space,
+ * which opens its choices; otherwise it runs, or stands as a chip. `complete`
+ * only writes out its name.
+ */
+function applyCommand({
+	editor,
+	range,
+	command,
+	complete,
+}: {
+	editor: Editor;
+	range: Range;
+	command: CommandItem;
+	complete?: boolean;
+}) {
+	if (CommandUtils.acceptsContent(command)) {
+		return write({ editor, range, text: `/${command.name} ` });
+	}
+	if (complete) return write({ editor, range, text: `/${command.name}` });
+	if (CommandUtils.run({ command })) {
+		editor.chain().focus().deleteRange(range).run();
+		return;
+	}
+	insertNode({ editor, range, command });
+}
+
+/** A choice chosen from the list, as {@link CommandUtils.applyChoice} does. */
+function applyChoice({
+	editor,
+	range,
+	command,
+	choice,
+	complete,
+}: {
+	editor: Editor;
+	range: Range;
+	command: CommandItem;
+	choice: CommandChoiceItem;
+	complete?: boolean;
+}) {
+	if (complete) {
+		return write({ editor, range, text: `/${command.name} ${choice.name}` });
+	}
+	if (CommandUtils.runChoice({ command, choice })) {
+		editor.chain().focus().deleteRange(range).run();
+		return;
+	}
+	insertNode({ editor, range, command, value: choice.name });
+}
+
+/** The argument typed out, as {@link CommandUtils.applyContent} takes it. */
+function applyContent({
+	editor,
+	range,
+	command,
+	value: _value,
+}: {
+	editor: Editor;
+	range: Range;
+	command: CommandItem;
+	value: string;
+}) {
+	// A chip the argument reaches over stands in its text as nothing.
+	const value = _value.replaceAll("\uFFFC", "").trim();
+	if (CommandUtils.run({ command, value })) {
+		editor.chain().focus().deleteRange(range).run();
+		return true;
+	}
+	if (!value || CommandUtils.needsRun(command)) return false;
+	insertNode({ editor, range, command, value });
+	return true;
 }
 
 /** The command extension's own options, which carry the command catalog. */
@@ -381,26 +367,6 @@ function getCommandNodes(editor: Editor) {
 		}
 	});
 	return nodes;
-}
-
-function getSelectedCommandNode(editor: Editor, groups: CommandGroup[]) {
-	const { $from } = editor.state.selection;
-	let commandNode: ProseMirrorNode | null = null;
-	for (let depth = $from.depth; depth >= 0; depth--) {
-		const node = $from.node(depth);
-
-		if (node.type.name === "command") {
-			commandNode = node;
-			break;
-		}
-	}
-	const command = CommandUtils.find({
-		groups,
-		name: commandNode
-			? (getEditorPart("command", commandNode.attrs.id)?.name ?? undefined)
-			: undefined,
-	});
-	return { command, commandNode };
 }
 
 /**

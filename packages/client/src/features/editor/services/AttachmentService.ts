@@ -1,6 +1,5 @@
 import type { Client } from "#client/client.ts";
 import { createChatShellCapability } from "#client/core/capabilities/createChatShellCapability.ts";
-import { ClientBrowserService } from "#client/features/agent/services/ClientBrowserService.ts";
 import { useEditorPartStore } from "#client/features/editor/stores/useEditorPartStore.ts";
 import type { AttachmentItem } from "#client/features/editor/types/attachment.ts";
 import type { EditorNode } from "#client/features/editor/types/node.ts";
@@ -32,6 +31,7 @@ const build = async ({
 				})
 			: client.shell;
 
+	const computah = client.computah;
 	return CoreAttachmentService.build({
 		source,
 		label: item.label ?? item.name,
@@ -47,8 +47,8 @@ const build = async ({
 			]);
 			return { title: chat.title, messages };
 		},
-		browser: (tab) => ClientBrowserService.readTab({ client, tab }),
-		computer: client.computer,
+		browser: computah && ((index) => computah.browser.readTab({ index })),
+		computer: computah?.computer,
 	});
 };
 

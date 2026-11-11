@@ -5,13 +5,13 @@ import type {
 } from "#core/core/types/capability.ts";
 
 /**
- * The host's own library, as is: it is one object for the life of the client,
- * which is what lets the target window and refs carry over between messages.
+ * The host's own, as is: it is one object for the life of the client, which
+ * is what lets the target window and refs carry over between messages.
  */
 export const createComputerCapability: CapabilityFactory<
 	{ client: Client },
 	ComputerCapability
 > = async ({ client }) => {
-	if (!client.computer) throw new Error("missing client computer");
-	return client.computer;
+	if (!client.computah) throw new Error("missing client computer");
+	return client.computah.computer;
 };

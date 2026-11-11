@@ -78,6 +78,12 @@ export interface Tool<
 	tracksChanges?: boolean;
 
 	/**
+	 * Runs once a generation that offered the tool ends, however it ends: for
+	 * undoing what its calls leave in place for the calls after them.
+	 */
+	finish?: () => Promise<void>;
+
+	/**
 	 * Runs before `execute`, and before the loop stops for approval or feedback.
 	 * Throw to fail the call outright: the error becomes the tool result and the
 	 * model gets to correct itself, rather than the user being asked to approve
@@ -109,7 +115,7 @@ export type ToolFactory<T extends Tool<any, any>> = (options: {
 	capabilities: T["capabilities"];
 }) => T | Promise<T>;
 
-interface ToolsetStatus {
+export interface ToolsetStatus {
 	valid: boolean;
 	error?: unknown;
 }

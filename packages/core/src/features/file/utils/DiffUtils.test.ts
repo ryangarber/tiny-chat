@@ -10,6 +10,10 @@ describe("DiffUtils", () => {
 		["return result.text", "return result.json()"],
 		["hello world", "hello brave world"],
 		["hello brave world", "hello world"],
+		["  foo(bar)", "    foo(bar)"],
+		["a b c", "a  b c"],
+		[".call)call )", "). call call"],
+		["a\nfoo(1)\nb\n", "a\ninserted()\nfoo(2)\nb\n"],
 	])("preserves both sides of a diff: %j -> %j", (before, after) => {
 		const diff = DiffUtils.diff({ before, after });
 		const oldLines = diff.flatMap((line) =>
@@ -49,6 +53,66 @@ describe("DiffUtils", () => {
 					.join(""),
 			).toBe(line.lineAfter);
 		}
+	});
+
+	const parts = (before: string, after: string) =>
+		DiffUtils.diff({ before, after }).map((line) =>
+			line.type === "changed"
+				? line.parts
+						.map((part) =>
+							part.type === "changed"
+								? `{${part.partBefore}→${part.partAfter}}`
+								: part.type === "added"
+									? `[+${part.part}]`
+									: part.type === "removed"
+										? `[-${part.part}]`
+										: part.part,
+						)
+						.join("")
+				: `${line.type}: ${line.line}`,
+		);
+
+	it.each([
+		["call(arg1)", "call(arg2)", "call({arg1→arg2})"],
+		["call(arg1)", "call(arg1, arg2)", "call(arg1[+, arg2])"],
+		["call(arg1, arg2)", "call(arg2)", "call([-arg1, ]arg2)"],
+		["foo(a)", "foo(a)(b)", "foo(a)[+(b)]"],
+		["foo(a, b)", "foo(a, b, b)", "foo(a, b[+, b])"],
+		[
+			"return result.text",
+			"return result.json()",
+			"return result.{text→json()}",
+		],
+		["if (a && b) {", "if (a || b) {", "if (a {&&→||} b) {"],
+		[
+			'<div className="a">',
+			'<div className="b" id="c">',
+			'<div className="{a→b}"[+ id="c"]>',
+		],
+		[
+			"const value = getValue();",
+			"let value = await getValue();",
+			"{const→let} value = [+await ]getValue();",
+		],
+		["  foo(bar)", "    foo(bar)", "{  →    }foo(bar)"],
+	])("groups changes within a line: %j -> %j", (before, after, expected) => {
+		expect(parts(before, after)).toEqual([expected]);
+	});
+
+	it("ignores line endings and a missing final newline", () => {
+		expect(parts("x\r\ny\r\n", "x\ny")).toEqual([
+			"unchanged: x",
+			"unchanged: y",
+		]);
+	});
+
+	it("pairs each changed line with its counterpart around inserted lines", () => {
+		expect(parts("a\nfoo(1)\nb\n", "a\ninserted()\nfoo(2)\nb\n")).toEqual([
+			"unchanged: a",
+			"added: inserted()",
+			"foo({1→2})",
+			"unchanged: b",
+		]);
 	});
 
 	it.each([0, 1, 2, 3, 10])(

@@ -11,7 +11,6 @@ import { FileOperationService } from "#core/features/file/services/FileOperation
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import { ComputerService } from "#core/features/tool/services/ComputerService.ts";
 
 export const AttachmentService = {
 	unavailable: ({
@@ -71,18 +70,16 @@ export const AttachmentService = {
 			};
 		} else if (source.startsWith("window:")) {
 			if (!computer) throw new Error(`Cannot read window: ${source}`);
-			const status = await ComputerService.status(computer);
+			const status = await computer.status();
 			if (!status.available) {
 				throw new Error(status.error ?? `Cannot read window: ${source}`);
 			}
-			// The outline is the attachment; a screenshot only adds to it. Where
-			// the screen cannot be captured at all it is not tried, which would
-			// raise the window for nothing, and one that fails is left out.
-			const result = await ComputerService.run({
-				capability: computer,
+			// The outline is the attachment; a screenshot only adds to it, so
+			// one that cannot be taken is left out.
+			const result = await computer.run({
 				window: source.slice(7),
 				steps: [{ action: "read" }],
-				screenshot: status.screen !== false,
+				screenshot: !status.missing.includes("screen-recording"),
 			});
 			const failed = result.steps.find(
 				(step) => !step.ok && step.action !== "screenshot",

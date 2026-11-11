@@ -13,7 +13,7 @@ export default function Command({
 				/{name}
 			</span>
 			{content && (
-				<span className="rounded-xl px-2 py-1 text-sm cursor-text bg-(--tc-surface) border border-(--tc-interior) min-w-1 min-h-7">
+				<span className="rounded-xl px-2 py-1 text-sm bg-(--tc-surface) border border-(--tc-interior) min-w-1 min-h-7">
 					{content}
 				</span>
 			)}

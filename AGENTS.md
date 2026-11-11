@@ -44,12 +44,12 @@ scheduled actions generate on the server, via the worker, using the same `AgentS
 
 Agent code has three layers — keep them separate:
 
-1. **Capability** — host-facing interface in `packages/core/src/core/types/capability.ts`, implemented by both
-   `packages/client/src/core/capabilities/` and `packages/server/src/core/capabilities/`.
+1. **Capability** — host-facing interface in `packages/core/src/core/types/capability.ts`, implemented in
+   `packages/client/src/core/capabilities/` and, where available to scheduled actions, `packages/server/src/core/capabilities/`.
 2. **Tool** — model-facing definition + `execute` in `packages/core/src/features/tool/`. Depends on capabilities only.
 3. **Toolset** — named group from `ToolService.getTools`, enabled per message via `config.toolsets`.
 
-Keep related edits in lockstep: route ↔ `ApiRouter` ↔ client call; capability interface ↔ both implementations ↔ tools;
+Keep related edits in lockstep: route ↔ `ApiRouter` ↔ client call; capability interface ↔ applicable implementations ↔ tools;
 `contract.prisma` model ↔ core type in `features/data/types/`.
 
 ## Data
@@ -61,7 +61,7 @@ boundaries rather than passing raw JSON around.
 ## Testing
 
 Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE_WEB_PORT` in `.env`). Test against them
-— don't mock them or start a second database.
+— use them unless they are not available or cannot fulfill the needs of the task.
 
 - **Scratchpad / smoke tests:** use the real client provider: `createClient` wrapped in `QueryClientProvider` +
   `ClientContext`, as `packages/gui/src/main.tsx` does (in Vitest, `create()` from `packages/client/src/tests.ts`). It
@@ -74,22 +74,18 @@ Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE
   results are in; nest arrays (`[[…], […]]`) to set the steps yourself. E.g.
   `[{"thought":"Hmm"},{"tool":"spawn_subagent","input":{"task":"…","prompt":"…"}},"Done."]`.
 - **Unit:** Vitest (`*.test.ts`), only for logic that is actually pure.
-- **App UI:** drive it with Playwright (installed at the root, Chromium included) against `http://localhost:$VITE_WEB_PORT`.
+- **Interactive testing:** use the app's `browser`, `computer`, and `terminal` tools, named exactly that or with an
+  MCP prefix. Do not substitute Playwright scripts, direct tmux commands, or other automation unless the task calls for them specifically.
+- **App UI:** use `browser` against `http://localhost:$VITE_WEB_PORT`. Read the page tree before interacting and use
+  screenshots when visual layout matters. Use `computer` for native app or window interactions.
 - **CLI:** always pass `--no-keyring` when testing so the CLI stores its session token in a plain-text OS temp file
-  instead of touching the system keyring. Inside Tiny Chat, drive it with the `terminal` tool (`open`
-  `pnpm dev:cli --no-keyring`, then type, press, click, wait and capture). Otherwise run it in a detached `tmux` session
-  and drive it with `send-keys` / `capture-pane`:
-
-  ```bash
-  tmux new-session -d -s cli -x 120 -y 40 'pnpm dev:cli --no-keyring'
-  tmux send-keys -t cli 'hello' M-Enter
-  tmux capture-pane -p -t cli
-  ```
+  instead of touching the system keyring. Use `terminal` to open `pnpm dev:cli --no-keyring`, then type, press, click,
+  wait, and capture the screen. Wait for the expected state rather than sleeping.
 
 **Return inserts a newline in both editors — it does not send.** Hold a modifier with Return to send:
 
-- App: Cmd/Ctrl + Return (Playwright: `page.keyboard.press("ControlOrMeta+Enter")`).
-- CLI: Alt/Option, Meta, or Ctrl + Return (tmux: `M-Enter`).
+- App: Cmd/Ctrl + Return.
+- CLI: Alt/Option, Meta, or Ctrl + Return.
 
 ## Commands
 

@@ -10,6 +10,7 @@ import type { CommandEdit } from "#client/features/editor/types/command.ts";
 import { AttachmentUtils } from "#client/features/editor/utils/AttachmentUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import Completions from "#tui/core/components/Completions.tsx";
+import { useCompletionDismissal } from "#tui/features/editor/hooks/useCompletionDismissal.ts";
 import { MarkdownUtils } from "#tui/features/editor/utils/MarkdownUtils.ts";
 
 export default function Attachments({
@@ -29,8 +30,9 @@ export default function Attachments({
 
 	// An at sign written as code is only ever the text it is.
 	const found = AttachmentUtils.query({ content, cursor });
-	const query =
-		found && !MarkdownUtils.isInCode(content, found.from) ? found : null;
+	const { query, dismiss } = useCompletionDismissal(
+		found && !MarkdownUtils.isInCode(content, found.from) ? found : null,
+	);
 
 	const [groups, setGroups] = useState<AttachmentGroup[]>([]);
 
@@ -92,6 +94,10 @@ export default function Attachments({
 				return "no matches";
 			}}
 			onInput={({ item, key }) => {
+				if (key.escape) {
+					dismiss();
+					return false;
+				}
 				if (key.return && item) {
 					// In at once, read in the background.
 					const node = AttachmentService.create({ client, item });
@@ -101,7 +107,11 @@ export default function Attachments({
 					apply(AttachmentUtils.complete({ content, query, item }));
 				}
 			}}
-			actions={[{ key: "tab", name: "fill" }, "select"]}
+			actions={[
+				{ key: "tab", name: "fill" },
+				"select",
+				{ key: "esc", name: "close", onClick: dismiss },
+			]}
 		/>
 	);
 }

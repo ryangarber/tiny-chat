@@ -15,6 +15,7 @@ import { CommandUtils } from "#client/features/editor/utils/CommandUtils.ts";
 import Completions from "#tui/core/components/Completions.tsx";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
+import { useCompletionDismissal } from "#tui/features/editor/hooks/useCompletionDismissal.ts";
 import { MarkdownUtils } from "#tui/features/editor/utils/MarkdownUtils.ts";
 import { useUpdate } from "#tui/features/update/hooks/useUpdate.ts";
 
@@ -75,8 +76,9 @@ export default function Commands({
 
 	// A slash written as code is only ever the text it is.
 	const found = CommandUtils.query({ content, cursor, groups: commands });
-	const query =
-		found && !MarkdownUtils.isInCode(content, found.from) ? found : null;
+	const { query, dismiss } = useCompletionDismissal(
+		found && !MarkdownUtils.isInCode(content, found.from) ? found : null,
+	);
 
 	const commandGroups =
 		!query || query.command
@@ -109,10 +111,12 @@ export default function Commands({
 			<Completions<CommandChoiceGroup, CommandChoiceItem>
 				groups={groups}
 				tabs
-				renderEmpty={() => {
-					return "no matches";
-				}}
+				renderEmpty={() => CommandUtils.empty(query)}
 				onInput={({ item, key }) => {
+					if (key.escape) {
+						dismiss();
+						return false;
+					}
 					if (key.return && !item) {
 						apply(CommandUtils.applyContent({ content, query }));
 					}
@@ -137,7 +141,11 @@ export default function Commands({
 						);
 					}
 				}}
-				actions={[{ key: "tab", name: "fill" }, "select"]}
+				actions={[
+					{ key: "tab", name: "fill" },
+					"select",
+					{ key: "esc", name: "close", onClick: dismiss },
+				]}
 			/>
 		);
 	} else {
@@ -152,6 +160,10 @@ export default function Commands({
 					return "no matches";
 				}}
 				onInput={({ key, item }) => {
+					if (key.escape) {
+						dismiss();
+						return false;
+					}
 					if (key.return && item) {
 						apply(
 							CommandUtils.applyCommand({
@@ -173,7 +185,11 @@ export default function Commands({
 						);
 					}
 				}}
-				actions={[{ key: "tab", name: "fill" }, "select"]}
+				actions={[
+					{ key: "tab", name: "fill" },
+					"select",
+					{ key: "esc", name: "close", onClick: dismiss },
+				]}
 			/>
 		);
 	}

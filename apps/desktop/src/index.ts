@@ -1,12 +1,12 @@
 import Electrobun, {
-	ApplicationMenu,
 	BrowserView,
 	BrowserWindow,
 	type ElectrobunEvent,
 	Updater,
 	Utils,
 } from "electrobun/main";
-import { ComputerHostService } from "#client/features/agent/services/ComputerHostService.ts";
+import { createMenu, standardMenu } from "electrobun-menu";
+import { ComputahHostService } from "#client/features/agent/services/ComputahHostService.ts";
 import { AfmHostService } from "#desktop/core/services/AfmHostService.ts";
 import { ClaudeCodeHostService } from "#desktop/core/services/ClaudeCodeHostService.ts";
 import { CodexHostService } from "#desktop/core/services/CodexHostService.ts";
@@ -16,6 +16,7 @@ import { ShellHostService } from "#desktop/core/services/ShellHostService.ts";
 import { UpdateHostService } from "#desktop/core/services/UpdateHostService.ts";
 import type { DesktopRPC, DesktopSend } from "#desktop/core/types/rpc.ts";
 import workspace from "../../../package.json" with { type: "json" };
+import config from "../electrobun.config.ts";
 
 /**
  * The GUI's Vite server, for a dev build run by `scripts/dev.ts` with HMR;
@@ -34,10 +35,11 @@ const send: DesktopSend = new Proxy({} as DesktopSend, {
 		(rpc.send[message] as (payload: never) => void)(payload),
 });
 
-// Its own window is raised by Electrobun, on the main thread, never through
-// accessibility from xa11y's worker threads.
-const computer = ComputerHostService.create({
-	activateSelf: () => mainWindow.activate(),
+// The browser, terminal and computer the agent drives, for the webview. The
+// computer's embedded driver runs for this app, under its own grants.
+const computah = ComputahHostService.serve({
+	computah: ComputahHostService.create({ bundleId: config.app.identifier }),
+	onProgress: (payload) => send.computahProgress(payload),
 });
 
 /** The URL the app was opened with, until the webview takes it. */
@@ -68,7 +70,8 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 			...CodexHostService.create({ send }),
 			...CursorHostService.create({ send }),
 			...UpdateHostService.create({ send }),
-			computerCall: (request) => computer.call(request),
+			computah: (request) => computah.call(request),
+			computahAbort: (request) => computah.abort(request),
 			quit: async () => {
 				Utils.quit();
 			},
@@ -82,12 +85,44 @@ const rpc = BrowserView.defineRPC<DesktopRPC>({
 	},
 });
 
+const menu = createMenu(
+	Electrobun,
+	standardMenu({
+		appName: config.app.name,
+		version: config.app.version,
+		file: [
+			{
+				label: "New Chat",
+				action: "new-chat",
+				accelerator: "CmdOrCtrl+N",
+			},
+		],
+		help: [
+			{
+				label: "Report Issue",
+				action: "report-issue",
+			},
+		],
+	}),
+);
+
+menu.on("application-menu-clicked", ({ data }) => {
+	if (data?.action === "new-chat") {
+		send.newChat(undefined);
+	}
+	if (data?.action === "report-issue") {
+		Utils.openExternal(workspace.bugs.url);
+	}
+});
+
 const mainWindow = new BrowserWindow({
 	title: "Tiny Chat",
 	url,
 	frame: { width: 1280, height: 720 },
 	rpc,
 });
+
+menu.attach(mainWindow);
 
 // `tinychat://`, as a sign-in in the browser returns to the app (macOS only,
 // and only once the app is in /Applications). Kept for a webview that isn't
@@ -97,68 +132,4 @@ Electrobun.events.on("open-url", (event: unknown) => {
 	openUrl = data.url;
 	send.openUrl({ url: data.url });
 	mainWindow.activate();
-});
-
-ApplicationMenu.setApplicationMenu([
-	{
-		submenu: [
-			{ role: "about" },
-			{ type: "separator" },
-			{ role: "hide", accelerator: "CommandOrControl+H" },
-			{ role: "hideOthers", accelerator: "CommandOrControl+Alt+H" },
-			{ type: "separator" },
-			{ role: "quit", accelerator: "CommandOrControl+Q" },
-		],
-	},
-	{
-		label: "File",
-		submenu: [
-			//{ label: "New Chat", action: "new-chat", accelerator: "CommandOrControl+N" },
-			//{ type: "separator" },
-			{ role: "close", accelerator: "CommandOrControl+W" },
-		],
-	},
-	{
-		label: "Edit",
-		submenu: [
-			{ role: "undo" },
-			{ role: "redo" },
-			{ type: "separator" },
-			{ role: "cut" },
-			{ role: "copy" },
-			{ role: "paste" },
-			{ role: "pasteAndMatchStyle" },
-			{ role: "delete" },
-			{ role: "selectAll" },
-		],
-	},
-	{
-		label: "View",
-		submenu: [{ role: "toggleFullScreen" }],
-	},
-	{
-		label: "Window",
-		submenu: [{ role: "minimize" }, { role: "zoom" }],
-	},
-	{
-		label: "Help",
-		submenu: [
-			{
-				label: "Report Issue",
-				action: "report-issue",
-				accelerator: "CommandOrControl+I",
-			},
-		],
-	},
-]);
-
-type ApplicationMenuClickedEvent = ElectrobunEvent<
-	{ id?: number; action: string; data?: unknown },
-	{ allow: boolean }
->;
-ApplicationMenu.on("application-menu-clicked", (event: unknown) => {
-	const { data } = event as ApplicationMenuClickedEvent;
-	if (data?.action === "report-issue") {
-		Utils.openExternal(workspace.bugs.url);
-	}
 });

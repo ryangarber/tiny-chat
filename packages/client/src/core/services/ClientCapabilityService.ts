@@ -9,6 +9,7 @@ import { createLegiscanCapability } from "#client/core/capabilities/createLegisc
 import { createMemoriesCapability } from "#client/core/capabilities/createMemoriesCapability.ts";
 import { createShellCapability } from "#client/core/capabilities/createShellCapability.ts";
 import { createSubagentsCapability } from "#client/core/capabilities/createSubagentsCapability.ts";
+import { createTerminalCapability } from "#client/core/capabilities/createTerminalCapability.ts";
 import { createWebCapability } from "#client/core/capabilities/createWebCapability.ts";
 import { ClientProviderService } from "#client/features/agent/services/ClientProviderService.ts";
 import type { Capabilities } from "#core/core/types/capability.ts";
@@ -101,12 +102,19 @@ export const ClientCapabilityService = {
 			capabilities.shell = await createShellCapability({ client });
 		}
 
-		if (enabled.browser) {
-			capabilities.browser = await createBrowserCapability({ client });
-		}
+		// Only a host with Node's APIs holds computah's surfaces.
+		if (client.computah) {
+			if (enabled.browser) {
+				capabilities.browser = await createBrowserCapability({ client });
+			}
 
-		if (enabled.computer && client.computer) {
-			capabilities.computer = await createComputerCapability({ client });
+			if (enabled.terminal) {
+				capabilities.terminal = await createTerminalCapability({ client });
+			}
+
+			if (enabled.computer) {
+				capabilities.computer = await createComputerCapability({ client });
+			}
 		}
 
 		if (enabled.actions) {

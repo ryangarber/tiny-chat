@@ -66,6 +66,6 @@ export const client = createClient({
 	},
 	shell: runtime.shell,
 	transports: runtime.transports,
-	computer: runtime.computer,
+	computah: runtime.computah,
 	desktop: !!runtime.shell,
 });
