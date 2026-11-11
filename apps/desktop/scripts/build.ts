@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { proc } from "@ryangarber/utils";
 import { zClientEnv } from "#core/core/types/env.ts";
+import { stageCuaDriverNative } from "../../../scripts/use-cua-driver.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 
 /**
@@ -24,6 +26,8 @@ await proc({
 });
 // What `electrobun.config.ts` copies, before the GUI is built into it.
 await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
+// The computer driver's native library, which the bundle cannot carry.
+stageCuaDriverNative(fileURLToPath(new URL("../native/", import.meta.url)));
 await proc({
 	title: "Building GUI",
 	command: ["pnpm", "exec", "vite", "build"],

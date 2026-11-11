@@ -28,8 +28,11 @@ export default {
 		},
 		// Made by `scripts/dev.ts` and `scripts/build.ts`: the GUI. (Hutch loads
 		// this file without the file system, so it always exists, if empty.)
+		// And the Cua Driver SDK's platform package, a `node_modules` above the
+		// bundle, where the SDK looks for it (`scripts/use-cua-driver.ts`).
 		copy: {
 			dist: "views/main",
+			native: "node_modules",
 		},
 		// The scripts rebuild these themselves.
 		watchIgnore: ["dist/**", "src/client-runtime.ts"],

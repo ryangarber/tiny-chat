@@ -132,14 +132,21 @@ const createHostComputer = (
 export const ComputahHostService = {
 	create: ({
 		bundleId,
+		cwd,
 	}: {
 		/** The host app's bundle, which the computer's embedded driver runs for. */
 		bundleId?: string;
+		/**
+		 * Where a terminal session starts that names no directory of its own;
+		 * the process's by default. An app started from Finder or the Dock sits
+		 * inside its own bundle, so it passes somewhere better.
+		 */
+		cwd?: string;
 	} = {}): ClientComputah => {
 		// The user's choice, as the last run passed it; read as the browser launches.
 		let headless = true;
 		const browser = createBrowser({ headless: () => headless });
-		const terminal = createTerminal();
+		const terminal = createTerminal(cwd ? { cwd } : {});
 
 		return {
 			browser: {

@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import Electrobun, {
 	BrowserView,
 	BrowserWindow,
@@ -36,9 +37,15 @@ const send: DesktopSend = new Proxy({} as DesktopSend, {
 });
 
 // The browser, terminal and computer the agent drives, for the webview. The
-// computer's embedded driver runs for this app, under its own grants.
+// computer's embedded driver runs for this app, under its own grants. The
+// process's own directory is inside the app bundle (and stays there, since
+// Electrobun reads its files relative to it), so a terminal starts at home,
+// as the webview's shell does (`ShellHostService`).
 const computah = ComputahHostService.serve({
-	computah: ComputahHostService.create({ bundleId: config.app.identifier }),
+	computah: ComputahHostService.create({
+		bundleId: config.app.identifier,
+		cwd: homedir(),
+	}),
 	onProgress: (payload) => send.computahProgress(payload),
 });
 

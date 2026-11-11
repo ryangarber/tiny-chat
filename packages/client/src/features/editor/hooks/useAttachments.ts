@@ -35,9 +35,17 @@ const LIVE_TTL = 5_000;
  */
 const LIVE_TIMEOUT = 1_500;
 
-const withTimeout = <T>(promise: Promise<T>, fallback: T) =>
+/**
+ * A live group, or `fallback` once it takes too long or fails: a host that
+ * cannot answer (its driver failing to load, say) leaves its group out rather
+ * than failing the whole menu.
+ */
+const withTimeout = <T>(promise: Promise<T>, fallback: T, label: string) =>
 	Promise.race([
-		promise,
+		promise.catch((error) => {
+			console.warn(`[useAttachments] failed to list ${label}`, error);
+			return fallback;
+		}),
 		new Promise<T>((resolve) =>
 			setTimeout(() => resolve(fallback), LIVE_TIMEOUT),
 		),
@@ -208,8 +216,8 @@ export const useAttachments = () => {
 		};
 
 		const groups = Promise.all([
-			withTimeout(getTabs(), []),
-			withTimeout(getWindows(), []),
+			withTimeout(getTabs(), [], "tabs"),
+			withTimeout(getWindows(), [], "windows"),
 		]).then((groups) => groups.flat());
 		liveRef.current = { at: Date.now(), groups };
 		return groups;

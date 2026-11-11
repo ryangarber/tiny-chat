@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import { mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { proc } from "@ryangarber/utils";
 import { concurrently } from "concurrently";
 import { zClientEnv } from "#core/core/types/env.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
+import { stageCuaDriverNative } from "../../../scripts/use-cua-driver.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 import { useServer } from "../../../scripts/use-server.ts";
 
@@ -26,6 +28,8 @@ await proc({
 });
 // What `electrobun.config.ts` copies, which a dev build with HMR leaves empty.
 await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
+// The computer driver's native library, which the bundle cannot carry.
+stageCuaDriverNative(fileURLToPath(new URL("../native/", import.meta.url)));
 
 try {
 	if (dist) {

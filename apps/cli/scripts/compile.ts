@@ -4,6 +4,7 @@ import * as Babel from "@babel/core";
 import { log, task } from "@ryangarber/utils";
 import chalk from "chalk";
 import { zClientEnv } from "#core/core/types/env.ts";
+import { cuaDriverPlugin } from "../../../scripts/use-cua-driver.ts";
 import { useEnv } from "../../../scripts/use-env.ts";
 
 /** The repo, whose own imports already resolve to a single copy of each package. */
@@ -89,7 +90,9 @@ export async function compile({
 				},
 				// @afmize/node's library needs nothing here: its Bun entry imports
 				// it as a file, which Bun copies beside the bundle (or embeds in a
-				// compiled binary).
+				// compiled binary). The Cua Driver SDK's looks for its package, so
+				// it is handed the files the same way.
+				cuaDriverPlugin(),
 				{
 					name: "react-compiler",
 					setup: (build) => {
