@@ -1,3 +1,13 @@
+## 0.10.13 (2026-11-11)
+
+### Features
+
+- improved computer use ([fced7a9](https://github.com/ryangarber/tiny-chat/commit/fced7a9f90b4f93bdd70707532df771564df8cff))
+- improved diffs ([fced7a9](https://github.com/ryangarber/tiny-chat/commit/fced7a9f90b4f93bdd70707532df771564df8cff))
+- **gui:** improved completions ([fced7a9](https://github.com/ryangarber/tiny-chat/commit/fced7a9f90b4f93bdd70707532df771564df8cff))
+- **tui:** improved task ui ([fced7a9](https://github.com/ryangarber/tiny-chat/commit/fced7a9f90b4f93bdd70707532df771564df8cff))
+- **desktop:** improved app menus ([fced7a9](https://github.com/ryangarber/tiny-chat/commit/fced7a9f90b4f93bdd70707532df771564df8cff))
+
 ## 0.10.12 (2026-11-09)
 
 ### Features
