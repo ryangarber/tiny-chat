@@ -1,5 +1,5 @@
 import { cli } from "#cli/cli.ts";
 
-if (import.meta.main) {
-	await cli();
-}
+// not gated by `import.meta.main` because
+// it's always false in windows bun binaries...
+await cli();
