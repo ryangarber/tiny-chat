@@ -1,3 +1,10 @@
+## 0.10.16 (2026-11-12)
+
+### Bug Fixes
+
+- computer screenshots fail on windows ([7fdbc97](https://github.com/ryangarber/tiny-chat/commit/7fdbc97cfeb1e180a49f7f12f847e2c1ceebc622))
+- cli silently exits on windows ([7fdbc97](https://github.com/ryangarber/tiny-chat/commit/7fdbc97cfeb1e180a49f7f12f847e2c1ceebc622))
+
 ## 0.10.15 (2026-11-12)
 
 ### Features
