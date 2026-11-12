@@ -50,8 +50,9 @@ export default function App() {
 	}, [cloning, hasSession]);
 	useExperiments();
 	const { height: viewportHeight, containerRef } = useViewport();
-	// What the keyboard leaves of the viewport; see `useViewport`.
-	const appHeight = `calc(${viewportHeight}px - var(--keyboard-inset, 0px))`;
+	// What the keyboard and the desktop app's webview menu bar leave of the
+	// viewport; see `useViewport`. The bar publishes `0px` while autohidden.
+	const appHeight = `calc(${viewportHeight}px - var(--keyboard-inset, 0px) - var(--electrobun-menu-height, 0px))`;
 	const keyboardTransition = (property: string) =>
 		`${property} var(--keyboard-transition, 0s)`;
 	const { theme } = useThemes();
@@ -240,6 +241,9 @@ export default function App() {
 								collapsed: { desktop: !isAsideOpen, mobile: !isAsideOpen },
 							}}
 							style={{
+								// The fixed navbar and aside start below the menu bar.
+								"--app-shell-header-offset":
+									"var(--electrobun-menu-height, 0px)",
 								height: appHeight,
 								maxHeight: appHeight,
 								transition: [

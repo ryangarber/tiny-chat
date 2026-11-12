@@ -132,7 +132,12 @@ export const cuaDriverPlugin = (): BunPlugin => ({
 		const loader = join(native.sdk, "dist", "native", "node-runtime.js");
 
 		build.onLoad({ filter: /[\\/]node-runtime\.js$/ }, (args) => {
-			if (args.path !== loader) return;
+			// Windows' paths ignore case, and Bun's may not spell it as `realpath` does.
+			const same =
+				process.platform === "win32"
+					? args.path.toLowerCase() === loader.toLowerCase()
+					: args.path === loader;
+			if (!same) return;
 			let source = readFileSync(args.path, "utf8");
 			source = replace(
 				source,
@@ -155,10 +160,16 @@ import __cuaRuntime from ${JSON.stringify(native.runtime)} with { type: "file" }
 import * as __cuaFs from "node:fs";
 import * as __cuaOs from "node:os";
 import * as __cuaPath from "node:path";
+import * as __cuaUrl from "node:url";
 const __cuaDriver = (() => {
 	const embedded = (file) => file.startsWith("/$bunfs/") || /^[A-Z]:[\\\\/]~BUN[\\\\/]/i.test(file);
 	if (!embedded(__cuaLibrary) && !embedded(__cuaRuntime)) {
-		return { library: __cuaLibrary, runtime: __cuaRuntime };
+		// A bundle that is not compiled names its files relative to itself
+		// ("./cua_driver_sdk-<hash>.dll"), which \`dlopen\` would take from the
+		// working directory instead.
+		const beside = (file) =>
+			__cuaPath.isAbsolute(file) ? file : __cuaUrl.fileURLToPath(new URL(file, import.meta.url));
+		return { library: beside(__cuaLibrary), runtime: beside(__cuaRuntime) };
 	}
 	const home = __cuaOs.homedir();
 	const cache =

@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -18,8 +18,12 @@ const shell: ShellCapability = {
 	writeFile: async ({ path }) => ({ path, success: true }),
 	rename: async ({ to }) => ({ path: to, success: true }),
 	remove: async ({ path }) => ({ path, success: true }),
-	exec: async ({ command }) => {
-		const result = spawnSync(command, { shell: true, encoding: "utf8" });
+	exec: async () => {
+		throw new Error("Expected a direct process call");
+	},
+	run: async ({ program, args }) => {
+		const result = spawnSync(program, args, { encoding: "utf8" });
+		if (result.error) throw result.error;
 		return {
 			code: result.status ?? undefined,
 			stdout: result.stdout,
@@ -31,9 +35,21 @@ const shell: ShellCapability = {
 describe("GitService", () => {
 	let root: string;
 	beforeAll(() => {
-		root = mkdtempSync(join(tmpdir(), "git-service-"));
+		root = mkdtempSync(join(tmpdir(), "git-service-")).replace(/\\/g, "/");
 		const git = (args: string) =>
-			execSync(`git -c user.name=t -c user.email=t@t ${args}`, { cwd: root });
+			execFileSync(
+				"git",
+				[
+					"-c",
+					"user.name=t",
+					"-c",
+					"user.email=t@t",
+					"-c",
+					"core.autocrlf=false",
+					...args.split(" "),
+				],
+				{ cwd: root },
+			);
 		git("init -q");
 		mkdirSync(join(root, "src/deep"), { recursive: true });
 		writeFileSync(join(root, "src/a.ts"), "one\ntwo\nthree\n");
@@ -101,7 +117,10 @@ describe("GitService", () => {
 				untracked: true,
 			});
 			// Too large to read whole, so not counted.
-			expect(byPath[big]).toMatchObject({ additions: 0, binary: false });
+			expect(byPath[`${root}/big.txt`]).toMatchObject({
+				additions: 0,
+				binary: false,
+			});
 		} finally {
 			rmSync(big);
 		}

@@ -30,7 +30,7 @@ async function run() {
 	});
 
 	const entrypoint = result?.outputs?.find(
-		({ path }) => path.split("/").at(-1) === "index.js",
+		({ path }) => path.split(/[/\\]/).at(-1) === "index.js",
 	);
 	if (!entrypoint) {
 		log({ level: "warning", message: "No entrypoint found" });

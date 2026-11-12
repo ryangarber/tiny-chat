@@ -17,7 +17,7 @@ const writeSkill = async (path: string, name = "example") => {
 		path,
 		`---\nname: ${name}\ndescription: A fixture skill\n---\nInstructions.`,
 	);
-	return path;
+	return shell.toShellPath?.({ path }) ?? path;
 };
 
 beforeEach(async () => {
@@ -38,6 +38,7 @@ beforeEach(async () => {
 				path: options.path.replace(/^~(?=\/|$)/, home),
 			}),
 	});
+	await shell.cwd?.();
 });
 
 afterEach(async () => {

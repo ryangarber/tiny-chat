@@ -21,10 +21,10 @@
 		"@afmize/node": "catalog:ai",
 		"@ryangarber/ai-sdk-providers": "catalog:ai",
 		"client": "workspace:*",
-		"computah": "^0.1.2",
+		"computah": "^0.1.3",
 		"core": "workspace:*",
 		"electrobun": "^2.0.6",
-		"electrobun-menu": "^0.1.1",
+		"electrobun-menu": "^0.1.2",
 		"gui": "workspace:*"
 	}
 }

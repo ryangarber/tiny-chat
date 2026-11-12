@@ -45,7 +45,7 @@
 		"tsx": "^4.23.15",
 		"turbo": "^2.11.10",
 		"typescript": "catalog:typescript",
-		"vite": "^8.3.7",
+		"vite": "^8.3.8",
 		"vitest": "^5.1.0",
 		"wait-on": "^9.5.1"
 	},
@@ -58,7 +58,7 @@
 		"@trpc/client": "^11.28.0",
 		"@trpc/server": "^11.28.0",
 		"ai": "catalog:ai",
-		"better-auth": "^1.7.19",
+		"better-auth": "^1.7.20",
 		"better-auth-prisma-orm": "catalog:prisma",
 		"dotenv": "^18.0.10",
 		"internal-ip": "^9.0.0",
