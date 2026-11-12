@@ -1,3 +1,22 @@
+## 0.10.15 (2026-11-12)
+
+### Features
+
+- **desktop:** alt toggle menu on windows/linux ([a8a69e4](https://github.com/ryangarber/tiny-chat/commit/a8a69e436c040a8a0ff16d325fbfd8cfc49e8663))
+
+### Bug Fixes
+
+- **tui:** some scroll events can be dropped during load ([c122cd2](https://github.com/ryangarber/tiny-chat/commit/c122cd269f9385bfa36acc47d48ee6b5ae853bcb))
+- **desktop:** codesign macos app ([c122cd2](https://github.com/ryangarber/tiny-chat/commit/c122cd269f9385bfa36acc47d48ee6b5ae853bcb))
+- **cli:** computer use runtime fails to load in dev mode ([a8a69e4](https://github.com/ryangarber/tiny-chat/commit/a8a69e436c040a8a0ff16d325fbfd8cfc49e8663))
+- claude, codex, cursor binaries not discovered on windows ([a8a69e4](https://github.com/ryangarber/tiny-chat/commit/a8a69e436c040a8a0ff16d325fbfd8cfc49e8663))
+- tests fail on windows ([a8a69e4](https://github.com/ryangarber/tiny-chat/commit/a8a69e436c040a8a0ff16d325fbfd8cfc49e8663))
+
+### Other
+
+- drop unused packages, canonical outage workarounds ([c122cd2](https://github.com/ryangarber/tiny-chat/commit/c122cd269f9385bfa36acc47d48ee6b5ae853bcb))
+- update .gitattributes [skip ci] ([0085481](https://github.com/ryangarber/tiny-chat/commit/0085481f4e693b5e95a3e6aa10de236f89ab12ee))
+
 ## 0.10.14 (2026-11-11)
 
 ### Features
