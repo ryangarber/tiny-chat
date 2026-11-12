@@ -28,6 +28,13 @@ minimumReleaseAgeExclude:
   - ink-nightly
   - electrobun-menu
   - computah
+  - turbo
+  - "@turbo/darwin-64@2.11.11"
+  - "@turbo/darwin-arm64@2.11.11"
+  - "@turbo/linux-64@2.11.11"
+  - "@turbo/linux-arm64@2.11.11"
+  - "@turbo/windows-64@2.11.11"
+  - "@turbo/windows-arm64@2.11.11"
 peerDependencyRules:
   allowedVersions:
     "@browser-ai/web-llm>ai": "7"

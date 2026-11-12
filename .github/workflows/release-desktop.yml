@@ -52,22 +52,14 @@ jobs:
     env:
       # Always, off main.
       DRY_RUN: ${{ inputs.dry_run || github.ref_name != 'main' }}
+      # Secrets can't be read in an `if`.
+      HAS_MACOS_SIGNING: ${{ secrets.MACOS_SIGNING_P12 != '' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || inputs.version || github.ref }}
-
-      # What Electrobun's Linux webview and tray need to run. The build itself doesn't use them, so an Ubuntu archive
-      # outage shouldn't hold up the release.
-      - name: Install packages
-        if: runner.os == 'Linux'
-        continue-on-error: true
-        timeout-minutes: 10
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2
 
       - name: Install dependencies
         uses: pnpm/setup@v3
@@ -106,6 +98,26 @@ jobs:
           path: ~/.hutch
           key: ${{ runner.os }}-${{ runner.arch }}-hutch-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-hutch-
+
+      # A stable identity (self-signed is enough) keeps macOS's privacy grants matching the app across updates. Without
+      # the secret, the app is built unsigned.
+      - name: Import signing identity
+        if: runner.os == 'macOS' && env.HAS_MACOS_SIGNING == 'true'
+        env:
+          MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 16)"
+          echo "$MACOS_SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$MACOS_SIGNING_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/signing.p12"
+          echo "ELECTROBUN_DEVELOPER_ID=Tiny Chat Code Signing" >> "$GITHUB_ENV"
 
       - name: Build app
         run: pnpm build:desktop

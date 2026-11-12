@@ -43,7 +43,7 @@
 		"playwright": "^1.65.0",
 		"prisma": "catalog:prisma",
 		"tsx": "^4.23.15",
-		"turbo": "^2.11.10",
+		"turbo": "^2.11.11",
 		"typescript": "catalog:typescript",
 		"vite": "^8.3.8",
 		"vitest": "^5.1.0",

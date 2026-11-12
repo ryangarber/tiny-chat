@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { Driver } from "computah";
 import Electrobun, {
 	BrowserView,
 	BrowserWindow,
@@ -48,6 +49,10 @@ const computah = ComputahHostService.serve({
 	}),
 	onProgress: (payload) => send.computahProgress(payload),
 });
+
+// Every quit, a native one included, asks first. The embedded driver would
+// otherwise outlive the app: Electrobun's quit never fires Node's `exit`.
+Electrobun.events.on("before-quit", () => Driver.killEmbedded());
 
 /** The URL the app was opened with, until the webview takes it. */
 let openUrl: string | null = null;

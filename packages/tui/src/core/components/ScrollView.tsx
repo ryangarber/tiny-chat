@@ -122,10 +122,14 @@ export interface ScrollViewProps extends Omit<BoxProps, "overflow"> {
 }
 
 /**
- * Moves a view by a wheel event if it can, returning whether it did. Views
- * register with the view they sit in, which hands the wheel on to them first.
+ * Moves a view by a wheel event if it can. Views register with the view they
+ * sit in, which hands the wheel on to them first. A view that would pass the
+ * turn on while it has moved further than its last layout is `unsettled`: the
+ * views nested in it are still laid out where it was, so the one that will be
+ * under the pointer cannot be told yet.
  */
-type WheelHandler = (event: MouseEvent) => boolean;
+type WheelResult = "moved" | "passed" | "unsettled";
+type WheelHandler = (event: MouseEvent) => WheelResult;
 const ScrollContext = createContext<Set<WheelHandler> | null>(null);
 
 /**
@@ -188,6 +192,9 @@ export const pageRows = (viewport: number) => Math.max(1, viewport - 2);
  * held this long is never one that would have been seen on its own.
  */
 const WHEEL_FRAME = 16;
+
+/** Frames a turn waits on a view to settle before it is let go of. */
+const WHEEL_RETRIES = 10;
 
 /**
  * Rows the wheel has turned through that a view has yet to move by. The first
@@ -467,6 +474,9 @@ export default function ScrollView({
 	const [wheelBuffer] = useState(createWheelBuffer);
 	useEffect(() => () => wheelBuffer.cancel(), [wheelBuffer]);
 
+	// Where the view was when its children were last laid out.
+	const laidOutRef = useRef({ offset: 0, pinned: stickToBottom });
+
 	// The wheel turns over whatever the pointer is resting on, so views sitting
 	// side by side — a transcript under a list of completions — each answer for
 	// themselves without either having to be focused first. Like a browser, a
@@ -475,21 +485,34 @@ export default function ScrollView({
 	// view listens, so rows of a nested view scrolled out of sight never move it.
 	const handleWheel = useCallback(
 		(event: MouseEvent) => {
-			if (!wheel) return false;
+			if (!wheel) return "passed";
 			const node = viewportRef.current;
 			// A scrollbar is part of the view it is drawn in, and of any around it.
-			if (!node || MouseUtils.isCovered(node, event, rows, true)) return false;
+			if (!node || MouseUtils.isCovered(node, event, rows, true))
+				return "passed";
 			const bounds = MouseUtils.visibleBounds(node, rows);
-			if (!bounds || !MouseUtils.contains(bounds, event)) return false;
-			for (const handler of nested) if (handler(event)) return true;
+			if (!bounds || !MouseUtils.contains(bounds, event)) return "passed";
+			for (const handler of nested) {
+				const result = handler(event);
+				if (result !== "passed") return result;
+			}
 
 			// Turns still waiting to be moved by count towards the edge, so a view
 			// hands the wheel on at the edge it is about to reach, not a frame late.
 			const current = getScrollOffset() + wheelBuffer.pending();
-			if (event.deltaY < 0 ? current <= 0 : current >= getMaxOffset())
-				return false;
+			if (event.deltaY < 0 ? current <= 0 : current >= getMaxOffset()) {
+				// A flick that carries a view to its edge would otherwise lose the
+				// rest of its turns: the nested view they belong to only comes under
+				// the pointer once the view is drawn where it has scrolled to.
+				const laidOut = laidOutRef.current;
+				const unsettled =
+					wheelBuffer.pending() !== 0 ||
+					offsetRef.current !== laidOut.offset ||
+					pinnedRef.current !== laidOut.pinned;
+				return unsettled && nested.size > 0 ? "unsettled" : "passed";
+			}
 			wheelBuffer.push(event.deltaY * wheelStep, scrollBy);
-			return true;
+			return "moved";
 		},
 		[
 			wheel,
@@ -511,9 +534,52 @@ export default function ScrollView({
 		};
 	}, [parent, handleWheel]);
 
+	// Turns held for an unsettled view, played in order once it has been drawn.
+	// Any that arrive behind them wait their turn, so a flick keeps its order.
+	const [heldTurns] = useState(() => {
+		const queue: MouseEvent[] = [];
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let retries = 0;
+		let offer: WheelHandler = () => "passed";
+
+		const replay = () => {
+			timer = undefined;
+			while (queue.length > 0) {
+				const event = queue[0] as MouseEvent;
+				if (offer(event) === "unsettled" && retries++ < WHEEL_RETRIES) {
+					timer = setTimeout(replay, WHEEL_FRAME);
+					return;
+				}
+				queue.shift();
+				retries = 0;
+			}
+		};
+
+		return {
+			push(event: MouseEvent, handler: WheelHandler) {
+				offer = handler;
+				if (queue.length > 0) {
+					queue.push(event);
+					return;
+				}
+				if (handler(event) !== "unsettled") return;
+				queue.push(event);
+				timer = setTimeout(replay, WHEEL_FRAME);
+			},
+			cancel() {
+				clearTimeout(timer);
+				timer = undefined;
+				queue.length = 0;
+				retries = 0;
+			},
+		};
+	});
+	useEffect(() => () => heldTurns.cancel(), [heldTurns]);
+
 	useMouse({
 		handler: (event) => {
-			if (event.type === "wheel" && event.deltaY !== 0) handleWheel(event);
+			if (event.type === "wheel" && event.deltaY !== 0)
+				heldTurns.push(event, handleWheel);
 		},
 		isActive: wheel && !parent,
 	});
@@ -685,6 +751,8 @@ export default function ScrollView({
 	// Ink recomputes the whole layout before this runs, so every height read here
 	// is the one about to be drawn.
 	useLayoutEffect(() => {
+		laidOutRef.current = { offset, pinned };
+
 		// Children that have gone leave their slots behind.
 		itemsRef.current.length = items.length;
 

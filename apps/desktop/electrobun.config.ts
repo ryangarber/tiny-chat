@@ -37,7 +37,12 @@ export default {
 		// The scripts rebuild these themselves.
 		watchIgnore: ["dist/**", "src/client-runtime.ts"],
 		mac: {
-			codesign: false,
+			// With the identity named in `ELECTROBUN_DEVELOPER_ID` (self-signed
+			// "Tiny Chat Code Signing" is enough), so the bundle is signed as
+			// `dev.ryangarber.chat` and macOS's privacy grants (Accessibility,
+			// Screen Recording) match it, and keep matching after an update.
+			// Unsigned, the launcher's ad-hoc signature says neither.
+			codesign: Boolean(process.env.ELECTROBUN_DEVELOPER_ID),
 			notarize: false,
 			bundleCEF: false,
 			icons: "assets/icon.icon",
@@ -53,7 +58,7 @@ export default {
 		},
 	},
 	runtime: {
-		exitOnLastWindowClose: true,
+		exitOnLastWindowClosed: true,
 	},
 	release: {
 		// Every release's artifacts are uploaded to its GitHub release, so the

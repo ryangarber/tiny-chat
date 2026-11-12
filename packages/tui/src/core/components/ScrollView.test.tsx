@@ -87,6 +87,22 @@ describe("nested scroll views", () => {
 		screen.cleanup();
 	});
 
+	it("hands a flick on to a nested view it carries under the pointer", async () => {
+		const screen = render(tree);
+		await screen.idle();
+		for (let turn = 0; turn < 10; turn++) screen.stdin.write(wheel("up", 22));
+		await screen.idle();
+		expect(plain(screen)).toContain("outer0");
+
+		// One read, as a terminal sends a fast flick: the transcript reaches its
+		// end before it is drawn there, and the turns left over belong to the tail.
+		screen.stdin.write(wheel("down", 22).repeat(20));
+		await screen.idle();
+		expect(plain(screen)).toContain("outer29");
+		expect(plain(screen)).toContain("inner19");
+		screen.cleanup();
+	});
+
 	it("sizes a view bounded only by a maxHeight to content that fits", async () => {
 		const screen = render(
 			<Box flexDirection="column">
