@@ -429,7 +429,8 @@ export const createClaudeCodeProvider = (
 		},
 
 		shouldContinue({ events }) {
-			const finish = events.findLast((event) => event.type === "finish");
+			// The step's finish has the provider's metadata; the stream's own has none.
+			const finish = events.findLast((event) => event.type === "finish-step");
 			const awaiting = metadataOf(finish)?.awaiting;
 			// Its work in the background reports in as a turn of its own.
 			return Array.isArray(awaiting) && awaiting.includes("background");

@@ -1,4 +1,4 @@
-import type { MarkItDown } from "@ryangarber/markitdown-ts";
+import type { MarkItDown } from "markitdown-core";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 
@@ -36,7 +36,7 @@ const cache = new Map<string, string | null>();
 let engine: Promise<MarkItDown> | undefined;
 
 const getEngine = () => {
-	engine ??= import("@ryangarber/markitdown-ts").then(
+	engine ??= import("markitdown-core").then(
 		({ MarkItDown }) => new MarkItDown(),
 	);
 	return engine;

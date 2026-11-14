@@ -96,4 +96,23 @@ describe("ClaudeCodeProvider", () => {
 			},
 		]);
 	});
+
+	it("goes on while work in the background has yet to report in", () => {
+		// As `ai` streams a step's end: only the step's finish has metadata.
+		const end = (awaiting: string[]) =>
+			[
+				{
+					type: "finish-step",
+					finishReason: "stop",
+					providerMetadata: {
+						claudeCode: { sessionId: "s1", awaiting, background: ["ag"] },
+					},
+				},
+				{ type: "finish", finishReason: "stop" },
+			] as unknown as TextStreamPart<any>[];
+		expect(provider.shouldContinue?.({ events: end(["background"]) })).toBe(
+			true,
+		);
+		expect(provider.shouldContinue?.({ events: end([]) })).toBe(false);
+	});
 });

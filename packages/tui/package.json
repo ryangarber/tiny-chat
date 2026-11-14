@@ -27,7 +27,7 @@
 		"ink": "^8.0.0",
 		"ink-spinner": "^5.0.0",
 		"react": "catalog:react",
-		"string-width": "^8.3.0",
+		"string-width": "^9.0.0",
 		"terminal-link": "^5.0.0",
 		"wrap-ansi": "^10.0.2",
 		"zustand": "^5.1.0"

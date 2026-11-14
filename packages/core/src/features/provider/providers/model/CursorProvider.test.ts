@@ -312,7 +312,7 @@ describe("CursorProvider", () => {
 		const provider = create();
 		const events = [
 			{
-				type: "finish",
+				type: "finish-step",
 				providerMetadata: {
 					cursor: { agentId: "agent", awaiting: ["continue"] },
 				},

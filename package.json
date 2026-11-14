@@ -32,7 +32,7 @@
 		"prisma": "pnpm --filter server prisma"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.6.6",
+		"@biomejs/biome": "^2.6.7",
 		"@ryangarber/utils": "^0.1.6",
 		"@types/node": "^26.6.6",
 		"@vitest/coverage-v8": "^5.1.0",
@@ -40,7 +40,7 @@
 		"chalk": "^6.0.1",
 		"concurrently": "^10.0.7",
 		"knip": "^6.45.1",
-		"playwright": "^1.65.0",
+		"playwright": "^1.65.1",
 		"prisma": "catalog:prisma",
 		"tsx": "^4.23.15",
 		"turbo": "^2.11.11",
@@ -58,7 +58,7 @@
 		"@trpc/client": "^11.28.0",
 		"@trpc/server": "^11.28.0",
 		"ai": "catalog:ai",
-		"better-auth": "^1.7.20",
+		"better-auth": "^1.7.23",
 		"better-auth-prisma-orm": "catalog:prisma",
 		"dotenv": "^18.0.10",
 		"internal-ip": "^9.0.0",
@@ -81,7 +81,7 @@
 		"runtime": [
 			{
 				"name": "node",
-				"version": "26.13.0",
+				"version": ">=24 <27",
 				"onFail": "download"
 			},
 			{

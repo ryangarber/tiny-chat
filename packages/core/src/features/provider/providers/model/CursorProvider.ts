@@ -416,7 +416,8 @@ export const createCursorProvider = (
 		},
 		shouldContinue({ events }) {
 			const awaiting = metadataOf(
-				events.findLast((event) => event.type === "finish"),
+				// The step's finish has the provider's metadata; the stream's own has none.
+				events.findLast((event) => event.type === "finish-step"),
 			)?.awaiting;
 			return Array.isArray(awaiting) && awaiting.includes("continue");
 		},

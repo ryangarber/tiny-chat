@@ -24,7 +24,7 @@
 		"@trpc/tanstack-react-query": "^11.28.0",
 		"computah": "^0.1.5",
 		"core": "workspace:*",
-		"mdast-util-to-hast": "^13.2.1",
+		"mdast-util-to-hast": "^13.2.2",
 		"react": "catalog:react",
 		"rehype-katex": "^7.0.1",
 		"rehype-raw": "^7.0.0",

@@ -1,4 +1,4 @@
-import { LegiscanClient, State } from "@ryangarber/legiscan-ts";
+import { LegiscanClient, State } from "legiscan-ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
 import type { OtherProvider } from "#core/features/provider/types/other.ts";

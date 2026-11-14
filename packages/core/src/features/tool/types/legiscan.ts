@@ -1,4 +1,4 @@
-import { Progress, State } from "@ryangarber/legiscan-ts";
+import { Progress, State } from "legiscan-ts";
 import { z } from "zod";
 
 export const zLegiscanState = z.enum(

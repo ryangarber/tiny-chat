@@ -413,7 +413,8 @@ export const createCodexProvider = (
 		},
 
 		shouldContinue({ events }) {
-			const finish = events.findLast((event) => event.type === "finish");
+			// The step's finish has the provider's metadata; the stream's own has none.
+			const finish = events.findLast((event) => event.type === "finish-step");
 			const awaiting = metadataOf(finish)?.awaiting;
 			// Its subagents report in as they go, after the turn has ended.
 			return Array.isArray(awaiting) && awaiting.includes("background");
