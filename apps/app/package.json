@@ -1,0 +1,51 @@
+{
+	"name": "app",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#app/*": "./src/*",
+		"#app-electron-plugin/*": "app-electron-plugin/*",
+		"#core/*": "core/*",
+		"#gui/*": "gui/*"
+	},
+	"exports": {
+		"./*": "./src/*"
+	},
+	"scripts": {
+		"lint": "biome check --write",
+		"typecheck": "tsc --noEmit",
+		"smoketest": "node scripts/smoketest.ts",
+		"dev:web": "vite",
+		"build:web": "vite build",
+		"start:web": "node scripts/serve.ts",
+		"dev:electron": "node ./scripts/dev.ts electron",
+		"dev:electron:dist": "node ./scripts/dev.ts electron --dist",
+		"dev:ios": "node ./scripts/dev.ts ios",
+		"dev:ios:dist": "node ./scripts/dev.ts ios --dist",
+		"dev:android": "node ./scripts/dev.ts android",
+		"dev:android:dist": "node ./scripts/dev.ts android --dist",
+		"build:ios": "node ./scripts/build.ts ios",
+		"build:android": "node ./scripts/build.ts android",
+		"build:electron": "node ./scripts/build.ts electron",
+		"cap": "cap"
+	},
+	"dependencies": {
+		"@afmize/capacitor": "catalog:ai",
+		"@capacitor/android": "^8.6.2",
+		"@capacitor/app": "^8.1.2",
+		"@capacitor/cli": "^8.6.2",
+		"@capacitor/clipboard": "^8.0.1",
+		"@capacitor/core": "^8.6.2",
+		"@capacitor/ios": "^8.6.2",
+		"@capawesome/capacitor-electron": "^0.2.2",
+		"@capawesome/capacitor-live-update": "^8.8.1",
+		"core": "workspace:*",
+		"app-electron-plugin": "workspace:*",
+		"gui": "workspace:*",
+		"react": "catalog:react",
+		"react-dom": "catalog:react"
+	},
+	"devDependencies": {
+		"@capawesome/capacitor-assets": "^5.0.1"
+	}
+}

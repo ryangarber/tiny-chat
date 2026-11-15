@@ -104,14 +104,15 @@ async function copy(
 	log({ details: results.join("\n") });
 }
 
-// build desktop assets
-const desktopPath = fileURLToPath(new URL("../apps/desktop", import.meta.url));
+// build desktop assets (electron-builder's `buildResources`)
+const desktopPath = fileURLToPath(
+	new URL("../apps/app/electron", import.meta.url),
+);
 log({ message: "Copying desktop assets" });
 
 await copy(
 	desktopPath,
-	{ from: iconPath, to: "assets/icon.icon" }, // macos
-	{ from: Rendition.Dark, to: "assets/icon.png", edit: 512 }, // linux
+	{ from: Rendition.Dark, to: "assets/icon.png", edit: 1024 }, // macos, linux
 	{
 		from: Rendition.Dark,
 		to: "assets/icon.ico",
@@ -121,7 +122,7 @@ await copy(
 );
 
 // build mobile assets
-const mobilePath = fileURLToPath(new URL("../apps/mobile", import.meta.url));
+const mobilePath = fileURLToPath(new URL("../apps/app", import.meta.url));
 log({ message: "Copying mobile assets" });
 
 await copy(
@@ -146,12 +147,11 @@ await proc({
 	cwd: mobilePath,
 });
 
-// build gui assets
-const guiPath = fileURLToPath(new URL("../packages/gui", import.meta.url));
-log({ message: "Copying gui assets" });
+// build web assets
+log({ message: "Copying web assets" });
 
 await copy(
-	guiPath,
+	mobilePath,
 	{ from: Rendition.Dark, to: "public/appicon-512x512.png", edit: 512 },
 	{ from: Rendition.Dark, to: "public/appicon-192x192.png", edit: 192 },
 	{ from: Rendition.Dark, to: "public/favicon-96x96.png", edit: 96 },

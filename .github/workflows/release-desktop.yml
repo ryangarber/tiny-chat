@@ -92,15 +92,21 @@ jobs:
         if: env.DRY_RUN == 'true' && inputs.version
         run: pnpm pkg set "version=${{ inputs.version }}"
 
-      - name: Cache Electrobun
+      - name: Cache Electron
         uses: actions/cache@v6
         with:
-          path: ~/.hutch
-          key: ${{ runner.os }}-${{ runner.arch }}-hutch-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-hutch-
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-${{ runner.arch }}-electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-electron-
 
       # A stable identity (self-signed is enough) keeps macOS's privacy grants matching the app across updates. Without
-      # the secret, the app is built unsigned.
+      # the secret, the app is signed ad hoc.
       - name: Import signing identity
         if: runner.os == 'macOS' && env.HAS_MACOS_SIGNING == 'true'
         env:
@@ -117,7 +123,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/signing.p12"
-          echo "ELECTROBUN_DEVELOPER_ID=Tiny Chat Code Signing" >> "$GITHUB_ENV"
+          echo "CSC_NAME=Tiny Chat Code Signing" >> "$GITHUB_ENV"
 
       - name: Build app
         run: pnpm build:desktop
@@ -133,11 +139,17 @@ jobs:
           history: git/tags
           tag: "{version}"
           steps: |
-            # Under the names Electrobun gave them: the updater looks for
-            # `stable-<os>-<arch>-update.json` at the latest release.
+            # The installers, their block maps, and the `latest*.yml` the
+            # updater looks for at the latest release.
             - uses: github/upload-release-assets
               with:
                 files:
-                  - 'apps/desktop/artifacts/*'
+                  - 'apps/app/electron/dist/*.dmg'
+                  - 'apps/app/electron/dist/*.zip'
+                  - 'apps/app/electron/dist/*.exe'
+                  - 'apps/app/electron/dist/*.AppImage'
+                  - 'apps/app/electron/dist/*.blockmap'
+                  - 'apps/app/electron/dist/latest*.yml'
+                allowNoMatch: true
                 dryRunArtifact: true
                 artifactName: desktop-${{ runner.os }}-${{ runner.arch }}

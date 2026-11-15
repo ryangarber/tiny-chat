@@ -77,7 +77,7 @@ jobs:
         run: pnpm pkg set "version=${{ inputs.version }}"
 
       - name: Build
-        run: pnpm run build:gui
+        run: pnpm run build:web
 
       - name: Set up SSH
         run: |
@@ -118,9 +118,9 @@ jobs:
           cd "$TARGET"
           git fetch --quiet --depth 1 https://github.com/ryangarber/tiny-chat.git "$REF"
           git checkout --quiet --force FETCH_HEAD
-          git clean -ffdxq -e .env -e node_modules -e /apps/web/dist
-          if [ "$TARGET" != chat ] && [ ! -d apps/web/dist ] && [ -d ~/chat/apps/web/dist ]; then
-            cp -a ~/chat/apps/web/dist apps/web/dist
+          git clean -ffdxq -e .env -e node_modules -e /apps/app/dist
+          if [ "$TARGET" != chat ] && [ ! -d apps/app/dist ] && [ -d ~/chat/apps/app/dist ]; then
+            cp -a ~/chat/apps/app/dist apps/app/dist
           fi
           EOF
 
@@ -132,7 +132,7 @@ jobs:
             echo
             echo '```'
             rsync --dry-run --recursive --links --checksum --delete --itemize-changes \
-              packages/gui/dist/ target:chat/apps/web/dist/ || echo "(no live deployment to diff against)"
+              apps/app/dist/ target:chat/apps/app/dist/ || echo "(no live deployment to diff against)"
             echo '```'
             echo
           } | tee -a "$GITHUB_STEP_SUMMARY"
@@ -143,7 +143,7 @@ jobs:
         run: |
           rsync --recursive --links --compress --checksum \
             --delete-after --delay-updates --itemize-changes \
-            packages/gui/dist/ target:"$TARGET/apps/web/dist/"
+            apps/app/dist/ target:"$TARGET/apps/app/dist/"
           rsync --checksum --chmod=F600 .env target:"$TARGET/.env"
 
       - name: Install dependencies on host
@@ -162,8 +162,11 @@ jobs:
           set -euo pipefail
           cd ~/chat/packages/server
           pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs
-          cd ~/chat/apps/web
-          pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs
+          cd ~/chat/apps/app
+          # Deleted rather than restarted: restarting keeps the script and cwd a
+          # process was started with, as apps/web's was.
+          pm2 delete pm2.config.mjs 2>/dev/null || true
+          pm2 start pm2.config.mjs
           pm2 save
           EOF
 
@@ -179,8 +182,9 @@ jobs:
             echo '```sh'
             echo 'cd ~/chat/packages/server'
             echo 'pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs'
-            echo 'cd ~/chat/apps/web'
-            echo 'pm2 restart pm2.config.mjs --update-env || pm2 start pm2.config.mjs'
+            echo 'cd ~/chat/apps/app'
+            echo 'pm2 delete pm2.config.mjs 2>/dev/null || true'
+            echo 'pm2 start pm2.config.mjs'
             echo 'pm2 save'
             echo '```'
             echo
@@ -190,8 +194,8 @@ jobs:
           ssh target "bash -l -s -- $(printf '%q ' "$TARGET")" << 'EOF'
           set -euo pipefail
           test -f "$1/packages/server/pm2.config.mjs"
-          test -f "$1/apps/web/pm2.config.mjs"
-          test -d "$1/apps/web/dist"
+          test -f "$1/apps/app/pm2.config.mjs"
+          test -d "$1/apps/app/dist"
           EOF
 
       # Staging is kept for the next dry run, but not the production .env.

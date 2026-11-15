@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-${{ hashFiles('apps/mobile/ios/App/CapApp-SPM/Package.resolved') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-${{ hashFiles('apps/app/ios/App/CapApp-SPM/Package.resolved') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-ios-spm-
 
       - name: Install dependencies

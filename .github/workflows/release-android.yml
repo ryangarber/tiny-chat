@@ -58,8 +58,8 @@ jobs:
           java-version: "21"
           cache: gradle
           cache-dependency-path: |
-            apps/mobile/android/**/*.gradle*
-            apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+            apps/app/android/**/*.gradle*
+            apps/app/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v4
@@ -103,8 +103,8 @@ jobs:
       # could replace the other's under its checksum.
       - name: Package APK
         run: |
-          mv apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/Tiny.Chat_Android.apk"
-          mv apps/mobile/build/Tiny.Chat_Mobile.zip apps/mobile/build/mobile-update.json "$RUNNER_TEMP/"
+          mv apps/app/android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/Tiny.Chat_Android.apk"
+          mv apps/app/build/Tiny.Chat_Mobile.zip apps/app/build/mobile-update.json "$RUNNER_TEMP/"
 
       - name: Publish
         uses: ryangarber/rylease@v3

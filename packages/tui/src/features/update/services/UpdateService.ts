@@ -8,7 +8,7 @@ import workspace from "../../../../../../package.json" with { type: "json" };
 
 /** where every platform's build of a release is published */
 const RELEASE =
-	"https://github.com/RyanGarber/tiny-chat/releases/latest/download";
+	"https://github.com/ryangarber/tiny-chat/releases/latest/download";
 
 /** the asset each platform's binary is published as, named by release-cli.yml */
 const ASSETS: Partial<Record<NodeJS.Platform, string>> = {

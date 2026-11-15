@@ -156,10 +156,9 @@ const terminal = (status: TerminalStatus): SurfaceReport => ({
 	...(!status.tmux.found && status.tmux.installable ? { install: "tmux" } : {}),
 });
 
-const MODES: Record<NonNullable<ComputerStatus["mode"]>, string> = {
+const MODES: Partial<Record<NonNullable<ComputerStatus["mode"]>, string>> = {
 	app: "the Cua Driver app, under its own permissions",
-	embedded: "Cua Driver, run by this app under its permissions",
-	"in-process": "inside this app, without a virtual cursor",
+	"in-process": "inside this app, under its permissions",
 	external: "a driver started elsewhere",
 };
 
@@ -168,17 +167,41 @@ const CURSOR_REASONS: Record<
 	string
 > = {
 	disabled: "turned off",
-	"not-installed": "needs Cua Driver, which can be installed",
+	"not-installed": "needs the Cua Driver app",
 	"not-running": "Cua Driver could not be started",
 	permissions: "Cua Driver is missing permissions",
 	unsupported: "not supported here",
 };
 
+/**
+ * Only macOS has a Cua Driver app to use: it draws the on-screen cursor the
+ * in-process driver cannot there. Elsewhere the driver runs in this process.
+ */
 const computer = (status: ComputerStatus): SurfaceReport => {
 	const macos = status.os === "darwin";
-	const missing = status.permissions.some(
+	// Only macOS asks for grants. With the app there, its grants are the ones
+	// that count, and only those it still lacks are worth a row.
+	const grants = !macos
+		? []
+		: status.app.found
+			? status.permissions.filter(
+					(permission) => permission.owner === "app" && !permission.granted,
+				)
+			: status.permissions;
+	const missing = grants.some(
 		(permission) => permission.owner === "host" && !permission.granted,
 	);
+	const installable =
+		macos && !status.app.found && status.app.installable !== false;
+	const mode = status.mode && MODES[status.mode];
+	const notes = [
+		installable && status.mode === "in-process"
+			? "The on-screen cursor is unavailable until the Cua Driver app is installed."
+			: "",
+		macos && missing
+			? "macOS applies a new grant once the app (or the terminal running it) restarts."
+			: "",
+	].filter(Boolean);
 	return {
 		available: status.available,
 		...(status.error ? { error: status.error } : {}),
@@ -189,22 +212,19 @@ const computer = (status: ComputerStatus): SurfaceReport => {
 				status.sdk,
 				"cannot be loaded on this machine",
 			),
-			requirement(
-				"app",
-				"Cua Driver",
-				status.app,
-				"not installed · draws the on-screen cursor",
-				true,
-			),
-			...(status.mode
+			...(macos
 				? [
-						{
-							key: "mode",
-							label: "Driver",
-							found: true,
-							detail: MODES[status.mode],
-						},
+						requirement(
+							"app",
+							"Cua Driver",
+							status.app,
+							"not installed · draws the on-screen cursor",
+							true,
+						),
 					]
+				: []),
+			...(mode
+				? [{ key: "mode", label: "Driver", found: true, detail: mode }]
 				: []),
 			{
 				key: "cursor",
@@ -218,15 +238,9 @@ const computer = (status: ComputerStatus): SurfaceReport => {
 						: "unavailable",
 			},
 		],
-		permissions: permissions(status.permissions, "Cua Driver"),
-		...(!status.app.found && status.app.installable !== false
-			? { install: "Cua Driver" }
-			: {}),
-		...(macos && missing
-			? {
-					note: "macOS applies a new grant once the app (or the terminal running it) restarts.",
-				}
-			: {}),
+		permissions: permissions(grants, "Cua Driver"),
+		...(installable ? { install: "Cua Driver" } : {}),
+		...(notes.length ? { note: notes.join(" ") } : {}),
 	};
 };
 

@@ -39,10 +39,9 @@ export interface RuntimeKeyboard {
 }
 
 /**
- * What the app can do beyond a browser tab. The web's is
- * `#gui/client-runtime.ts`; each host app (`apps/desktop`, `apps/mobile`)
- * builds the GUI with its own module in that one's place, which is the web's
- * outside the host.
+ * What the app can do beyond a browser tab, as `mount` is given it by the
+ * app (`apps/app/src/client-runtime.ts`): Capacitor on iOS, Android and
+ * Electron, and the web's (`RuntimeUtils.web`) in a browser.
  */
 export interface ClientRuntime {
 	platform: RuntimePlatform;

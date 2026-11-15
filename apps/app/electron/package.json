@@ -1,0 +1,19 @@
+{
+	"name": "app-electron",
+	"productName": "Tiny Chat",
+	"private": true,
+	"version": "0.0.0",
+	"description": "The desktop app: Tiny Chat's Capacitor app on Electron.",
+	"main": "build/main.js",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"build": "tsc",
+		"start": "electron ."
+	},
+	"devDependencies": {
+		"@capawesome/capacitor-electron": "^0.2.2",
+		"electron": "^45.3.2",
+		"electron-builder": "^26.18.0",
+		"typescript": "catalog:typescript"
+	}
+}

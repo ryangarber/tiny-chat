@@ -11,6 +11,8 @@
 @import "@videojs/react/audio/skin.css";
 @import "@videojs/react/video/skin.css";
 
+/* The GUI's own classes; its build's root is the app hosting it (`apps/app`). */
+@source "../";
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/math/dist/*.js";
 @source "../node_modules/@streamdown/mermaid/dist/*.js";

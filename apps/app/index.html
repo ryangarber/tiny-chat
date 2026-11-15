@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta
+			content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover"
+			name="viewport"
+		>
+		<link href="/favicon-96x96.png" rel="icon" sizes="96x96" type="image/png">
+		<link href="/favicon.ico" rel="shortcut icon">
+		<link href="/appicon-192x192.png" rel="apple-touch-icon" sizes="192x192">
+		<meta content="Tiny Chat" name="apple-mobile-web-app-title">
+		<link href="/site.webmanifest" rel="manifest">
+		<title>Tiny Chat</title>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script>
+		globalThis.process = {
+			env: {},
+			stdout: { isTTY: false, columns: 80 },
+			stderr: { isTTY: false, columns: 80 },
+			argv: [],
+			platform: "browser",
+			version: "v20.0.0",
+		};
+		</script>
+		<script src="./src/main.ts" type="module"></script>
+	</body>
+</html>

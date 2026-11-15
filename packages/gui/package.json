@@ -3,13 +3,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite",
-		"build": "tsc && vite build",
-		"preview": "vite preview",
 		"lint": "biome check --write",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
-		"smoketest": "node scripts/smoketest.ts",
 		"postinstall": "node scripts/postinstall.ts"
 	},
 	"imports": {
@@ -52,7 +48,6 @@
 		"client": "workspace:*",
 		"core": "workspace:*",
 		"dayjs": "^1.11.23",
-		"electrobun-menu": "^0.1.2",
 		"events": "^3.3.0",
 		"katex": "^0.19.1",
 		"react": "catalog:react",

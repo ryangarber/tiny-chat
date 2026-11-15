@@ -1,11 +1,16 @@
 packages:
   - "apps/*"
+  - "apps/app/electron"
+  - "apps/app/electron-plugin"
   - "packages/*"
 allowBuilds:
   "@google/genai": true
   "@mongodb-js/zstd": true
   "@prisma/engines": true
+  electron: true
+  electron-winstaller: true
   esbuild: true
+  koffi: true
   msgpackr-extract: true
   node-liblzma: true
   node-pty: true
@@ -26,7 +31,6 @@ minimumReleaseAgeExclude:
   - better-auth-prisma-orm
   - prisma-orm-extension-zod
   - ink-nightly
-  - electrobun-menu
   - computah
   - legiscan-ts
   - markitdown-core
@@ -62,7 +66,7 @@ catalogs:
     "prisma-orm-extension-zod": 0.3.1
     "better-auth-prisma-orm": 0.2.0
   ai:
-    "ai": ^7.0.172
+    "ai": ^7.0.173
     "@ai-sdk/amazon-bedrock": ^5.0.141
     "@ai-sdk/anthropic": ^4.0.104
     "@ai-sdk/azure": ^4.0.125
@@ -76,3 +80,5 @@ catalogs:
     "@ryangarber/ai-sdk-providers": ^0.1.7
     "@afmize/node": "^1.1.0"
     "@afmize/capacitor": "^1.1.0"
+patchedDependencies:
+  '@capawesome/capacitor-electron@0.2.2': patches/@capawesome__capacitor-electron@0.2.2.patch

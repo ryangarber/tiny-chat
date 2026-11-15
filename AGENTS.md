@@ -6,31 +6,33 @@ separate coding agent or prompt, or features that only make sense inside a repo.
 
 ## Packages
 
-pnpm workspace. Imports are deep paths with `.ts` / `.tsx` suffixes (`#core/...`, `#client/...`,
-`#server/...`).
+pnpm workspace. Imports are deep paths with `.ts` / `.tsx` suffixes (`#core/...`, `#client/...`, `#server/...`).
 
-| Package           | Role                                                                             | May import                |
-| ----------------- | -------------------------------------------------------------------------------- | ------------------------- |
-| `packages/core`   | Domain: types, providers, agent loop, tools. No React, HTTP, or database client. | nothing in the monorepo   |
-| `packages/server` | Node HTTP: tRPC, better-auth, Prisma, virtual FS, scheduled-action worker.       | core                      |
-| `packages/client` | Shared React runtime for app + CLI: `createClient`, tRPC/Query, stores, hooks.   | core, server _types_ only |
-| `packages/gui`    | Vite + React + Mantine UI (web, and the desktop and mobile webviews).            | client, core              |
-| `packages/tui`    | Ink terminal UI over the same client.                                            | client, core              |
-| `apps/cli`        | Bun shell (CLI).                                                                 | client, core, tui         |
-| `apps/web`        | Static host of the app build.                                                    | —                         |
-| `apps/desktop`    | Electrobun shell (macOS / Windows / Linux): Bun main process + the GUI.          | client, core, gui         |
-| `apps/mobile`     | Capacitor shell (iOS / Android) around the GUI.                                  | core, gui                 |
+| Package                    | Role                                                                             | May import                 |
+| -------------------------- | -------------------------------------------------------------------------------- | -------------------------- |
+| `packages/core`            | Domain: types, providers, agent loop, tools. No React, HTTP, or database client. | nothing in the monorepo    |
+| `packages/server`          | Node HTTP: tRPC, better-auth, Prisma, virtual FS, scheduled-action worker.       | core                       |
+| `packages/client`          | Shared React runtime for app + CLI: `createClient`, tRPC/Query, stores, hooks.   | core, server _types_ only  |
+| `packages/gui`             | React + Mantine UI, `mount`ed by `apps/app` on its runtime.                      | client, core               |
+| `packages/tui`             | Ink terminal UI over the same client.                                            | client, core               |
+| `apps/cli`                 | Bun shell (CLI).                                                                 | client, core, tui          |
+| `apps/app`                 | Capacitor app around the GUI: web, iOS, Android, and Electron (`electron/`).     | core, gui, electron-plugin |
+| `apps/app/electron-plugin` | `Desktop` Capacitor plugin: the Electron main process + its webview runtime.     | client, core, gui          |
 
 If both app and CLI need a behavior, it belongs in `client` or `core`. If only one runtime can do it, it belongs in that
 runtime's `client.ts` adapter (passed to `createClient`) or its own `features/`. The GUI reaches its host through a
-`ClientRuntime` (`packages/gui/src/core/types/runtime.ts`), read with `useRuntime()`: `packages/gui/src/client-runtime.ts`
-is the web's, and `apps/desktop` / `apps/mobile` build the GUI with their own `src/client-runtime.ts` in its place,
-which falls back to the web's (`RuntimeUtils.web`) outside its host, so their dev servers still work in a browser. Prefer
-asking the runtime for a capability over checking its `platform`. The desktop's main process does the native work over
-Electrobun RPC (`apps/desktop/src/core/types/rpc.ts`).
+`ClientRuntime` (`packages/gui/src/core/types/runtime.ts`), read with `useRuntime()`. There is one build of the GUI,
+`apps/app`'s (Vite root, `index.html`, `dist`): its `src/main.ts` `mount`s the GUI (`packages/gui/src/mount.tsx`) on
+`src/client-runtime.ts`, which is the web's (`RuntimeUtils.web`) outside a native host. The web is that build served as
+static files (`apps/app/scripts/serve.ts`), and `cap sync` copies the same `dist` into each native app. Prefer asking
+the runtime for a capability over checking its `platform`. The desktop app is the same Capacitor app on Electron
+(`@capawesome/capacitor-electron`, project in `apps/app/electron`): its main process is the `Desktop` plugin's Electron
+implementation (`apps/app/electron-plugin/src/plugin.ts`, bundled to `electron/dist/plugin.mjs`), which the webview reaches
+through `registerPlugin` (`apps/app/electron-plugin/src/runtime.ts`; contract in
+`apps/app/electron-plugin/src/core/types/plugin.ts`). What `@capacitor/app` already does there (deep links, quitting) goes
+through it instead.
 
-Never import `@mantine/*` from `client`
-or `ink` from `gui`.
+Never import `@mantine/*` from `client` or `ink` from `gui`.
 
 Code lives in `src/features/<domain>/{components,hooks,services,stores,utils,types,routes}`, with `src/core/` for
 cross-cutting infra. Match existing feature names; don't invent a parallel tree. Services and utils are
@@ -64,7 +66,7 @@ Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE
 — use them unless they are not available or cannot fulfill the needs of the task.
 
 - **Scratchpad / smoke tests:** use the real client provider: `createClient` wrapped in `QueryClientProvider` +
-  `ClientContext`, as `packages/gui/src/main.tsx` does (in Vitest, `create()` from `packages/client/src/tests.ts`). It
+  `ClientContext`, as `packages/gui/src/mount.tsx` does (in Vitest, `create()` from `packages/client/src/tests.ts`). It
   signs in a real anonymous test user against the live server. Don't spend time building a custom harness, fake
   client, or seeded user unless this genuinely can't cover the case. For server-only data, use the real `db`.
 - **Test model:** with no API key, `test-generate` replies with a greeting. A message that is a JSON array (bare or in a
@@ -91,17 +93,17 @@ Dev servers and Postgres are usually already running (`VITE_SERVER_PORT` / `VITE
 
 All root scripts load the repo-root `.env`.
 
-| Task                 | Command                                                                 |
-| -------------------- | ----------------------------------------------------------------------- |
-| Web (Vite + server)  | `pnpm dev:web`                                                          |
-| Server only          | `pnpm dev:server`                                                       |
-| CLI                  | `pnpm dev:cli`                                                          |
-| Desktop / mobile     | `pnpm dev:desktop`, `dev:ios`, `dev:android` (HMR; `:dist` loads a build) |
-| Builds               | `pnpm build:desktop`, `build:ios`, `build:android`, `build:cli` (unsigned) |
-| Lint / types / tests | `pnpm lint`, `pnpm typecheck`, `pnpm test`                              |
+| Task                 | Command                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Web (Vite + server)  | `pnpm dev:web`                                                                          |
+| Server only          | `pnpm dev:server`                                                                       |
+| CLI                  | `pnpm dev:cli`                                                                          |
+| Desktop / mobile     | `pnpm dev:desktop`, `dev:ios`, `dev:android` (HMR; `:dist` loads a build)               |
+| Builds               | `pnpm build:web`, `build:desktop`, `build:ios`, `build:android`, `build:cli` (unsigned) |
+| Lint / types / tests | `pnpm lint`, `pnpm typecheck`, `pnpm test`                                              |
 
-TypeScript is strict with `.ts` import extensions; Biome uses tabs and double quotes. `ink`, `@alcalzone/ansi-tokenize` and
-`native-run` are pnpm-patched (`patches/`) — don't edit them in `node_modules`.
+TypeScript is strict with `.ts` import extensions; Biome uses tabs and double quotes. `ink`, `@alcalzone/ansi-tokenize`,
+`@capawesome/capacitor-electron` and `native-run` are pnpm-patched (`patches/`) — don't edit them in `node_modules`.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
@@ -112,4 +114,5 @@ Turborepo configuration, task behavior, and CLI commands can vary between instal
 Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
 
 This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+
 <!-- END:turborepo-agent-rules -->

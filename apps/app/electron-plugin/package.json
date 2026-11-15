@@ -1,0 +1,43 @@
+{
+	"name": "app-electron-plugin",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#app-electron-plugin/*": "./src/*",
+		"#client/*": "client/*",
+		"#core/*": "core/*",
+		"#gui/*": "gui/*"
+	},
+	"exports": {
+		"./electron/dist/plugin.mjs": "./electron/dist/plugin.mjs",
+		"./*": "./src/*"
+	},
+	"capacitor": {
+		"electron": {
+			"src": "electron"
+		}
+	},
+	"scripts": {
+		"lint": "biome check --write",
+		"typecheck": "tsc --noEmit",
+		"build": "vite build",
+		"dev": "vite build --watch"
+	},
+	"dependencies": {
+		"@afmize/node": "catalog:ai",
+		"@cursor/sdk": "^1.3.1",
+		"computah": "^0.1.5",
+		"electron-updater": "^6.8.11",
+		"koffi": "^3.3.8"
+	},
+	"devDependencies": {
+		"@capacitor/core": "^8.6.2",
+		"@capawesome/capacitor-electron": "^0.2.2",
+		"@modelcontextprotocol/client": "^2.4.0",
+		"@ryangarber/ai-sdk-providers": "catalog:ai",
+		"client": "workspace:*",
+		"core": "workspace:*",
+		"electron": "^45.3.2",
+		"gui": "workspace:*"
+	}
+}

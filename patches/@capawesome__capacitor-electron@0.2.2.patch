@@ -1,0 +1,15 @@
+diff --git a/dist/cli/index.js b/dist/cli/index.js
+index ffdb1f36043deb70750d37424567714f2bc7a79b..742f6223be80dd22b5054b2dc62d45232ed740d5 100755
+--- a/dist/cli/index.js
++++ b/dist/cli/index.js
+@@ -416,7 +416,9 @@ function vendorSubset(sourceDir, targetDir, entries) {
+  * maps: walk `node_modules` directories from `fromDir` upwards.
+  */
+ function findPackageDir(fromDir, packageName) {
+-    let currentDir = fromDir;
++    // From where the package really is: a symlinked package (pnpm's layout)
++    // has its dependencies beside its real directory, not its link.
++    let currentDir = fs.realpathSync(fromDir);
+     for (;;) {
+         const candidate = path.join(currentDir, 'node_modules', packageName);
+         if (fs.existsSync(path.join(candidate, 'package.json'))) {

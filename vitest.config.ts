@@ -2,7 +2,7 @@ import { coverageConfigDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
 	test: {
-		projects: ["apps/*", "packages/*", "!apps/{desktop,mobile}"],
+		projects: ["apps/*", "packages/*", "!apps/app"],
 		silent: "passed-only",
 		coverage: {
 			provider: "v8",

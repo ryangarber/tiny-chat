@@ -10,6 +10,7 @@ import {
 } from "unique-names-generator";
 import { ID_ALPHABET, ID_LENGTH } from "#core/core/types/common.ts";
 import { ScheduleUtils } from "#core/core/utils/ScheduleUtils.ts";
+import workspace from "../../../../../package.json" with { type: "json" };
 
 export type MaybeNullish<TIn, TOut> = TIn extends undefined
 	? undefined
@@ -91,9 +92,9 @@ export const CommonUtils = {
 
 	/**
 	 * Where a sign-in in the system browser returns to a host app, by the URL
-	 * scheme it registers (`tinychat`). The server appends `#token=`.
+	 * scheme it registers. The server appends `#token=`.
 	 */
-	nativeAuthCallbackUrl: "tinychat://auth",
+	nativeAuthCallbackUrl: `${workspace.productScheme}://auth`,
 	/** The auth path that opens a native sign-in in the system browser. */
 	nativeAuthorizePath: "/native/authorize",
 
@@ -353,7 +354,7 @@ export const CommonUtils = {
 	},
 
 	getWatchMode: (
-		target: "gui" | "desktop" | "cli",
+		target: "gui" | "app" | "cli",
 		env = process.env,
 		argv = process.argv,
 	) => {
