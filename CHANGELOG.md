@@ -1,3 +1,10 @@
+## 0.10.18 (2026-11-15)
+
+### Other
+
+- fix desktop build warnings ([f154cb6](https://github.com/ryangarber/tiny-chat/commit/f154cb66ab434085d83031ef4515e5e3650c1221))
+- use capacitor web, electron targets ([985a5a3](https://github.com/ryangarber/tiny-chat/commit/985a5a3e293e8cba79b0533a2ef860d9b1a0419c))
+
 ## 0.10.17 (2026-11-15)
 
 ### Bug Fixes
