@@ -1,3 +1,13 @@
+## 0.10.17 (2026-11-15)
+
+### Bug Fixes
+
+- backgrounded tools can hang in claude, codex, or cursor ([18bfc95](https://github.com/ryangarber/tiny-chat/commit/18bfc950d1ea528fa5bb17910ff99b4077991674))
+
+### Other
+
+- bump dependencies ([18bfc95](https://github.com/ryangarber/tiny-chat/commit/18bfc950d1ea528fa5bb17910ff99b4077991674))
+
 ## 0.10.16 (2026-11-12)
 
 ### Bug Fixes
