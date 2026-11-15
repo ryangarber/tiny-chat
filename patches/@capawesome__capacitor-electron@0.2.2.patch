@@ -1,8 +1,41 @@
 diff --git a/dist/cli/index.js b/dist/cli/index.js
-index ffdb1f36043deb70750d37424567714f2bc7a79b..742f6223be80dd22b5054b2dc62d45232ed740d5 100755
+index ffdb1f36043deb70750d37424567714f2bc7a79b..df6aa5955c74a03183a4e02be596873be472f9b7 100755
 --- a/dist/cli/index.js
 +++ b/dist/cli/index.js
-@@ -416,7 +416,9 @@ function vendorSubset(sourceDir, targetDir, entries) {
+@@ -392,13 +392,30 @@ function vendorDependencyClosure(dependentDir, dependentPackageJson, dependentVe
+                 vendorDir,
+             });
+         }
+-        if (fs.existsSync(path.join(dependencyDir, 'binding.gyp')) ||
+-            fs.existsSync(path.join(dependencyDir, 'prebuilds'))) {
++        if (needsElectronRebuild(dependencyDir)) {
+             nativePackages.add(dependencyName);
+         }
+         vendorDependencyClosure(dependencyDir, dependencyPackageJson, vendorDir, vendorRoot, vendored, nativePackages);
+     }
+ }
++/**
++ * Whether a dependency's native code is tied to Node's ABI: it compiles from
++ * a `binding.gyp`, or it ships a prebuilt `.node` addon that isn't N-API
++ * (`*.napi.node`, ABI-stable across Node and Electron). A `prebuilds`
++ * directory of plain shared libraries, opened through FFI, isn't either.
++ */
++function needsElectronRebuild(dependencyDir) {
++    const prebuilds = path.join(dependencyDir, 'prebuilds');
++    const addons = fs.existsSync(prebuilds)
++        ? fs.readdirSync(prebuilds, { recursive: true })
++            .map(String)
++            .filter(file => file.endsWith('.node'))
++        : [];
++    if (addons.length > 0) {
++        return addons.some(file => !/napi[^\\/]*\.node$/.test(file));
++    }
++    return fs.existsSync(path.join(dependencyDir, 'binding.gyp'));
++}
+ function vendorSubset(sourceDir, targetDir, entries) {
+     fs.mkdirSync(targetDir, { recursive: true });
+     for (const entry of entries) {
+@@ -416,7 +433,9 @@ function vendorSubset(sourceDir, targetDir, entries) {
   * maps: walk `node_modules` directories from `fromDir` upwards.
   */
  function findPackageDir(fromDir, packageName) {

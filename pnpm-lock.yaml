@@ -254,7 +254,7 @@ overrides:
   ink: npm:ink-nightly
 
 patchedDependencies:
-  '@capawesome/capacitor-electron@0.2.2': 9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991
+  '@capawesome/capacitor-electron@0.2.2': 6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419
 
 importers:
 
@@ -395,10 +395,10 @@ importers:
         version: 8.6.2(@capacitor/core@8.6.2)
       '@capawesome/capacitor-electron':
         specifier: ^0.2.2
-        version: 0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
+        version: 0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
       '@capawesome/capacitor-live-update':
         specifier: ^8.8.1
-        version: 8.8.1(@capacitor/core@8.6.2)(@capawesome/capacitor-electron@0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2)))(electron@45.3.2(supports-color@10.2.2))
+        version: 8.8.1(@capacitor/core@8.6.2)(@capawesome/capacitor-electron@0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2)))(electron@45.3.2(supports-color@10.2.2))
       app-electron-plugin:
         specifier: workspace:*
         version: link:electron-plugin
@@ -423,7 +423,7 @@ importers:
     devDependencies:
       '@capawesome/capacitor-electron':
         specifier: ^0.2.2
-        version: 0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
+        version: 0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
       electron:
         specifier: ^45.3.2
         version: 45.3.2(supports-color@10.2.2)
@@ -457,7 +457,7 @@ importers:
         version: 8.6.2
       '@capawesome/capacitor-electron':
         specifier: ^0.2.2
-        version: 0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
+        version: 0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
       '@modelcontextprotocol/client':
         specifier: ^2.4.0
         version: 2.4.0
@@ -9313,18 +9313,18 @@ snapshots:
       - '@types/node'
       - supports-color
 
-  '@capawesome/capacitor-electron@0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))':
+  '@capawesome/capacitor-electron@0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))':
     dependencies:
       '@capacitor/core': 8.6.2
     optionalDependencies:
       electron: 45.3.2(supports-color@10.2.2)
 
-  '@capawesome/capacitor-live-update@8.8.1(@capacitor/core@8.6.2)(@capawesome/capacitor-electron@0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2)))(electron@45.3.2(supports-color@10.2.2))':
+  '@capawesome/capacitor-live-update@8.8.1(@capacitor/core@8.6.2)(@capawesome/capacitor-electron@0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2)))(electron@45.3.2(supports-color@10.2.2))':
     dependencies:
       '@capacitor/core': 8.6.2
       '@capawesome/electron-live-update': 0.1.0(electron@45.3.2(supports-color@10.2.2))
     optionalDependencies:
-      '@capawesome/capacitor-electron': 0.2.2(patch_hash=9bdb16c581964462aa018f2c5db40d60c5ebaf3e6a754fe1f7058df99877d991)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
+      '@capawesome/capacitor-electron': 0.2.2(patch_hash=6e1faedaffa1327bc24eb4bc716b3b93f26f94ec62dd3b1516cfb7102e2b2419)(@capacitor/core@8.6.2)(electron@45.3.2(supports-color@10.2.2))
     transitivePeerDependencies:
       - electron
 

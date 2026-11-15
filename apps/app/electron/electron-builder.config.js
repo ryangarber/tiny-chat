@@ -10,8 +10,13 @@ const workspace = require("../../../package.json");
 module.exports = {
 	appId: workspace.productIdentifier,
 	productName: workspace.productName,
-	// The workspace's, rather than this project's own.
-	extraMetadata: { version: workspace.version },
+	extraMetadata: {
+		// The workspace's, rather than this project's own.
+		version: workspace.version,
+		// The app's Linux app_id / WM_CLASS, so its windows match the
+		// `.desktop` entry (`linux.syncDesktopName`).
+		desktopName: `${workspace.productIdentifier}.desktop`,
+	},
 	directories: {
 		output: "dist",
 		buildResources: "assets",
@@ -28,6 +33,10 @@ module.exports = {
 		// Platform runtime + plugins, prepared by `capacitor-electron vendor`.
 		{ from: "vendor/node_modules", to: "node_modules" },
 	],
+	// That vendored closure is the app's node_modules. Otherwise, with no
+	// dependencies of its own, this project's are collected from the
+	// workspace root: the server's and CLI's, which the app never loads.
+	beforeBuild: async () => false,
 	// Native libraries (afmize's, the Cua Driver's, Cursor's) are opened by
 	// path beside their packages, which an archive has none of.
 	asar: false,
@@ -67,5 +76,6 @@ module.exports = {
 		icon: "assets/icon.png",
 		category: "Utility",
 		target: ["AppImage"],
+		syncDesktopName: true,
 	},
 };
