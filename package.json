@@ -2,7 +2,7 @@
 	"name": "tiny-chat",
 	"type": "module",
 	"private": true,
-	"version": "0.10.18",
+	"version": "0.10.19",
 	"productName": "Tiny Chat",
 	"productIdentifier": "dev.ryangarber.chat",
 	"productScheme": "tinychat",

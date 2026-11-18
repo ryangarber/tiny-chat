@@ -1,3 +1,14 @@
+## 0.10.19 (2026-11-18)
+
+### Bug Fixes
+
+- cursor provider can miss tool call results ([6ee6aab](https://github.com/ryangarber/tiny-chat/commit/6ee6aabac28eff09d9f80da9bc6664684687e475))
+- computer use sessions can be lost between tool calls ([6ee6aab](https://github.com/ryangarber/tiny-chat/commit/6ee6aabac28eff09d9f80da9bc6664684687e475))
+
+### Other
+
+- **tui:** move tui components to new ui library ([6ee6aab](https://github.com/ryangarber/tiny-chat/commit/6ee6aabac28eff09d9f80da9bc6664684687e475))
+
 ## 0.10.18 (2026-11-15)
 
 ### Other
