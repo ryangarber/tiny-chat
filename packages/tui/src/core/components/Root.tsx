@@ -1,11 +1,42 @@
-import { ImageProvider, type ImageProviderProps } from "better-ink-picture";
+import {
+	ClipboardProvider,
+	ImageProvider,
+	type ImageProviderProps,
+	Text,
+	type Theme,
+	ThemeProvider,
+} from "better-ink-ui";
 import { Box, useApp, useInput } from "ink";
+import { type ReactNode, useContext, useMemo } from "react";
 import ErrorBoundary, {
 	type ErrorFallbackProps,
 } from "#client/core/components/ErrorBoundary.tsx";
-import ThemeContextProvider from "#client/core/components/ThemeContext.tsx";
+import ThemeContextProvider, {
+	ThemeContext,
+} from "#client/core/components/ThemeContext.tsx";
 import App from "#tui/core/components/App.tsx";
-import Text from "#tui/core/components/Text.tsx";
+import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
+
+/**
+ * Hands the app's color scheme to `better-ink-ui`, so its components take the
+ * scheme's names (`primary`, `borderSubtle`, …) and blend translucent colors
+ * over the surface.
+ */
+function UiTheme({ children }: { children: ReactNode }) {
+	const { colorScheme } = useContext(ThemeContext);
+	const theme = useMemo<Partial<Theme>>(
+		() => ({
+			colors: {
+				...colorScheme,
+				scrollbar: "borderSubtle",
+				scrollbarActive: "border",
+			},
+			background: colorScheme.surface,
+		}),
+		[colorScheme],
+	);
+	return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
+}
 
 /**
  * In place of an app that failed to draw. The app's own keys went with it,
@@ -40,13 +71,19 @@ export default function Root({
 }) {
 	return (
 		<ThemeContextProvider>
-			{/* Below the app's own, for a failure in the app itself: past this,
+			<UiTheme>
+				{/* Below the app's own, for a failure in the app itself: past this,
 			    Ink unmounts everything. */}
-			<ErrorBoundary label="the app" fallback={AppFallback}>
-				<ImageProvider {...images}>
-					<App />
-				</ImageProvider>
-			</ErrorBoundary>
+				<ErrorBoundary label="the app" fallback={AppFallback}>
+					{/* The system clipboard, where OSC 52 would need the terminal's
+				    permission — or tmux's `set-clipboard` — to reach it. */}
+					<ClipboardProvider copy={ClipboardService.copy}>
+						<ImageProvider {...images}>
+							<App />
+						</ImageProvider>
+					</ClipboardProvider>
+				</ErrorBoundary>
+			</UiTheme>
 		</ThemeContextProvider>
 	);
 }

@@ -1,10 +1,10 @@
+import { Box } from "better-ink-ui";
 import type { DOMElement } from "ink";
 import { type ReactNode, useRef } from "react";
 import {
 	FindSegmentContext,
 	useFindSegment,
 } from "#client/features/find/hooks/useFindScope.ts";
-import Box from "#tui/core/components/Box.tsx";
 
 /**
  * One of the segments the scope it is drawn in searches, under the key that

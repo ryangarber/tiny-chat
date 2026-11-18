@@ -1,3 +1,13 @@
+import {
+	Box,
+	Text,
+	Textarea,
+	type TextareaCursor,
+	TextareaUtils,
+	type TextSelection,
+	useFocusTarget,
+	useMouseLayer,
+} from "better-ink-ui";
 import { type DOMElement, type Key, useInput } from "ink";
 import {
 	type RefObject,
@@ -8,24 +18,16 @@ import {
 } from "react";
 import { FindScopeService } from "#client/features/find/services/FindScopeService.ts";
 import { useFindStore } from "#client/features/find/stores/useFindStore.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
-import { useFocused } from "#tui/core/components/Panel.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import {
 	type Focus,
-	selectFocus,
+	focusOrder,
+	getFocus,
 	useAppStore,
+	useFocused,
 } from "#tui/core/stores/useAppStore.ts";
 import { useFindClicks } from "#tui/features/find/hooks/useFindClicks.ts";
 import { useFindInElement } from "#tui/features/find/hooks/useFindInElement.ts";
-import Textarea from "#tui/features/textarea/components/Textarea.tsx";
-import type {
-	TextareaCursor,
-	TextareaSelection,
-} from "#tui/features/textarea/types/textarea.ts";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 /** Columns the query is typed into. */
 const INPUT_WIDTH = 20;
@@ -82,18 +84,16 @@ export default function Find({
 	useFindClicks(!disabled && !fixed);
 
 	const [cursor, setCursor] = useState<TextareaCursor>([0, 0]);
-	const [selection, setSelection] = useState<TextareaSelection | null>(null);
+	const [selection, setSelection] = useState<TextSelection | null>(null);
 
 	const focused = useFocused(focusable);
 	const setFocus = useAppStore((state) => state.setFocus);
-	const addFocusable = useAppStore((state) => state.addFocusable);
-	const removeFocusable = useAppStore((state) => state.removeFocusable);
-
-	useEffect(() => {
-		if (!isOpen) return;
-		addFocusable(focusable);
-		return () => removeFocusable(focusable);
-	}, [isOpen, focusable, addFocusable, removeFocusable]);
+	// Reached with Tab while it is open.
+	useFocusTarget({
+		id: focusable,
+		disabled: !isOpen,
+		order: focusOrder(focusable),
+	});
 
 	/** The scopes around the one searched, to fall back on if it goes away. */
 	const ancestorsRef = useRef<string[]>([]);
@@ -127,7 +127,7 @@ export default function Find({
 			);
 			if (!active) return;
 			if (!isOpen) {
-				returnRef.current = selectFocus(useAppStore.getState());
+				returnRef.current = getFocus();
 				target(active);
 				find.open();
 			} else if (focused) {
@@ -144,10 +144,6 @@ export default function Find({
 			const { query } = find;
 			setCursor(TextareaUtils.cursor(query, query.length));
 			setSelection(query ? [0, query.length] : null);
-			// Listed before it is focused, not once the bar's effect has run: until
-			// then the focus would fall back to the editor, and the fullscreen page
-			// the bar is drawn on would close under it.
-			addFocusable(focusable);
 			setFocus(focusable);
 		},
 		{ isActive: !disabled },

@@ -1,12 +1,10 @@
+import { Box, type BoxProps, Text, useMouseInput } from "better-ink-ui";
 import type { ReactNode } from "react";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatSourcesStore } from "#client/features/chat/stores/useChatSourcesStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { SourceUtils } from "#core/features/data/utils/SourceUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 
 const icon = (path: string) => {

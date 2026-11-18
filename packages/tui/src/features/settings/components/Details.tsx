@@ -1,9 +1,8 @@
+import { Box, Text } from "better-ink-ui";
 import chalk from "chalk";
 import type { ReactNode } from "react";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 export interface DetailsItem {
 	name: string;

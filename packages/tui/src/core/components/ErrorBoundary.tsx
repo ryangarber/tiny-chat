@@ -1,6 +1,6 @@
+import { Text } from "better-ink-ui";
 import type { ReactNode } from "react";
 import SharedErrorBoundary from "#client/core/components/ErrorBoundary.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 type ErrorBoundaryProps = {
 	/** What failed to draw, as the note in its place calls it. */

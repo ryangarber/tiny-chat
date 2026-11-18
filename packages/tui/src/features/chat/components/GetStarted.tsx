@@ -1,6 +1,5 @@
+import { Box, Text } from "better-ink-ui";
 import { useGetStarted } from "#client/features/chat/hooks/useGetStarted.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import GetStartedBlock from "#tui/features/chat/components/GetStartedBlock.tsx";
 
 /** Widest the widgets are drawn, centered in a wider terminal. */

@@ -1,10 +1,9 @@
+import { type TextareaPaint, TextareaUtils } from "better-ink-ui";
 import type { CodeResult } from "#core/core/utils/CodeUtils.ts";
 import {
 	type MarkdownHighlight,
 	MarkdownUtils,
 } from "#tui/features/editor/utils/MarkdownUtils.ts";
-import type { TextareaPaint } from "#tui/features/textarea/utils/TextareaUtils.ts";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 /** What every character ends up painted under, the way the text area paints it. */
 const paint = (value: string, highlight?: MarkdownHighlight) =>
@@ -108,11 +107,13 @@ describe("MarkdownUtils.labels", () => {
 
 		expect(painted[value.indexOf("let")].style).toEqual({
 			color: "#ff0000",
-			bgColor: "#101010",
+			backgroundColor: "#101010",
 		});
 		expect(painted[value.indexOf(" a")].style?.color).toBe("#00ff00");
 		// The fences sit on the theme's background along with the code.
-		expect(painted[value.indexOf("```")].style).toEqual({ bgColor: "#101010" });
+		expect(painted[value.indexOf("```")].style).toEqual({
+			backgroundColor: "#101010",
+		});
 		expect(painted[0].style).toBeUndefined();
 	});
 
@@ -137,8 +138,8 @@ describe("MarkdownUtils.labels", () => {
 		expect(at(" a")?.color).toBe("#00ff00");
 		// Past what was highlighted, and on a line it never had, only the
 		// background is laid down.
-		expect(at("bc")).toEqual({ bgColor: "#101010" });
-		expect(at("x\n")).toEqual({ bgColor: "#101010" });
+		expect(at("bc")).toEqual({ backgroundColor: "#101010" });
+		expect(at("x\n")).toEqual({ backgroundColor: "#101010" });
 	});
 
 	it("finds the blocks of code to highlight", () => {

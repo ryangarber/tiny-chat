@@ -1,8 +1,7 @@
+import { Box, Text } from "better-ink-ui";
 import Spinner from "ink-spinner";
 import { useShallow } from "zustand/react/shallow";
 import { useEmbedding } from "#client/features/user/hooks/useEmbedding.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { type Status, useAppStore } from "#tui/core/stores/useAppStore.ts";
 
 const WORKING: Status = { id: "working", text: "working" };

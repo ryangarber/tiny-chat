@@ -1,7 +1,7 @@
+import { InsideTextContext, Text } from "better-ink-ui";
 import { useContext, useMemo } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import Content, { type ContentEdit } from "#tui/core/components/Content.tsx";
-import Text, { InsideTextContext } from "#tui/core/components/Text.tsx";
 import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import CodeLines from "#tui/features/code/components/CodeLines.tsx";
 import Highlight from "#tui/features/code/components/Highlight.tsx";

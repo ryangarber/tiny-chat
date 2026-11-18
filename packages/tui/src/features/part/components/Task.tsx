@@ -1,3 +1,4 @@
+import { Box, type BoxProps, Text, useMouseInput } from "better-ink-ui";
 import { useAnimation } from "ink";
 import {
 	createContext,
@@ -8,9 +9,6 @@ import {
 	useState,
 } from "react";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import {
 	type StatusPart,
 	TaskUtils,

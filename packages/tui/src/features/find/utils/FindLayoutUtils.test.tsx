@@ -1,10 +1,9 @@
 import { stripVTControlCharacters } from "node:util";
+import { Box, Text } from "better-ink-ui";
 import type { DOMElement } from "ink";
 import { createRef } from "react";
 import { describe, expect, it } from "vitest";
 import { FindUtils } from "#client/features/find/utils/FindUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 import { FindLayoutUtils } from "#tui/features/find/utils/FindLayoutUtils.ts";
 

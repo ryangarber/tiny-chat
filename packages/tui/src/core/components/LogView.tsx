@@ -1,13 +1,9 @@
 import { inspect, stripVTControlCharacters } from "node:util";
+import { Box, ScrollView, type ScrollViewRef, Text } from "better-ink-ui";
 import { useInput } from "ink";
 import { useRef } from "react";
 import type { ConsoleLog } from "#client/core/stores/useConsoleStore.ts";
 import { LogLevel } from "#core/logger.ts";
-import Box from "#tui/core/components/Box.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 /**
  * One logged value as plain text. Escapes are stripped, as a server's colored
@@ -31,7 +27,7 @@ export default function LogView({
 	active?: boolean;
 	empty?: string;
 }) {
-	const ref = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const ref = useRef<ScrollViewRef>(null);
 
 	useInput(
 		(_input, key) => {

@@ -1,7 +1,5 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import { useState } from "react";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 
 export type Action =
 	| {

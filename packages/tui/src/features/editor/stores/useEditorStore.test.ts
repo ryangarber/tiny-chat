@@ -1,8 +1,8 @@
+import { TextareaUtils } from "better-ink-ui";
 import { getEditorPart } from "#client/features/editor/stores/useEditorPartStore.ts";
 import { AtomUtils } from "#client/features/editor/utils/AtomUtils.ts";
 import { EditorNodeUtils } from "#client/features/editor/utils/EditorNodeUtils.ts";
 import { useEditorStore } from "#tui/features/editor/stores/useEditorStore.ts";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 const PASTED = Array.from({ length: 12 }, (_, index) => `row ${index}`).join(
 	"\n",

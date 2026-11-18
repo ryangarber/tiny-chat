@@ -1,8 +1,8 @@
+import { Text } from "better-ink-ui";
 import chalk from "chalk";
 import type { CompletionItem } from "#client/features/editor/types/completion.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zModelArg } from "#core/features/provider/types/model.ts";
-import Text from "#tui/core/components/Text.tsx";
 
 /**
  * A line of a config menu: a setting showing its value, a checkbox, or —

@@ -38,9 +38,9 @@
 		"@capacitor/core": "^8.6.2",
 		"@capacitor/ios": "^8.6.2",
 		"@capawesome/capacitor-electron": "^0.2.2",
-		"@capawesome/capacitor-live-update": "^8.8.1",
-		"core": "workspace:*",
+		"@capawesome/capacitor-live-update": "^8.8.2",
 		"app-electron-plugin": "workspace:*",
+		"core": "workspace:*",
 		"gui": "workspace:*",
 		"react": "catalog:react",
 		"react-dom": "catalog:react"

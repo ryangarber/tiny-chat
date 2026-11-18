@@ -1,10 +1,6 @@
+import { revealRow, TextLayoutUtils, type TextRow } from "better-ink-ui";
 import type { DOMElement } from "ink";
 import type { FindBlock, FindMatch } from "#client/features/find/types/find.ts";
-import { revealRow } from "#tui/core/components/ScrollView.tsx";
-import {
-	TextLayoutUtils,
-	type TextRow,
-} from "#tui/core/utils/TextLayoutUtils.ts";
 
 /** A row of a match as drawn, placed in cells from the searched element's content. */
 export interface FindHighlight extends TextRow {

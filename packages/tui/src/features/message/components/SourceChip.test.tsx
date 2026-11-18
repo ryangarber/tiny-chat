@@ -3,7 +3,7 @@ import { Box, Text, useWindowSize } from "ink";
 import { beforeEach, expect, it } from "vitest";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { useChatSourcesStore } from "#client/features/chat/stores/useChatSourcesStore.ts";
-import { useAppStore } from "#tui/core/stores/useAppStore.ts";
+import { focusManager } from "#tui/core/stores/useAppStore.ts";
 import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 import SourceChip from "#tui/features/message/components/SourceChip.tsx";
 
@@ -12,7 +12,7 @@ const click = (x: number, y: number) =>
 	`\x1b[<0;${x + 1};${y + 1}M\x1b[<0;${x + 1};${y + 1}m`;
 
 beforeEach(() => {
-	useAppStore.setState({ focus: "editor" });
+	focusManager.focus("editor");
 	useLayoutStore.setState({ panels: { chats: false, files: false } });
 	useChatSourcesStore.setState({ viewedFile: null });
 });
@@ -44,7 +44,8 @@ it("opens its source in the chat's sources, focused, on a click", async () => {
 			directory: false,
 		});
 		expect(useLayoutStore.getState().panels.files).toBe(true);
-		expect(useAppStore.getState().focus).toBe("files");
+		// Asked for: the panel is not drawn here.
+		expect(focusManager.requestedId()).toBe("files");
 	} finally {
 		screen.unmount();
 		screen.cleanup();

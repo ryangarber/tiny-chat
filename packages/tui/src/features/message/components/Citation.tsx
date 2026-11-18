@@ -1,3 +1,14 @@
+import {
+	Box,
+	contains,
+	getBounds,
+	getTextBounds,
+	isCovered,
+	Span,
+	Text,
+	useMouse,
+	useMouseLayer,
+} from "better-ink-ui";
 import { type DOMElement, useWindowSize } from "ink";
 import {
 	type ReactNode,
@@ -14,12 +25,6 @@ import {
 	SourceUtils,
 } from "#core/features/data/utils/SourceUtils.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
-import Box from "#tui/core/components/Box.tsx";
-import Span from "#tui/core/components/Span.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouse } from "#tui/core/hooks/useMouse.ts";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
-import { MouseUtils } from "#tui/core/utils/MouseUtils.ts";
 import SourceChip from "#tui/features/message/components/SourceChip.tsx";
 import { useCitationStore } from "#tui/features/message/stores/useCitationStore.ts";
 
@@ -116,10 +121,8 @@ export function CitationCard() {
 	const setOpen = useCitationStore((state) => state.setOpen);
 	const cardRef = useRef<DOMElement>(null);
 
-	useMouse({
-		isActive: active,
-		motion: active,
-		handler: (event) => {
+	useMouse(
+		(event) => {
 			const { open, citations } = useCitationStore.getState();
 
 			// Scrolling moves the citation out from under its card.
@@ -135,17 +138,17 @@ export function CitationCard() {
 			if (
 				open &&
 				cardRef.current &&
-				MouseUtils.contains(MouseUtils.bounds(cardRef.current, rows), event)
+				contains(getBounds(cardRef.current, rows), event)
 			) {
 				return;
 			}
 
 			for (const citation of citations) {
-				const bounds = MouseUtils.textBounds(citation.node, rows);
+				const bounds = getTextBounds(citation.node, rows);
 				if (
 					bounds &&
-					MouseUtils.contains(bounds, event) &&
-					!MouseUtils.isCovered(citation.node, event, rows)
+					contains(bounds, event) &&
+					!isCovered(citation.node, event, rows)
 				) {
 					if (open?.citation !== citation) setOpen({ citation, bounds });
 					return;
@@ -154,7 +157,8 @@ export function CitationCard() {
 
 			if (open) setOpen(null);
 		},
-	});
+		{ isActive: active, motion: active },
+	);
 
 	// The card is placed by where the citation was, which a resize moves.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: closes on resize only.

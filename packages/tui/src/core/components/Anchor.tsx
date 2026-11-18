@@ -1,8 +1,8 @@
+import { Text, type TextProps } from "better-ink-ui";
 import { Transform } from "ink";
 import { type ReactNode, useContext } from "react";
 import link from "terminal-link";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
-import Text, { type TextProps } from "#tui/core/components/Text.tsx";
 
 export default function Anchor({
 	href,

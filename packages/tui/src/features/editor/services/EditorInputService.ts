@@ -1,10 +1,10 @@
+import { TextareaUtils } from "better-ink-ui";
 import type { ClientInput } from "#client/features/editor/services/ComposerService.ts";
 import { AtomUtils } from "#client/features/editor/utils/AtomUtils.ts";
 import {
 	insertNode,
 	useEditorStore,
 } from "#tui/features/editor/stores/useEditorStore.ts";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 /**
  * The terminal editor as the client's `input`, for whichever host runs it.

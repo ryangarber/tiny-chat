@@ -1,10 +1,10 @@
+import { Text } from "better-ink-ui";
 import { type ReactNode, useState } from "react";
 import type {
 	CompletionGroup,
 	CompletionItem,
 } from "#client/features/editor/types/completion.ts";
 import Completions from "#tui/core/components/Completions.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import type { Bindings } from "#tui/core/utils/ListBindingUtils.ts";
 
 export interface ChoiceItem extends CompletionItem {

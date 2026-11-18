@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from "node:util";
+import { Text } from "better-ink-ui";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import Completions from "#tui/core/components/Completions.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 

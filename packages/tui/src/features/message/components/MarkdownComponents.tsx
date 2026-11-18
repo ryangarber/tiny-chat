@@ -1,3 +1,4 @@
+import { Box, Text, type TextProps } from "better-ink-ui";
 import type { ExtraProps } from "hast-util-to-jsx-runtime";
 import {
 	Children,
@@ -15,9 +16,7 @@ import { ComponentUtils } from "#client/core/utils/ComponentUtils.ts";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
-import Box from "#tui/core/components/Box.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
-import Text, { type TextProps } from "#tui/core/components/Text.tsx";
 import { TuiUtils } from "#tui/core/utils/TuiUtils.ts";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import { Citations } from "#tui/features/message/components/Citation.tsx";

@@ -6,8 +6,8 @@ import type {
 } from "#tui/core/components/Content.tsx";
 import {
 	type Focus,
-	selectFocus,
-	selectPage,
+	getFocus,
+	getPage,
 	useAppStore,
 } from "#tui/core/stores/useAppStore.ts";
 
@@ -36,9 +36,8 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 	open: null,
 	returnFocus: "editor",
 	openContent: (content) => {
-		const app = useAppStore.getState();
-		set({ open: content, returnFocus: selectFocus(app) });
-		app.setFocus("fullscreen");
+		set({ open: content, returnFocus: getFocus() });
+		useAppStore.getState().setFocus("fullscreen");
 	},
 	updateContent: (content) => {
 		const { open } = get();
@@ -57,7 +56,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 		if (!get().open) return;
 		set({ open: null });
 		// Left already, for somewhere the focus was taken to instead.
-		const app = useAppStore.getState();
-		if (selectPage(app) === "fullscreen") app.setFocus(get().returnFocus);
+		if (getPage() === "fullscreen")
+			useAppStore.getState().setFocus(get().returnFocus);
 	},
 }));

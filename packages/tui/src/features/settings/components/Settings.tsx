@@ -1,3 +1,4 @@
+import { Text } from "better-ink-ui";
 import { useContext, useMemo, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useProviders } from "#client/features/agent/hooks/useProviders.ts";
@@ -20,7 +21,6 @@ import type {
 	ProviderState,
 	ProviderStatus,
 } from "#core/features/provider/types/provider.ts";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import Choice, {

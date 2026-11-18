@@ -1,7 +1,6 @@
+import { Box, Text } from "better-ink-ui";
 import { type DOMElement, useBoxMetrics } from "ink";
 import { useRef } from "react";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 /**
  * A rule across the width of whatever contains it.

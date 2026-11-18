@@ -1,5 +1,5 @@
+import { ScrollView } from "better-ink-ui";
 import type { ReactNode } from "react";
-import ScrollView from "#tui/core/components/ScrollView.tsx";
 
 /** Rows content is held to while it is open on its own. */
 const TAIL_ROWS = 20;

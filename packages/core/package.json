@@ -30,7 +30,7 @@
 		"@prisma/orm-postgres": "catalog:prisma",
 		"@ryangarber/ai-sdk-antigravity-proxy": "^0.1.4",
 		"@ryangarber/ai-sdk-providers": "catalog:ai",
-		"computah": "^0.1.5",
+		"computah": "^0.1.7",
 		"diff": "^9.0.0",
 		"fastest-levenshtein": "^1.0.16",
 		"file-type": "^22.3.0",

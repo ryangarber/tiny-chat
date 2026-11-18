@@ -1,3 +1,4 @@
+import { Box, type BoxProps } from "better-ink-ui";
 import type { DOMElement } from "ink";
 import {
 	type ReactNode,
@@ -13,11 +14,10 @@ import {
 	useFindScope,
 } from "#client/features/find/hooks/useFindScope.ts";
 import { useFindStore } from "#client/features/find/stores/useFindStore.ts";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import {
 	type Focus,
-	selectFocus,
-	useAppStore,
+	focusManager,
+	getFocus,
 } from "#tui/core/stores/useAppStore.ts";
 
 const mergeRefs =
@@ -65,10 +65,12 @@ export default function FindScope({
 		const activate = (focus: Focus) => {
 			if (isInside(focus)) useFindStore.getState().activate(id);
 		};
-		activate(selectFocus(useAppStore.getState()));
-		return useAppStore.subscribe((state, previous) => {
-			const focus = selectFocus(state);
-			if (focus !== selectFocus(previous)) activate(focus);
+		let previous = getFocus();
+		activate(previous);
+		return focusManager.subscribe(() => {
+			const focus = getFocus();
+			if (focus !== previous) activate(focus);
+			previous = focus;
 		});
 	}, [id]);
 

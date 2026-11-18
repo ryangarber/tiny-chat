@@ -1,12 +1,10 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import { useState } from "react";
 import type {
 	GetStartedBlock as GetStartedBlockType,
 	GetStartedLink,
 	GetStartedTarget,
 } from "#client/features/chat/types/getStarted.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 
 /** A row of links, opened by clicking one and highlighted while hovered. */
 function Links({

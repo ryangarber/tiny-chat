@@ -1,3 +1,4 @@
+import { Box, Text } from "better-ink-ui";
 import { useEffect } from "react";
 import {
 	useFindHidden,
@@ -15,8 +16,6 @@ import type { Compaction } from "#core/features/agent/services/AgentTokensServic
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
 import ToolCall, {

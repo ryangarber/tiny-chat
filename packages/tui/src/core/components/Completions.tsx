@@ -1,3 +1,13 @@
+import {
+	Box,
+	type BoxProps,
+	pageRows,
+	ScrollView,
+	type ScrollViewProps,
+	type ScrollViewRef,
+	Text,
+	useMouseInput,
+} from "better-ink-ui";
 import { type Key, useInput, useWindowSize } from "ink";
 import {
 	type ReactNode,
@@ -13,15 +23,8 @@ import type {
 	CompletionItem,
 } from "#client/features/editor/types/completion.ts";
 import { CompletionUtils } from "#client/features/editor/utils/CompletionUtils.ts";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import HelpText, { type Action } from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
-import ScrollView, {
-	pageRows,
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import {
 	type Bindings,
@@ -32,7 +35,9 @@ import {
 export type CompletionsProps<
 	T1 extends CompletionGroup<T2>,
 	T2 extends CompletionItem,
-> = ScrollViewProps & {
+> = Omit<ScrollViewProps, "ref"> & {
+	/** Read here to page through the list, so an object rather than a callback. */
+	ref?: RefObject<ScrollViewRef | null>;
 	groups: T1[];
 	selected?: number;
 	setSelected?: (_: (previous?: number) => number) => void;
@@ -150,7 +155,7 @@ export default function Completions<
 		};
 	}, [isEmpty, active]);
 
-	const ownRef = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const ownRef = useRef<ScrollViewRef>(null);
 	const ref = _ref ?? ownRef;
 
 	/**

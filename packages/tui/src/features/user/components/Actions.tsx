@@ -1,10 +1,10 @@
+import { Text } from "better-ink-ui";
 import { useEffect, useState } from "react";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useActions } from "#client/features/user/hooks/useActions.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";

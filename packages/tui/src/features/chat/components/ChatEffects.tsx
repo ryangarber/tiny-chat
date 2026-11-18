@@ -1,3 +1,4 @@
+import { Box, Text } from "better-ink-ui";
 import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
@@ -6,9 +7,7 @@ import { useMessageQueueStore } from "#client/features/chat/stores/useMessageQue
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 function Effect({
 	content,

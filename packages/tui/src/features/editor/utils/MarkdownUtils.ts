@@ -1,3 +1,11 @@
+import type {
+	TextareaEdit,
+	TextareaLabels,
+	TextareaRange,
+	TextareaStyle,
+	TextareaStyles,
+	TextSelection,
+} from "better-ink-ui";
 import type { ColorScheme } from "#client/core/components/ThemeContext.tsx";
 import {
 	type Nodes,
@@ -6,14 +14,6 @@ import {
 } from "#client/features/message/hooks/useMarkdown.ts";
 import { MarkdownUtils as MessageMarkdownUtils } from "#client/features/message/utils/MarkdownUtils.ts";
 import type { CodeResult } from "#core/core/utils/CodeUtils.ts";
-import type {
-	TextareaEdit,
-	TextareaLabels,
-	TextareaRange,
-	TextareaSelection,
-	TextareaStyle,
-	TextareaStyles,
-} from "#tui/features/textarea/types/textarea.ts";
 
 /**
  * Markdown as it is being written, drawn the way the message it becomes is
@@ -257,7 +257,7 @@ const spacesOf = (text: string) => /^ */.exec(text)?.[0].length ?? 0;
 const splice = (
 	value: string,
 	splices: Splice[],
-	points: TextareaSelection,
+	points: TextSelection,
 ): TextareaEdit => {
 	const sorted = [...splices].sort((a, b) => a.at - b.at);
 
@@ -435,7 +435,7 @@ export const MarkdownUtils = {
 					// The block is drawn on the theme's own background, the way the
 					// message draws it, and each token in its own colour over it.
 					const bgColor = hex(result.bg);
-					if (bgColor) style(at, { bgColor });
+					if (bgColor) style(at, { backgroundColor: bgColor });
 
 					// The highlight may be of the code as it stood a keystroke ago, so
 					// each of its lines is laid over the line in the same place by
@@ -454,7 +454,7 @@ export const MarkdownUtils = {
 								token.color ??
 									(token.htmlStyle as { color?: string } | undefined)?.color,
 							);
-							if (color) style([from, to], { color, bgColor });
+							if (color) style([from, to], { color, backgroundColor: bgColor });
 							from = to;
 						}
 
@@ -615,15 +615,15 @@ export const MarkdownUtils = {
 		[LABEL.codeFence]: { color: colorScheme.textSubtle },
 		[LABEL.code]: {
 			color: colorScheme.textSubtle,
-			bgColor: colorScheme.interior,
+			backgroundColor: colorScheme.interior,
 		},
 		[LABEL.inlineCodeMarker]: {
 			color: colorScheme.textSubtle,
-			bgColor: colorScheme.interior,
+			backgroundColor: colorScheme.interior,
 		},
 		[LABEL.inlineCode]: {
 			color: colorScheme.text,
-			bgColor: colorScheme.interior,
+			backgroundColor: colorScheme.interior,
 		},
 
 		[LABEL.headingMarker]: { color: colorScheme.primary, bold: true },
@@ -767,7 +767,7 @@ export const MarkdownUtils = {
 		direction,
 	}: {
 		value: string;
-		selection: TextareaSelection;
+		selection: TextSelection;
 		direction: 1 | -1;
 	}): TextareaEdit | null => {
 		const start = Math.min(...selection);
@@ -880,13 +880,13 @@ export const MarkdownUtils = {
 		size,
 	}: {
 		value: string;
-		selection: TextareaSelection;
+		selection: TextSelection;
 		size: 1 | 2;
 	}): TextareaEdit => {
 		const isBackward = selection[0] > selection[1];
 		const result = (content: string, from: number, to = from) => ({
 			value: content,
-			selection: (isBackward ? [to, from] : [from, to]) as TextareaSelection,
+			selection: (isBackward ? [to, from] : [from, to]) as TextSelection,
 		});
 
 		let start = Math.min(...selection);

@@ -1,8 +1,7 @@
+import { Box, Text } from "better-ink-ui";
 import type { ReactNode } from "react";
 import { SourceUtils } from "#core/features/data/utils/SourceUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
 
 export default function Quote({
 	model,

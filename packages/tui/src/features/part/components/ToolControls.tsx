@@ -1,15 +1,13 @@
+import { Box, Text, Textarea } from "better-ink-ui";
 import { useCallback, useMemo, useState } from "react";
 import { useToolFeedback } from "#client/features/part/hooks/useToolFeedback.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zToolCallPart } from "#core/features/data/types/part.ts";
 import type { ToolControls as ToolControlsType } from "#core/features/tool/types/display.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
-import Panel, { useFocused } from "#tui/core/components/Panel.tsx";
-import Text from "#tui/core/components/Text.tsx";
+import Panel from "#tui/core/components/Panel.tsx";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
-import { useAppStore } from "#tui/core/stores/useAppStore.ts";
-import Textarea from "#tui/features/textarea/components/Textarea.tsx";
+import { useAppStore, useFocused } from "#tui/core/stores/useAppStore.ts";
 
 interface Item {
 	name?: string;
@@ -116,7 +114,8 @@ export default function ToolControls({
 	}, [controls, quick]);
 
 	return (
-		<Panel id={id} disabled={disabled}>
+		// Shift+Tab is the controls' own shortcut, never a step back through the focus.
+		<Panel id={id} disabled={disabled} onTab={(direction) => direction === -1}>
 			<Completions<{ items: Item[] }, Item>
 				groups={groups}
 				numbered

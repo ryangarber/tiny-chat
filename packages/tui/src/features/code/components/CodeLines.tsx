@@ -1,10 +1,10 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: lines stay in order */
 
+import { Unselectable } from "better-ink-ui";
 import chalk, { type ChalkInstance } from "chalk";
 import { Box, Text } from "ink";
 import { useCode } from "#client/core/hooks/useCode.ts";
 import type { CodeResult } from "#core/core/utils/CodeUtils.ts";
-import { TextLayoutUtils } from "#tui/core/utils/TextLayoutUtils.ts";
 
 export default function CodeLines({
 	code,
@@ -40,7 +40,7 @@ export default function CodeLines({
 			// Beside the line rather than in it, so it is never found as part of it.
 			return (
 				<Box key={lineIndex}>
-					<Box flexShrink={0} ref={TextLayoutUtils.ignore}>
+					<Unselectable flexShrink={0}>
 						<Text>
 							{chalk.gray(
 								`${(lineIndex + startLine)
@@ -48,7 +48,7 @@ export default function CodeLines({
 									.padStart(lineNumberLength, " ")}. `,
 							)}
 						</Text>
-					</Box>
+					</Unselectable>
 					<Text>{node}</Text>
 				</Box>
 			);

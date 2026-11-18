@@ -1,3 +1,4 @@
+import { Box, Text } from "better-ink-ui";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { useMessageStore } from "#client/features/message/stores/useMessageStore.ts";
 import {
@@ -9,9 +10,7 @@ import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import { EditorPartUtils } from "#core/features/data/utils/EditorPartUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Thought from "#tui/features/part/components/Thought.tsx";

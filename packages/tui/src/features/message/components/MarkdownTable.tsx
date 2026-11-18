@@ -1,3 +1,4 @@
+import { Box, Text } from "better-ink-ui";
 import {
 	Children,
 	cloneElement,
@@ -7,10 +8,8 @@ import {
 	useContext,
 	useMemo,
 } from "react";
-import Box from "#tui/core/components/Box.tsx";
 import Content, { ContentWidthContext } from "#tui/core/components/Content.tsx";
 import Divider from "#tui/core/components/Divider.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 
 type Align = "left" | "center" | "right";

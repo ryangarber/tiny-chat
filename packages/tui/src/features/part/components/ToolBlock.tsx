@@ -1,3 +1,4 @@
+import { Box, Text } from "better-ink-ui";
 import type { ReactNode } from "react";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import {
@@ -8,10 +9,8 @@ import { useDocument } from "#client/features/part/hooks/useDocument.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { ToolBlock as ToolBlockType } from "#core/features/tool/types/display.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
-import Box from "#tui/core/components/Box.tsx";
 import Content from "#tui/core/components/Content.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";

@@ -1,4 +1,4 @@
-import Text from "#tui/core/components/Text.tsx";
+import { Text } from "better-ink-ui";
 import Quote from "#tui/features/part/components/Quote.tsx";
 import render from "#tui/tests.ts";
 

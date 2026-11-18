@@ -1,3 +1,4 @@
+import { Box, ScrollView, Text } from "better-ink-ui";
 import { useInput, useWindowSize } from "ink";
 import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
@@ -5,11 +6,8 @@ import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useShellCommand } from "#client/features/shell/hooks/useShellCommand.ts";
 import type { ShellRun } from "#client/features/shell/stores/useShellStore.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
-import ScrollView from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import Task from "#tui/features/part/components/Task.tsx";
 import ToolBlock from "#tui/features/part/components/ToolBlock.tsx";
 import { toStatusParts } from "#tui/features/part/components/ToolCall.tsx";

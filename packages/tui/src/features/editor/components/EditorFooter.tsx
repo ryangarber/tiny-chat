@@ -1,11 +1,9 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import { useState } from "react";
 import type { Usage } from "#client/features/editor/hooks/useEstimatedTokens.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 import TokenUsage from "#tui/features/editor/components/TokenUsage.tsx";
 
 const Separator = () => <Text color="textSubtle"> · </Text>;

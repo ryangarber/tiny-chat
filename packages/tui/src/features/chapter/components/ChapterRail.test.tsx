@@ -1,4 +1,5 @@
 import { stripVTControlCharacters } from "node:util";
+import { Box, ScrollView, type ScrollViewRef, Text } from "better-ink-ui";
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
 import { ToolStreamService } from "#client/core/services/StreamService.ts";
@@ -7,11 +8,6 @@ import type { MessageState } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 import { mockConfig } from "#core/tests.ts";
-import Box from "#tui/core/components/Box.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import ChapterRail from "#tui/features/chapter/components/ChapterRail.tsx";
 import render from "#tui/tests.ts";
 
@@ -69,7 +65,7 @@ function Transcript({
 }: {
 	messages?: MessageState[];
 }) {
-	const ref = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const ref = useRef<ScrollViewRef>(null);
 	const { chapters } = useChapters({ messages: list });
 	return (
 		<Box height={10} flexDirection="column">

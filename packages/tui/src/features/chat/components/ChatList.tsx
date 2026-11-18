@@ -1,3 +1,4 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import { useInput } from "ink";
 import Spinner from "ink-spinner";
 import { useState } from "react";
@@ -5,11 +6,8 @@ import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import { useChatStatuses } from "#client/features/chat/hooks/useChatStatuses.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useSentinel } from "#tui/core/hooks/useSentinel.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";

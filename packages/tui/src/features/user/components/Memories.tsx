@@ -1,10 +1,10 @@
+import { Text } from "better-ink-ui";
 import { useEffect, useState } from "react";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useMemories } from "#client/features/user/hooks/useMemories.ts";
 import { Enum } from "#core/core/services/PostgresService.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";

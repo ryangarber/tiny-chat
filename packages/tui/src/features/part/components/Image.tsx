@@ -1,16 +1,19 @@
-import { Image as _Image } from "better-ink-picture";
+import {
+	Image as _Image,
+	Box,
+	InsideTextContext,
+	Text,
+	useMouseInput,
+} from "better-ink-ui";
 import { Transform, useWindowSize } from "ink";
 import { useContext, useEffect, useState } from "react";
 import link from "terminal-link";
 import { ThemeContext } from "#client/core/components/ThemeContext.tsx";
 import { useThemes } from "#client/features/settings/hooks/useThemes.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Content from "#tui/core/components/Content.tsx";
-import Text, { InsideTextContext } from "#tui/core/components/Text.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { OpenerService } from "#tui/core/services/OpenerService.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 import {
 	ImageFileService,
 	type ImageSource,

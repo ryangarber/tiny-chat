@@ -1,3 +1,4 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import Spinner from "ink-spinner";
 import { useContext, useMemo, useState } from "react";
 import { ClientContext } from "#client/client.ts";
@@ -10,19 +11,15 @@ import { useMessageBranches } from "#client/features/message/hooks/useMessageBra
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import MessageParts from "#tui/features/message/components/MessageParts.tsx";
-import {
+import SelectionActions, {
 	type SelectionAction,
-	SelectionActionsContext,
-} from "#tui/features/selection/components/Selectable.tsx";
+} from "#tui/features/selection/components/SelectionActions.tsx";
 
 export default function Message({
 	message,
@@ -102,7 +99,7 @@ export default function Message({
 				gap={1}
 				maxWidth={columns - 3}
 			>
-				<SelectionActionsContext value={actions}>
+				<SelectionActions actions={actions}>
 					<ErrorBoundary label="this message" resetKey={streamed.data}>
 						<MessageParts
 							data={streamed.data}
@@ -111,7 +108,7 @@ export default function Message({
 							message={message}
 						/>
 					</ErrorBoundary>
-				</SelectionActionsContext>
+				</SelectionActions>
 				{!!streamed.status && (
 					<Text>
 						<Spinner type="simpleDotsScrolling" />

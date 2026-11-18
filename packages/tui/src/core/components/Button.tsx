@@ -1,7 +1,5 @@
+import { Pressable, type PressableProps, Text } from "better-ink-ui";
 import { useEffect, useRef, useState } from "react";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
 
 /**
  * A bracketed text button, dimmed while hovered.
@@ -17,37 +15,39 @@ export default function Button({
 	timeout = 2000,
 	disabled = false,
 	...props
-}: Omit<BoxProps, "children"> & {
+}: Omit<PressableProps, "children" | "onPress"> & {
 	label: string;
 	labelOnClick?: string;
 	onClick?: () => unknown;
 	timeout?: number;
 	disabled?: boolean;
 }) {
-	const [hover, setHover] = useState(false);
 	const [clicked, setClicked] = useState(false);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-	const { mouseRef } = useMouseInput({
-		onClick: () => {
-			onClick?.();
-			if (!labelOnClick) return;
-			setClicked(true);
-			clearTimeout(timeoutRef.current);
-			timeoutRef.current = setTimeout(() => setClicked(false), timeout);
-		},
-		onHoverStart: () => setHover(true),
-		onHoverEnd: () => setHover(false),
-		isActive: !disabled,
-	});
 
 	useEffect(() => () => clearTimeout(timeoutRef.current), []);
 
 	return (
-		<Box ref={(element) => mouseRef(element, 0)} flexShrink={0} {...props}>
-			<Text color="textSubtle" dimColor={disabled || hover}>
-				[{clicked && labelOnClick ? labelOnClick : label}]
-			</Text>
-		</Box>
+		<Pressable
+			disabled={disabled}
+			{...props}
+			onPress={() => {
+				onClick?.();
+				if (labelOnClick) {
+					setClicked(true);
+					clearTimeout(timeoutRef.current);
+					timeoutRef.current = setTimeout(() => setClicked(false), timeout);
+				}
+				// On to the panel it is in, which takes the focus — unless this
+				// press already moved it, opening a page, say.
+				return false;
+			}}
+		>
+			{({ isHovered }) => (
+				<Text color="textSubtle" dimColor={disabled || isHovered}>
+					[{clicked && labelOnClick ? labelOnClick : label}]
+				</Text>
+			)}
+		</Pressable>
 	);
 }

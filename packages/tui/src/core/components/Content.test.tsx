@@ -1,14 +1,10 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: tests */
 
 import { stripVTControlCharacters } from "node:util";
+import { Box, ScrollView, type ScrollViewRef, Text } from "better-ink-ui";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
-import Box from "#tui/core/components/Box.tsx";
 import Content, { ContentFullscreen } from "#tui/core/components/Content.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { render } from "#tui/core/utils/RenderTestUtils.tsx";
 
 const rows = (screen: { lastFrame: () => string | undefined }) =>
@@ -20,7 +16,7 @@ const buttonsRow = (screen: { lastFrame: () => string | undefined }) =>
 
 describe("Content", () => {
 	it("keeps its buttons on the top row shown of it as it scrolls", async () => {
-		const ref = createRef<NonNullable<ScrollViewProps["ref"]>["current"]>();
+		const ref = createRef<ScrollViewRef>();
 		// A block of 2 border rows and 20 lines, and more after it, through 8 rows.
 		const screen = render(
 			<Box height={8} width={40} flexDirection="column">

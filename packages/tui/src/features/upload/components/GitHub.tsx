@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Text } from "better-ink-ui";
 import { useContext, useMemo } from "react";
 import { ClientContext } from "#client/client.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
@@ -9,7 +10,6 @@ import type {
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import Completions from "#tui/core/components/Completions.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 

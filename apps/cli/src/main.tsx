@@ -1,12 +1,10 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { detectTerminal, type WorkerLike } from "better-ink-picture";
-import { render } from "ink";
+import { detectTerminal, render, type WorkerLike } from "better-ink-ui";
 import { client } from "#cli/client.ts";
 import { TokenService } from "#cli/core/services/TokenService.ts";
 import { StderrUtils } from "#cli/core/utils/StderrUtils.ts";
 import { ClientContext } from "#client/client.ts";
 import Root from "#tui/core/components/Root.tsx";
-import { StdinUtils } from "#tui/core/utils/StdinUtils.ts";
 import type { AppOptions } from "./cli.ts";
 import { StorageService } from "./core/services/StorageService.ts";
 
@@ -21,7 +19,6 @@ export async function main(options: AppOptions) {
 	// Asked before Ink takes stdin, whose answers would otherwise arrive as keys.
 	const capabilities = await detectTerminal().catch(() => undefined);
 
-	const stdin = StdinUtils.filter(process.stdin);
 	const restoreStderr = StderrUtils.capture();
 
 	const instance = render(
@@ -47,7 +44,6 @@ export async function main(options: AppOptions) {
 			// The logger is silent and keeps everything for `/console`; Ink's
 			// patch would print above the UI, forcing a full redraw each time.
 			patchConsole: false,
-			stdin,
 			// Legacy terminal input cannot say which modifiers a key was pressed
 			// with: an arrow under Shift, under Alt, or under both can all arrive
 			// as the same bytes, which is what leaves Alt and Shift selection to
@@ -90,8 +86,6 @@ export async function main(options: AppOptions) {
 	} finally {
 		process.off("uncaughtException", onError);
 		process.off("unhandledRejection", onError);
-		// Detach the adapter without closing the terminal owned by the process.
-		stdin.destroy();
 		restoreStderr();
 	}
 	if (fatal) {

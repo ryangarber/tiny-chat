@@ -1,3 +1,15 @@
+import {
+	Box,
+	type BoxProps,
+	ScrollView,
+	type ScrollViewRef,
+	Selectable,
+	Text,
+	Textarea,
+	Unselectable,
+	useMouseLayer,
+	useScrollSticky,
+} from "better-ink-ui";
 import { type DOMElement, useInput, useWindowSize } from "ink";
 import {
 	createContext,
@@ -10,26 +22,16 @@ import {
 	useState,
 } from "react";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
-import Box, { type BoxProps } from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { usePage } from "#tui/core/hooks/usePage.ts";
-import { useScrollSticky } from "#tui/core/hooks/useScrollSticky.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
-import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
+import { useFocus } from "#tui/core/stores/useAppStore.ts";
 import { useContentStore } from "#tui/core/stores/useContentStore.ts";
-import { TextLayoutUtils } from "#tui/core/utils/TextLayoutUtils.ts";
 import Find from "#tui/features/find/components/Find.tsx";
 import FindScope from "#tui/features/find/components/FindScope.tsx";
-import Selectable from "#tui/features/selection/components/Selectable.tsx";
-import Textarea from "#tui/features/textarea/components/Textarea.tsx";
 
 /** The scope, and the find bar's id, of the block opened over the screen. */
 const FULLSCREEN = "fullscreen";
@@ -102,14 +104,7 @@ function ContentActions({
 
 	return (
 		// Drawn over the block, but never found or selected as part of it.
-		<Box
-			// biome-ignore lint/nursery/useReactCompiler: a ref callback that only marks the node it is handed.
-			ref={TextLayoutUtils.ignore}
-			position="absolute"
-			top={top}
-			right={2}
-			gap={1}
-		>
+		<Unselectable position="absolute" top={top} right={2} gap={1}>
 			{editor ? (
 				<>
 					<Button
@@ -132,7 +127,7 @@ function ContentActions({
 					<Button label={open ? "+" : "×"} onClick={open ?? close} />
 				</>
 			)}
-		</Box>
+		</Unselectable>
 	);
 }
 
@@ -227,11 +222,10 @@ export function ContentFullscreen() {
 	const content = useContentStore((state) => state.open);
 	const closeContent = useContentStore((state) => state.closeContent);
 	// The keys are the find bar's while it has them, over this page.
-	const active = useAppStore((state) => selectFocus(state) === "fullscreen");
+	const active = useFocus() === "fullscreen";
 
 	const ref = useRef<DOMElement>(null);
-	const scrollRef =
-		useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const scrollRef = useRef<ScrollViewRef>(null);
 
 	// The text being edited, held by the block it was opened from.
 	const [draft, setDraft] = useState<{ id: string; value: string } | null>(

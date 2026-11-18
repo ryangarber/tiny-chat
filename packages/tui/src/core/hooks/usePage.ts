@@ -2,8 +2,8 @@ import { useInput } from "ink";
 import { useCallback } from "react";
 import {
 	type Page,
-	selectPage,
 	useAppStore,
+	useCurrentPage,
 } from "#tui/core/stores/useAppStore.ts";
 
 export const usePage = ({
@@ -15,7 +15,7 @@ export const usePage = ({
 	back?: string[];
 	onBack?: () => Page | boolean | undefined;
 } = {}) => {
-	const page = useAppStore(selectPage);
+	const page = useCurrentPage();
 	const setFocus = useAppStore((state) => state.setFocus);
 	/** The chat is opened at its editor. */
 	const setPage = useCallback(

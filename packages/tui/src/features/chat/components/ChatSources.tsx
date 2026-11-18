@@ -1,3 +1,10 @@
+import {
+	Box,
+	ScrollView,
+	type ScrollViewRef,
+	Selectable,
+	Text,
+} from "better-ink-ui";
 import { type DOMElement, useBoxMetrics, useInput, useWindowSize } from "ink";
 import {
 	type ReactNode,
@@ -38,7 +45,6 @@ import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
-import Box from "#tui/core/components/Box.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
 import Content, {
 	type ContentEdit,
@@ -48,10 +54,6 @@ import Divider from "#tui/core/components/Divider.tsx";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
 import { usePanel } from "#tui/core/components/Panel.tsx";
-import ScrollView, {
-	type ScrollViewProps,
-} from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
@@ -60,10 +62,9 @@ import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
 import Image from "#tui/features/part/components/Image.tsx";
-import Selectable, {
+import SelectionActions, {
 	type SelectionAction,
-	SelectionActionsContext,
-} from "#tui/features/selection/components/Selectable.tsx";
+} from "#tui/features/selection/components/SelectionActions.tsx";
 
 type Preview =
 	| { type: "file"; file: ChatFile }
@@ -338,7 +339,7 @@ function PreviewPane({
 	width?: number;
 }) {
 	const { rows } = useWindowSize();
-	const ref = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const ref = useRef<ScrollViewRef>(null);
 
 	const { messages } = useMessages();
 	const lastMessageId = messages.data?.messages.at(-1)?.id;
@@ -452,9 +453,9 @@ function PreviewPane({
 					overscan={Number.POSITIVE_INFINITY}
 				>
 					<ErrorBoundary label="this preview" resetKey={preview}>
-						<SelectionActionsContext value={actions}>
+						<SelectionActions actions={actions}>
 							<Selectable flexDirection="column">{body}</Selectable>
-						</SelectionActionsContext>
+						</SelectionActions>
 					</ErrorBoundary>
 				</ScrollView>
 			</WidthContext.Provider>
@@ -655,7 +656,7 @@ function ChatSourcesList({
 	const selectedIndex = Math.min(selected, Math.max(0, rows.length - 1));
 	// The list only follows its selection when the selection moves, so the row
 	// a preview was opened from is brought back into view as the list shrinks.
-	const listRef = useRef<NonNullable<ScrollViewProps["ref"]>["current"]>(null);
+	const listRef = useRef<ScrollViewRef>(null);
 	const isPreviewing = !!preview;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only on opening.
 	useLayoutEffect(() => {

@@ -1,4 +1,5 @@
 import { hashKey } from "@tanstack/react-query";
+import { Box, Text } from "better-ink-ui";
 import chalk from "chalk";
 import { useWindowSize } from "ink";
 import { useState } from "react";
@@ -10,10 +11,8 @@ import {
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { zMCPServers } from "#core/features/data/types/user.ts";
-import Box from "#tui/core/components/Box.tsx";
 import HelpText from "#tui/core/components/HelpText.tsx";
 import LogView from "#tui/core/components/LogView.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { usePage } from "#tui/core/hooks/usePage.ts";
 import Choice from "#tui/features/settings/components/Choice.tsx";
 import Details, {

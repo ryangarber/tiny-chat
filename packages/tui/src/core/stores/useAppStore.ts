@@ -1,3 +1,5 @@
+import { defaultFocusManager } from "better-ink-ui";
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import {
 	type Panel,
@@ -34,8 +36,8 @@ const isFocusable = (focus: Focus): focus is Focusable =>
 	focus.startsWith("tool:") ||
 	focus.startsWith("find:");
 
-/** Tab order, whatever order they turned up on screen in. */
-const rank = (focusable: Focusable) =>
+/** Tab order, whatever order they turned up on screen in: a focus target's `order`. */
+export const focusOrder = (focusable: Focusable) =>
 	focusable === "editor"
 		? 0
 		: focusable.startsWith("tool:")
@@ -56,15 +58,55 @@ export interface Status {
 	passive?: boolean;
 }
 
+/**
+ * Where the keys go. The focusables register themselves as they are drawn
+ * (`Panel`, the find bar), the editor as the sink the focus falls back to once
+ * the one that had it leaves the screen; each page registers as it opens.
+ * The library's default manager, so targets drawn outside of `App`'s provider
+ * — a panel rendered on its own in a test — are on it all the same.
+ */
+export const focusManager = defaultFocusManager;
+
+/**
+ * The focus as it stands. A page has it from the moment it is asked for, as it
+ * is drawn for as long as it is; a focusable once it is on screen, and until
+ * then — or once it has left, a panel closed or a tool call answered — the
+ * editor does. Asked for again, a panel that only moved (between the sidebar
+ * and below the chat) has it back.
+ */
+export const getFocus = (): Focus => {
+	const requested = focusManager.requestedId() as Focus | null;
+	if (requested && !isFocusable(requested)) return requested;
+	return (focusManager.focused() ?? "editor") as Focus;
+};
+
+/**
+ * The page drawn, which is the chat for anything focusable on it — but for the
+ * find bar of the block opened over the screen, which is drawn on the page it
+ * searches. Read from the focus asked for, so a bar opened on that page keeps
+ * it up while it is still being drawn.
+ */
+export const getPage = (): Page => {
+	const requested = focusManager.requestedId() as Focus | null;
+	if (requested === "find:fullscreen") return "fullscreen";
+	return requested && !isFocusable(requested) ? requested : "chat";
+};
+
+export const useFocus = () =>
+	useSyncExternalStore(focusManager.subscribe, getFocus, getFocus);
+
+export const useCurrentPage = () =>
+	useSyncExternalStore(focusManager.subscribe, getPage, getPage);
+
+/** Whether a focusable has the focus, for something drawn outside of it. */
+export const useFocused = (focusable: Focusable) => {
+	const get = () => getFocus() === focusable;
+	return useSyncExternalStore(focusManager.subscribe, get, get);
+};
+
 interface AppStore {
-	/** Read through `selectFocus`, which accounts for focusables gone from the screen. */
-	focus: Focus;
+	/** Asks for the focus on a page or a focusable, through `focusManager`. */
 	setFocus: (focus: Focus) => void;
-	/** The focusables on screen, in Tab order. */
-	focusables: Focusable[];
-	addFocusable: (focusable: Focusable) => void;
-	removeFocusable: (focusable: Focusable) => void;
-	cycleFocus: (direction: 1 | -1) => void;
 
 	/** Open and close the panels in `useLayoutStore`, moving the focus with them. */
 	togglePanel: (panel: Panel) => void;
@@ -91,71 +133,22 @@ interface AppStore {
 	unsetWorkingStatus: (id: string) => void;
 }
 
-/**
- * The focus as it stands. One that has left the screen — a panel closed, a
- * tool call answered — falls back to the editor; kept rather than reset, a
- * panel that only moved (between the sidebar and below the chat) keeps it.
- */
-export const selectFocus = ({ focus, focusables }: AppStore): Focus =>
-	!isFocusable(focus) || focusables.includes(focus) ? focus : "editor";
-
-/**
- * The page the focus is on, which is the chat for anything focusable on it —
- * but for the find bar of the block opened over the screen, which is drawn on
- * the page it searches.
- */
-export const selectPage = (state: AppStore): Page => {
-	const focus = selectFocus(state);
-	if (focus === "find:fullscreen") return "fullscreen";
-	return isFocusable(focus) ? "chat" : focus;
-};
-
 export const useAppStore = create<AppStore>((set) => ({
-	focus: "editor",
-	setFocus: (focus) => set({ focus }),
-	focusables: [],
-	addFocusable: (focusable) =>
-		set(({ focusables }) =>
-			focusables.includes(focusable)
-				? {}
-				: {
-						focusables: [...focusables, focusable].sort(
-							(a, b) => rank(a) - rank(b),
-						),
-					},
-		),
-	removeFocusable: (focusable) =>
-		set(({ focusables }) => ({
-			focusables: focusables.filter((other) => other !== focusable),
-		})),
-	cycleFocus: (direction) =>
-		set((state) => {
-			const { focusables } = state;
-			if (!focusables.length) return {};
-			const focus = selectFocus(state);
-			const index = isFocusable(focus) ? focusables.indexOf(focus) : -1;
-			return {
-				focus:
-					focusables[
-						(index + direction + focusables.length) % focusables.length
-					],
-			};
-		}),
+	setFocus: (focus) => focusManager.focus(focus),
 
 	togglePanel: (panel) => {
 		const { panels, setPanel } = useLayoutStore.getState();
 		setPanel(panel, !panels[panel]);
-		set(({ focus }) => ({
-			focus: panels[panel] ? (focus === panel ? "editor" : focus) : panel,
-		}));
+		if (!panels[panel]) focusManager.focus(panel);
+		else if (getFocus() === panel) focusManager.focus("editor");
 	},
 	openPanel: (panel) => {
 		useLayoutStore.getState().setPanel(panel, true);
-		set({ focus: panel });
+		focusManager.focus(panel);
 	},
 	closePanel: (panel) => {
 		useLayoutStore.getState().setPanel(panel, false);
-		set(({ focus }) => ({ focus: focus === panel ? "editor" : focus }));
+		if (getFocus() === panel) focusManager.focus("editor");
 	},
 
 	armed: null,
@@ -163,7 +156,7 @@ export const useAppStore = create<AppStore>((set) => ({
 
 	openRecord: (page, id) => {
 		useLayoutStore.getState().setRecord(id);
-		set({ focus: page });
+		focusManager.focus(page);
 	},
 	clearRecord: () => useLayoutStore.getState().setRecord(null),
 

@@ -1,7 +1,7 @@
+import type { Bounds } from "better-ink-ui";
 import type { DOMElement } from "ink";
 import { create } from "zustand";
 import type { SourceUtils } from "#core/features/data/utils/SourceUtils.ts";
-import type { MouseBounds } from "#tui/core/utils/MouseUtils.ts";
 
 type Citation = {
 	id: string;
@@ -19,7 +19,7 @@ export type CitationStore = {
 	 */
 	citations: Set<Citation>;
 	active: boolean;
-	open: { citation: Citation; bounds: MouseBounds } | null;
+	open: { citation: Citation; bounds: Bounds } | null;
 	register: (citation: Citation) => () => void;
 	setOpen: (open: CitationStore["open"]) => void;
 };

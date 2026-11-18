@@ -1,3 +1,4 @@
+import { Box, revealRow } from "better-ink-ui";
 import chalk from "chalk";
 import { type DOMElement, measureElement } from "ink";
 import { useLayoutEffect, useRef } from "react";
@@ -16,9 +17,7 @@ import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import type { ToolStatusPart } from "#core/features/tool/types/display.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Button from "#tui/core/components/Button.tsx";
-import { revealRow } from "#tui/core/components/ScrollView.tsx";
 import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
 import Task from "#tui/features/part/components/Task.tsx";

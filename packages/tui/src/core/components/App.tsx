@@ -1,3 +1,10 @@
+import {
+	Box,
+	FocusProvider,
+	SelectionStore,
+	useFocusTarget,
+	useMouseLayer,
+} from "better-ink-ui";
 import { type DOMElement, useApp, useInput, useWindowSize } from "ink";
 import { type ReactNode, useEffect, useRef } from "react";
 import { usePrepareCode } from "#client/core/hooks/useCode.ts";
@@ -7,19 +14,19 @@ import { useDefaultProject } from "#client/features/chat/hooks/useDefaultProject
 import { useEstimatedTokens } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { MessageProvider } from "#client/features/message/components/MessageProvider.tsx";
-import Box from "#tui/core/components/Box.tsx";
 import Console from "#tui/core/components/Console.tsx";
 import { ContentFullscreen } from "#tui/core/components/Content.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
 import StatusText from "#tui/core/components/StatusText.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import {
+	focusManager,
+	type Page,
 	type Panel as PanelName,
-	selectPage,
 	useAppStore,
+	useCurrentPage,
 } from "#tui/core/stores/useAppStore.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 import ChatConfig from "#tui/features/agent/components/ChatConfig.tsx";
 import Chat from "#tui/features/chat/components/Chat.tsx";
 import ChatEffects from "#tui/features/chat/components/ChatEffects.tsx";
@@ -29,7 +36,6 @@ import Editor from "#tui/features/editor/components/Editor.tsx";
 import Find from "#tui/features/find/components/Find.tsx";
 import FindScope from "#tui/features/find/components/FindScope.tsx";
 import { CitationCard } from "#tui/features/message/components/Citation.tsx";
-import { useSelectionStore } from "#tui/features/selection/stores/useSelectionStore.ts";
 import Settings from "#tui/features/settings/components/Settings.tsx";
 import { useUpdate } from "#tui/features/update/hooks/useUpdate.ts";
 import GitHub from "#tui/features/upload/components/GitHub.tsx";
@@ -56,7 +62,7 @@ export default function App() {
 	const rootRef = useRef<DOMElement>(null);
 	const { rows, columns } = useWindowSize();
 
-	const page = useAppStore(selectPage);
+	const page = useCurrentPage();
 	// A page takes the mouse over the chat it covers.
 	const pageRef = useRef<DOMElement>(null);
 	useMouseLayer(pageRef, page !== "chat");
@@ -81,7 +87,7 @@ export default function App() {
 	useInput((input, key) => {
 		if (key.ctrl && (input === "c" || input === "d")) {
 			// Ctrl+C copies a selection, which whatever holds it sees to.
-			if (input === "c" && useSelectionStore.getState().holder) return;
+			if (input === "c" && SelectionStore.holder()) return;
 			if (statuses.find((status) => status.id === "quit")) {
 				// Unmounted rather than killed, so the host decides what quitting does.
 				exit();
@@ -106,105 +112,125 @@ export default function App() {
 	const panelCount = Number(panels.chats) + Number(panels.files);
 	const bottomWidth = Math.floor(columns / Math.max(1, panelCount));
 
+	// Tab steps through what is on the chat, while it can be used.
+	const tabKeys =
+		page === "chat" && !statuses.some((status) => !status.passive);
+
 	return (
-		<MessageProvider>
-			<FindScope
-				id={FIND_ROOT}
-				label="window"
-				region
-				ref={rootRef}
-				flexDirection="row"
-				height={rows}
-				backgroundColor="surface"
-			>
-				{left > 0 && (
-					<Box width={left} flexShrink={0} flexDirection="column">
-						<AppPanel name="chats">
-							<ChatList fill />
-						</AppPanel>
-					</Box>
-				)}
-				<WidthContext.Provider value={width}>
-					<FindScope
-						label="chat"
-						region
-						segmented
-						focus={(focus) => focus === "editor" || focus.startsWith("tool:")}
-						flexDirection="column"
-						width={width}
-						flexShrink={0}
-						minHeight={0}
-					>
-						<Chat compaction={chatTokens.data?.compaction} />
-						{/* Held to the bottom whatever opens above it. */}
-						<Box flexDirection="column" flexShrink={0}>
-							<StatusText />
-							{!sidebars && panelCount > 0 && (
-								<Box height={Math.floor(rows / 2)} flexShrink={0}>
-									{panels.chats && (
-										<Box width={bottomWidth} flexDirection="column">
-											<AppPanel name="chats">
-												<ChatList fill />
-											</AppPanel>
-										</Box>
-									)}
-									{panels.files && (
-										<Box width={bottomWidth} flexDirection="column">
-											<AppPanel name="files">
-												<ChatSources fill width={bottomWidth - 2} />
-											</AppPanel>
-										</Box>
-									)}
-								</Box>
-							)}
-							{page === "chat" && <ChatEffects />}
-							<Box flexDirection="column">
-								{/* A page opens over the chat from the top of the editor, as its
-								    completions do, rather than pushing the chat up. */}
-								{page !== "chat" && (
-									<Box
-										ref={pageRef}
-										position="absolute"
-										bottom="100%"
-										left={0}
-										right={0}
-										flexDirection="column"
-									>
-										{page === "uploads" && <Uploads />}
-										{page === "github" && <GitHub />}
-										{page === "memories" && <Memories />}
-										{page === "actions" && <Actions />}
-										{page === "settings" && <Settings />}
-										{page === "config" && <ChatConfig />}
+		<FocusProvider manager={focusManager} tabKeys={tabKeys}>
+			<MessageProvider>
+				{page !== "chat" && <PageFocus key={page} page={page} />}
+				<FindScope
+					id={FIND_ROOT}
+					label="window"
+					region
+					ref={rootRef}
+					flexDirection="row"
+					height={rows}
+					backgroundColor="surface"
+				>
+					{left > 0 && (
+						<Box width={left} flexShrink={0} flexDirection="column">
+							<AppPanel name="chats">
+								<ChatList fill />
+							</AppPanel>
+						</Box>
+					)}
+					<WidthContext.Provider value={width}>
+						<FindScope
+							label="chat"
+							region
+							segmented
+							focus={(focus) => focus === "editor" || focus.startsWith("tool:")}
+							flexDirection="column"
+							width={width}
+							flexShrink={0}
+							minHeight={0}
+						>
+							<Chat compaction={chatTokens.data?.compaction} />
+							{/* Held to the bottom whatever opens above it. */}
+							<Box flexDirection="column" flexShrink={0}>
+								<StatusText />
+								{!sidebars && panelCount > 0 && (
+									<Box height={Math.floor(rows / 2)} flexShrink={0}>
+										{panels.chats && (
+											<Box width={bottomWidth} flexDirection="column">
+												<AppPanel name="chats">
+													<ChatList fill />
+												</AppPanel>
+											</Box>
+										)}
+										{panels.files && (
+											<Box width={bottomWidth} flexDirection="column">
+												<AppPanel name="files">
+													<ChatSources fill width={bottomWidth - 2} />
+												</AppPanel>
+											</Box>
+										)}
 									</Box>
 								)}
-								<Editor
-									disabled={
-										page !== "chat" ||
-										statuses.some((status) => !status.passive)
-									}
-									usage={usage}
-									categories={categories}
-								/>
+								{page === "chat" && <ChatEffects />}
+								<Box flexDirection="column">
+									{/* A page opens over the chat from the top of the editor, as its
+								    completions do, rather than pushing the chat up. */}
+									{page !== "chat" && (
+										<Box
+											ref={pageRef}
+											position="absolute"
+											bottom="100%"
+											left={0}
+											right={0}
+											flexDirection="column"
+										>
+											{page === "uploads" && <Uploads />}
+											{page === "github" && <GitHub />}
+											{page === "memories" && <Memories />}
+											{page === "actions" && <Actions />}
+											{page === "settings" && <Settings />}
+											{page === "config" && <ChatConfig />}
+										</Box>
+									)}
+									<Editor
+										disabled={
+											page !== "chat" ||
+											statuses.some((status) => !status.passive)
+										}
+										usage={usage}
+										categories={categories}
+									/>
+								</Box>
 							</Box>
+						</FindScope>
+					</WidthContext.Provider>
+					{right > 0 && (
+						<Box width={right} flexShrink={0} flexDirection="column">
+							<AppPanel name="files">
+								<ChatSources fill width={right - 2} />
+							</AppPanel>
 						</Box>
-					</FindScope>
-				</WidthContext.Provider>
-				{right > 0 && (
-					<Box width={right} flexShrink={0} flexDirection="column">
-						<AppPanel name="files">
-							<ChatSources fill width={right - 2} />
-						</AppPanel>
-					</Box>
-				)}
-				<CitationCard />
-				{page === "fullscreen" && <ContentFullscreen />}
-				{page === "console" && <Console />}
-				{/* The keys go to whichever page is up; the fullscreen one has its own bar. */}
-				<Find targetRef={rootRef} root={FIND_ROOT} disabled={page !== "chat"} />
-			</FindScope>
-		</MessageProvider>
+					)}
+					<CitationCard />
+					{page === "fullscreen" && <ContentFullscreen />}
+					{page === "console" && <Console />}
+					{/* The keys go to whichever page is up; the fullscreen one has its own bar. */}
+					<Find
+						targetRef={rootRef}
+						root={FIND_ROOT}
+						disabled={page !== "chat"}
+					/>
+				</FindScope>
+			</MessageProvider>
+		</FocusProvider>
 	);
+}
+
+/**
+ * Holds the focus for the page up, so that nothing on the chat beneath it
+ * counts as focused: a page is only ever focused by name, never with Tab.
+ */
+function PageFocus({ page }: { page: Exclude<Page, "chat"> }) {
+	useFocusTarget({ id: page, tabStop: false });
+	return null;
 }
 
 function AppPanel({

@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
+import { Box, Textarea, TextareaUtils, useMouseLayer } from "better-ink-ui";
 import { type DOMElement, type Key, useInput } from "ink";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ClientContext } from "#client/client.ts";
@@ -28,14 +29,16 @@ import { useMessageStore } from "#client/features/message/stores/useMessageStore
 import { useUploads } from "#client/features/upload/hooks/useUploads.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
 import Panel from "#tui/core/components/Panel.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { ClipboardService } from "#tui/core/services/ClipboardService.ts";
-import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
+import {
+	getFocus,
+	useAppStore,
+	useFocus,
+} from "#tui/core/stores/useAppStore.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 import Attachments from "#tui/features/editor/components/Attachments.tsx";
 import Commands from "#tui/features/editor/components/Commands.tsx";
 import EditorFooter from "#tui/features/editor/components/EditorFooter.tsx";
@@ -49,8 +52,6 @@ import {
 	MarkdownUtils,
 	type MarkdownWrite,
 } from "#tui/features/editor/utils/MarkdownUtils.ts";
-import Textarea from "#tui/features/textarea/components/Textarea.tsx";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 export default function Editor({
 	disabled: _disabled,
@@ -66,8 +67,7 @@ export default function Editor({
 	const { colorScheme } = useContext(ThemeContext);
 	const columns = useWidth();
 
-	const focus = useAppStore(selectFocus);
-	const cycleFocus = useAppStore((state) => state.cycleFocus);
+	const focus = useFocus();
 	const nextFeedbackId = useMessageStore((s) => s.nextFeedbackId);
 	const { disabled } = useDisabled({
 		disabled: _disabled || focus !== "editor",
@@ -82,7 +82,7 @@ export default function Editor({
 	useEffect(() => {
 		if (nextFeedbackId && nextFeedbackId !== previousFeedbackId.current) {
 			const { setFocus } = useAppStore.getState();
-			const current = selectFocus(useAppStore.getState());
+			const current = getFocus();
 			if (current === "editor" || current.startsWith("tool:"))
 				setFocus(`tool:${nextFeedbackId}`);
 		}
@@ -141,12 +141,14 @@ export default function Editor({
 	const highlight = useCodeHighlight(content);
 	const partStatus = useEditorPartStore((state) => state.status);
 	const { pending } = usePendingAttachments();
+	const textareaAtoms = useMemo(
+		() =>
+			EditorUtils.textareaAtoms({ value: content, atoms, status: partStatus }),
+		[content, atoms, partStatus],
+	);
 	const labels = useMemo(
-		() => [
-			...EditorUtils.tokenLabels({ atoms, status: partStatus }),
-			...MarkdownUtils.labels({ highlight }),
-		],
-		[atoms, partStatus, highlight],
+		() => MarkdownUtils.labels({ highlight }),
+		[highlight],
 	);
 
 	const styles = useMemo(
@@ -172,26 +174,6 @@ export default function Editor({
 	}, [content, atoms]);
 
 	const offset = TextareaUtils.offset(content, cursor);
-
-	// The range Alt takes out, which stops against an atom rather than cutting a
-	// word out of the middle of one.
-	const backwardWord = EditorUtils.wordDeletion({
-		value: content,
-		atoms,
-		offset,
-		direction: -1,
-	});
-	const forwardWord = EditorUtils.wordDeletion({
-		value: content,
-		atoms,
-		offset,
-		direction: 1,
-	});
-
-	const remove = ([start, end]: [start: number, end: number]) => {
-		setContent(content.slice(0, start) + content.slice(end));
-		setCursor(TextareaUtils.cursor(content, start));
-	};
 
 	/** Writes content in whole, with the cursor left where the write leaves it. */
 	const write = ({ content: next, offset: to }: MarkdownWrite) => {
@@ -330,33 +312,23 @@ export default function Editor({
 	const isNavigating = isCompletionsOpen && !isCompletionsEmpty;
 
 	/** The edit Tab, or Shift and Tab, makes in the list or the code the cursor is in. */
-	const indent = (key: Key) =>
+	const indent = (direction: 1 | -1) =>
 		disabled || isNavigating
 			? null
 			: MarkdownUtils.indented({
 					value: content,
 					selection: selection ?? [offset, offset],
-					direction: key.shift ? -1 : 1,
+					direction,
 				});
 
-	useInput(
-		(_, key) => {
-			if (!key.tab) return;
-			// Shift+Tab keeps its project/suggestion shortcuts in the editor and
-			// tool controls. Completion and Markdown indentation take precedence
-			// while the editor has focus.
-			if (key.shift && (focus === "editor" || focus.startsWith("tool:")))
-				return;
-			if (focus === "editor" && (isNavigating || indent(key))) return;
-			cycleFocus(key.shift ? -1 : 1);
-		},
-		{ isActive: !_disabled },
-	);
+	// Tab moves the focus on, but for where the editor takes it: to fill in a
+	// completion, or to indent a list or code. Shift+Tab keeps its
+	// project/suggestion shortcuts here, and never steps the focus back.
+	const keepTab = (direction: 1 | -1) =>
+		direction === -1 || isNavigating || !!indent(direction);
 
-	// Keys the text area would otherwise answer on its own. The completions take
-	// Enter and the arrows while they are open; and Alt and a delete takes out
-	// the word the arrows step, stopping against an atom rather than cutting
-	// into one.
+	// Keys the text area would otherwise answer on its own: the completions take
+	// Enter and the arrows while they are open.
 	const handleKey = (input: string, key: Key) => {
 		if (isCompletionsOpen && key.return && !key.ctrl && !key.meta) return true;
 
@@ -370,13 +342,8 @@ export default function Editor({
 		)
 			return true;
 
-		if (!selection && key.meta && (key.backspace || key.delete)) {
-			remove(key.backspace ? backwardWord : forwardWord);
-			return true;
-		}
-
 		// The completions fill in their item on Tab.
-		if (key.tab) return isNavigating || indent(key);
+		if (key.tab) return isNavigating || indent(key.shift ? -1 : 1);
 
 		// Ctrl+I only reaches here apart from Tab over the kitty protocol.
 		if (key.ctrl && (input === "b" || input === "i"))
@@ -398,7 +365,7 @@ export default function Editor({
 	};
 
 	return (
-		<Panel id="editor" disabled={_disabled}>
+		<Panel id="editor" disabled={_disabled} sink onTab={keepTab}>
 			{/* Drawn over what is above the editor, which stays where it is. */}
 			{!disabled && (
 				<Box
@@ -449,12 +416,7 @@ export default function Editor({
 					selection={selection}
 					onSelectionChange={setSelection}
 					// An atom is only ever stepped over, selected and deleted whole.
-					snap={(target, from) =>
-						EditorUtils.snap({ value: content, atoms, offset: target, from })
-					}
-					expand={(selected) =>
-						EditorUtils.expand({ value: content, atoms, selection: selected })
-					}
+					atoms={textareaAtoms}
 					// A newline carries the block it was pressed in on — a list keeps
 					// its bullet, a quote its marker — rather than starting a bare line.
 					onEnter={() => {

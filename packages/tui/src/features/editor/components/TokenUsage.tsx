@@ -1,3 +1,4 @@
+import { Box, Text, useMouseInput } from "better-ink-ui";
 import Spinner from "ink-spinner";
 import { useEffect, useState } from "react";
 import type {
@@ -6,10 +7,7 @@ import type {
 	Usage,
 } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
-import Box from "#tui/core/components/Box.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 
 /**
  * Each category's color, shared by its run of the bar and its dot — the same

@@ -1,3 +1,4 @@
+import { TextareaUtils, type TextSelection } from "better-ink-ui";
 import { create } from "zustand";
 import {
 	getEditorPart,
@@ -10,12 +11,10 @@ import {
 	type EditorUnfolded,
 	EditorUtils,
 } from "#tui/features/editor/utils/EditorUtils.ts";
-import type { TextareaSelection } from "#tui/features/textarea/types/textarea.ts";
-import { TextareaUtils } from "#tui/features/textarea/utils/TextareaUtils.ts";
 
 interface EditorStore {
-	selection: TextareaSelection | null;
-	setSelection: (selection: TextareaSelection | null) => void;
+	selection: TextSelection | null;
+	setSelection: (selection: TextSelection | null) => void;
 
 	content: string;
 	setContent: (content: string) => void;

@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from "node:util";
+import { Text } from "better-ink-ui";
 import { describe, expect, it } from "vitest";
 import { useCompletionStore } from "#client/features/editor/stores/useCompletionStore.ts";
 import Panel from "#tui/core/components/Panel.tsx";
-import Text from "#tui/core/components/Text.tsx";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
 import Attachments from "#tui/features/editor/components/Attachments.tsx";
 import Commands from "#tui/features/editor/components/Commands.tsx";

@@ -1,9 +1,9 @@
 import { PassThrough, Writable } from "node:stream";
 import { stripVTControlCharacters } from "node:util";
+import { createStdin } from "better-ink-ui";
 import { render as inkRender } from "ink";
 import type { ReactNode } from "react";
 import { afterEach } from "vitest";
-import { StdinUtils } from "#tui/core/utils/StdinUtils.ts";
 
 /** Exercise the same streams and framing as main.tsx, not an EventEmitter mock. */
 export const createTestInput = (isTTY = true) =>
@@ -57,11 +57,11 @@ afterEach(() => {
 
 export const render = (tree: ReactNode) => {
 	const stdin = createTestInput();
-	const filtered = StdinUtils.filter(stdin);
+	const filtered = createStdin(stdin);
 	const stdout = createOutput();
 	const stderr = createOutput();
 	const instance = inkRender(tree, {
-		stdin: filtered,
+		stdin: filtered as unknown as NodeJS.ReadStream,
 		stdout,
 		stderr,
 		debug: true,

@@ -72,7 +72,7 @@ export async function compile({
 			],
 			banner: "globalThis.UPNG = undefined;",
 			plugins: [
-				// A package linked from outside the repo (`better-ink-picture`)
+				// A package linked from outside the repo (`better-ink-ui`)
 				// resolves its peers from its own `node_modules`, and two Reacts or
 				// two Inks in one tree break every hook and context that crosses
 				// them. Its imports of them take the app's copies instead.

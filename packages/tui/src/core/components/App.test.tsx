@@ -2,15 +2,17 @@ import { stripVTControlCharacters } from "node:util";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useLayoutStore } from "#client/core/stores/useLayoutStore.ts";
 import App from "#tui/core/components/App.tsx";
-import { selectFocus, useAppStore } from "#tui/core/stores/useAppStore.ts";
+import {
+	focusManager,
+	getFocus,
+	useAppStore,
+} from "#tui/core/stores/useAppStore.ts";
 import { useEditorStore } from "#tui/features/editor/stores/useEditorStore.ts";
 import render from "#tui/tests.ts";
 
 beforeEach(() => {
-	useAppStore.setState({
-		focus: "editor",
-		statuses: [],
-	});
+	focusManager.focus("editor");
+	useAppStore.setState({ statuses: [] });
 	useLayoutStore.setState({ panels: { chats: false, files: false } });
 	useEditorStore.setState({
 		content: "",
@@ -19,7 +21,7 @@ beforeEach(() => {
 	});
 });
 
-const focus = () => selectFocus(useAppStore.getState());
+const focus = getFocus;
 
 it("keeps panels open through focus changes and only routes keys to the focused surface", async () => {
 	const screen = await render(<App />);
@@ -140,26 +142,29 @@ it("keeps equal-width panels visible across terminal resizing and closes them by
 	);
 });
 
-it("knows the focusables on screen, in Tab order, and falls back to the editor", async () => {
+it("steps through the focusables on screen in Tab order, and falls back to the editor", async () => {
 	const screen = await render(<App />);
 	useAppStore.getState().togglePanel("files");
 	useAppStore.getState().togglePanel("chats");
 	await screen.idle();
-	expect(useAppStore.getState().focusables).toEqual([
-		"editor",
-		"chats",
-		"files",
-	]);
 	expect(focus()).toBe("chats");
-
-	// A focus that leaves the screen hands it back to the editor.
-	useAppStore.setState({ focus: "tool:gone" });
+	// Whatever order they opened in.
+	focusManager.cycle(1);
+	expect(focus()).toBe("files");
+	focusManager.cycle(1);
 	expect(focus()).toBe("editor");
 
-	useAppStore.getState().cycleFocus(-1);
+	// A focus that leaves the screen hands it back to the editor.
+	focusManager.focus("tool:gone");
+	expect(focus()).toBe("editor");
+
+	focusManager.cycle(-1);
 	expect(focus()).toBe("files");
 	useAppStore.getState().closePanel("files");
 	await screen.idle();
-	expect(useAppStore.getState().focusables).toEqual(["editor", "chats"]);
+	expect(focus()).toBe("editor");
+	focusManager.cycle(1);
+	expect(focus()).toBe("chats");
+	focusManager.cycle(1);
 	expect(focus()).toBe("editor");
 });

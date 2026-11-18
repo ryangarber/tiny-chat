@@ -1,3 +1,4 @@
+import { Selectable } from "better-ink-ui";
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { Fragment, memo } from "react";
 import { StreamContext } from "#client/features/message/components/StreamContext.tsx";
@@ -9,13 +10,12 @@ import {
 import { useMarkdownBlocks } from "#client/features/message/hooks/useMarkdownBlocks.ts";
 import type { zEditorPart } from "#core/features/data/utils/EditorPartUtils.ts";
 import ErrorBoundary from "#tui/core/components/ErrorBoundary.tsx";
-import type { Color } from "#tui/core/hooks/useColor.ts";
+import type { Color } from "#tui/core/utils/ColorTypes.ts";
 import {
 	MarkdownComponents,
 	markdownJsx,
 	markdownJsxs,
 } from "#tui/features/message/components/MarkdownComponents.tsx";
-import Selectable from "#tui/features/selection/components/Selectable.tsx";
 
 /**
  * One top-level markdown block.

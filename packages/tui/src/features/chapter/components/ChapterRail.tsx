@@ -1,11 +1,13 @@
+import {
+	type ScrollRail,
+	Text,
+	useMouseInput,
+	useMouseLayer,
+} from "better-ink-ui";
 import { type DOMElement, Box as InkBox } from "ink";
 import { useRef, useState } from "react";
 import type { Chapter } from "#client/features/chapter/types/chapter.ts";
 import { ChapterUtils } from "#client/features/chapter/utils/ChapterUtils.ts";
-import type { ScrollRail } from "#tui/core/components/ScrollView.tsx";
-import Text from "#tui/core/components/Text.tsx";
-import { useMouseInput } from "#tui/core/hooks/useMouseInput.ts";
-import { useMouseLayer } from "#tui/core/hooks/useMouseLayer.ts";
 import { useWidth } from "#tui/core/hooks/useWidth.ts";
 
 /** Widest a hovered mark's label is drawn, in columns. */
