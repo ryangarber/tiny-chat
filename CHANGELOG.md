@@ -1,3 +1,9 @@
+## 0.10.20 (2026-11-20)
+
+### Other
+
+- add .deb and .rpm builds, upgrade deps ([b6814dc](https://github.com/ryangarber/tiny-chat/commit/b6814dc3b04f5036abbf9e1bfc79d34797410bcc))
+
 ## 0.10.19 (2026-11-18)
 
 ### Bug Fixes
