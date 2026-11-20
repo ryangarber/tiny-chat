@@ -23,7 +23,7 @@
 		"@afmize/node": "catalog:ai",
 		"@babel/core": "^8.1.2",
 		"@napi-rs/keyring": "^2.1.2",
-		"@tanstack/react-query": "^5.108.0",
+		"@tanstack/react-query": "^5.108.1",
 		"better-ink-ui": "^0.1.1",
 		"client": "workspace:*",
 		"core": "workspace:*",

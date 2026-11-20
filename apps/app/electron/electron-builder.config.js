@@ -16,6 +16,8 @@ module.exports = {
 		// The app's Linux app_id / WM_CLASS, so its windows match the
 		// `.desktop` entry (`linux.syncDesktopName`).
 		desktopName: `${workspace.productIdentifier}.desktop`,
+		homepage: workspace.repository.url.replace(".git", ""),
+		description: workspace.description,
 	},
 	directories: {
 		output: "dist",
@@ -75,7 +77,8 @@ module.exports = {
 	linux: {
 		icon: "assets/icon.png",
 		category: "Utility",
-		target: ["AppImage"],
+		target: ["AppImage", "deb", "rpm"],
 		syncDesktopName: true,
+		maintainer: "Ryan Garber <ryanmichaelgarber@gmail.com>",
 	},
 };

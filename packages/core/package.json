@@ -43,7 +43,7 @@
 		"nanoid": "^6.0.2",
 		"openai": "catalog:ai",
 		"prisma-orm-extension-zod": "catalog:prisma",
-		"rrule-temporal": "^2.2.9",
+		"rrule-temporal": "^2.3.0",
 		"shiki": "^4.6.0",
 		"unbash": "^6.0.4",
 		"unique-names-generator": "^4.7.1",

@@ -25,7 +25,7 @@
 	},
 	"dependencies": {
 		"@afmize/node": "catalog:ai",
-		"@cursor/sdk": "^1.4.0",
+		"@cursor/sdk": "^1.4.2",
 		"computah": "^0.1.7",
 		"electron-updater": "^6.8.11",
 		"koffi": "^3.3.8"
@@ -37,7 +37,7 @@
 		"@ryangarber/ai-sdk-providers": "catalog:ai",
 		"client": "workspace:*",
 		"core": "workspace:*",
-		"electron": "^45.3.3",
+		"electron": "^45.4.1",
 		"gui": "workspace:*"
 	}
 }

@@ -158,6 +158,8 @@ jobs:
                   - 'apps/app/electron/dist/*.zip'
                   - 'apps/app/electron/dist/*.exe'
                   - 'apps/app/electron/dist/*.AppImage'
+                  - 'apps/app/electron/dist/*.deb'
+                  - 'apps/app/electron/dist/*.rpm'
                   - 'apps/app/electron/dist/*.blockmap'
                   - 'apps/app/electron/dist/latest*.yml'
                 allowNoMatch: true

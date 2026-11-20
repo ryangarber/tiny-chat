@@ -3,7 +3,6 @@
 	"productName": "Tiny Chat",
 	"private": true,
 	"version": "0.0.0",
-	"description": "The desktop app: Tiny Chat's Capacitor app on Electron.",
 	"main": "build/main.js",
 	"scripts": {
 		"typecheck": "tsc --noEmit",
@@ -12,7 +11,7 @@
 	},
 	"devDependencies": {
 		"@capawesome/capacitor-electron": "^0.2.2",
-		"electron": "^45.3.3",
+		"electron": "^45.4.1",
 		"electron-builder": "^26.18.0",
 		"typescript": "catalog:typescript"
 	}
