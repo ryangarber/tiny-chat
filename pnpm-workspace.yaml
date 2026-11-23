@@ -59,25 +59,25 @@ catalogs:
     "react-devtools-core": "^8.0.0"
     "babel-plugin-react-compiler": "^1.0.0"
   prisma:
-    "prisma": 8.0.0-rc.34
-    "@prisma/orm-postgres": 8.0.0-rc.24
-    "@prisma/orm-extension-paradedb": 8.0.0-rc.24
-    "@prisma/orm-extension-pgvector": npm:@ryangarber/prisma-orm-extension-pgvector@8.0.0-rc.24
-    "prisma-orm-extension-zod": 0.3.2
-    "better-auth-prisma-orm": 0.2.1
+    "prisma": 8.0.0-rc.35
+    "@prisma/orm-postgres": 8.0.0-rc.25
+    "@prisma/orm-extension-paradedb": 8.0.0-rc.25
+    "@prisma/orm-extension-pgvector": 8.0.0-rc.25
+    "prisma-orm-extension-zod": 0.3.3
+    "better-auth-prisma-orm": 0.2.2
   ai:
-    "ai": ^7.0.177
-    "@ai-sdk/amazon-bedrock": ^5.0.145
-    "@ai-sdk/anthropic": ^4.0.106
-    "@ai-sdk/azure": ^4.0.129
-    "@ai-sdk/google": ^4.0.122
-    "@ai-sdk/openai": ^4.0.121
-    "@ai-sdk/openai-compatible": ^3.0.93
+    "ai": ^7.0.179
+    "@ai-sdk/amazon-bedrock": ^5.0.146
+    "@ai-sdk/anthropic": ^4.0.107
+    "@ai-sdk/azure": ^4.0.130
+    "@ai-sdk/google": ^4.0.124
+    "@ai-sdk/openai": ^4.0.122
+    "@ai-sdk/openai-compatible": ^3.0.94
     "@ai-sdk/provider": ^4.0.39
-    "@anthropic-ai/sdk": ^1.10.0
-    "openai": ^7.60.0
+    "@anthropic-ai/sdk": ^1.12.0
+    "openai": ^7.62.0
     "voyage-ai-provider": "^5.0.0"
-    "@ryangarber/ai-sdk-providers": ^0.1.8
+    "@ryangarber/ai-sdk-providers": ^0.1.9
     "@afmize/node": "^1.1.0"
     "@afmize/capacitor": "^1.1.0"
 patchedDependencies:

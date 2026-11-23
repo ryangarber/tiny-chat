@@ -48,8 +48,14 @@ beforeAll(async () => {
 		queries: { retry: false, gcTime: Infinity },
 		mutations: { retry: false, gcTime: 0 },
 	});
-	const signedIn = await client.auth.signIn.anonymous();
-	if (!signedIn.data?.token) throw new Error("anonymous sign-in failed");
+	// Node fetch sends Sec-Fetch-Mode but leaves Origin unset.
+	const signedIn = await client.auth.signIn.anonymous({
+		fetchOptions: { headers: { Origin: new URL(client.serverUrl).origin } },
+	});
+	if (!signedIn.data?.token)
+		throw new Error(
+			`Anonymous sign-in failed: ${signedIn.error?.message ?? "missing token"}`,
+		);
 	client.setToken(signedIn.data.token);
 });
 

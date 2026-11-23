@@ -4367,10 +4367,13 @@
       "insertOnConflictSkip": true,
       "insertOnConflictTarget": true,
       "insertOnConflictWithoutTarget": true,
+      "jsonAgg": true,
+      "jsonAggWithoutTruncation": true,
       "lateral": true,
       "lockNowait": true,
       "lockOf": true,
       "lockSkipLocked": true,
+      "outerReferencesInDerivedTables": true,
       "returning": true,
       "scalarList": true
     }
@@ -4386,15 +4389,6 @@
       "id": "paradedb",
       "kind": "extension",
       "targetId": "postgres",
-      "types": {
-        "queryOperationTypes": {
-          "import": {
-            "alias": "ParadeDbQueryOperationTypes",
-            "named": "QueryOperationTypes",
-            "package": "@internal/extension-paradedb/operation-types"
-          }
-        }
-      },
       "version": "0.0.1"
     },
     "pgvector": {
@@ -4407,34 +4401,6 @@
       "id": "pgvector",
       "kind": "extension",
       "targetId": "postgres",
-      "types": {
-        "codecTypes": {
-          "import": {
-            "alias": "PgVectorTypes",
-            "named": "CodecTypes",
-            "package": "@internal/extension-pgvector/codec-types"
-          },
-          "parameterizedOutputTypes": {
-            "alias": "PgVectorParameterizedOutputTypes",
-            "named": "ParameterizedOutputTypesForTypeParams",
-            "package": "@internal/extension-pgvector/codec-types"
-          }
-        },
-        "operationTypes": {
-          "import": {
-            "alias": "PgVectorOperationTypes",
-            "named": "OperationTypes",
-            "package": "@internal/extension-pgvector/operation-types"
-          }
-        },
-        "queryOperationTypes": {
-          "import": {
-            "alias": "PgVectorQueryOperationTypes",
-            "named": "QueryOperationTypes",
-            "package": "@internal/extension-pgvector/operation-types"
-          }
-        }
-      },
       "version": "0.0.1"
     },
     "zod": {
@@ -4442,15 +4408,6 @@
       "id": "zod",
       "kind": "extension",
       "targetId": "postgres",
-      "types": {
-        "codecTypes": {
-          "import": {
-            "alias": "ZodTypes",
-            "named": "SchemaTypes",
-            "package": "../../prisma/zod-extension.ts"
-          }
-        }
-      },
       "version": "0.1.0"
     }
   },

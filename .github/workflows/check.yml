@@ -76,6 +76,9 @@ jobs:
 
       - name: Run tests
         timeout-minutes: 15
+        env:
+          # Vitest serves GUI browser tests on a separate origin from Vite.
+          BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:23315
         run: |
           node --env-file=.env packages/server/src/server.ts &
           server_pid=$!

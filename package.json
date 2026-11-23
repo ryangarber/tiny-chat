@@ -43,7 +43,7 @@
 		"bun-types": "^1.4.5",
 		"chalk": "^6.0.1",
 		"concurrently": "^10.0.7",
-		"knip": "^6.46.1",
+		"knip": "^6.48.0",
 		"playwright": "^1.65.1",
 		"prisma": "catalog:prisma",
 		"tsx": "^4.23.15",
@@ -59,16 +59,16 @@
 		"@optique/man": "^1.4.0",
 		"@optique/run": "^1.4.0",
 		"@prisma/orm-postgres": "catalog:prisma",
-		"@trpc/client": "^11.29.5",
-		"@trpc/server": "^11.29.5",
+		"@trpc/client": "^11.29.7",
+		"@trpc/server": "^11.29.7",
 		"ai": "catalog:ai",
-		"better-auth": "^1.7.26",
+		"better-auth": "^1.7.27",
 		"better-auth-prisma-orm": "catalog:prisma",
 		"dotenv": "^18.0.10",
 		"internal-ip": "^9.0.0",
 		"sharp": "^0.35.5",
 		"sharp-ico": "^0.1.5",
-		"superjson": "^2.2.6",
+		"superjson": "^2.2.7",
 		"temporal-polyfill": "^1.0.8",
 		"temporal-zod": "^0.8.0",
 		"zod": "^4.6.7"
@@ -80,12 +80,12 @@
 		"type": "git",
 		"url": "https://github.com/ryangarber/tiny-chat.git"
 	},
-	"packageManager": "pnpm@12.21.0+sha512.66fd8278ee28935ce951792d34367ff3af5c432a2756445823029533835b8da529bbe0be5130afd56ed0713fb8789e47bad82d93bd5ae2fe54b15562d6276ef0",
+	"packageManager": "pnpm@12.23.0+sha512.02da94ffaf133f46074322afe552f90d40b5f71ae259aefbccdacc5085b1d617e98d65e0131f5748b9b67445978ee5055d7d59a473f1eef0d504854fefcd5975",
 	"devEngines": {
 		"runtime": [
 			{
 				"name": "node",
-				"version": "26.13.1",
+				"version": ">=24 <27",
 				"onFail": "download"
 			},
 			{
