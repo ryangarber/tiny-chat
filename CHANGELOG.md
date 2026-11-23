@@ -1,3 +1,13 @@
+## 0.10.21 (2026-11-23)
+
+### Bug Fixes
+
+- **desktop:** native dylibs can fail to load ([b60ee0a](https://github.com/ryangarber/tiny-chat/commit/b60ee0a7d3bbe06847693c35d75d3fa41f18f606))
+
+### Other
+
+- bump dependencies ([b60ee0a](https://github.com/ryangarber/tiny-chat/commit/b60ee0a7d3bbe06847693c35d75d3fa41f18f606))
+
 ## 0.10.20 (2026-11-20)
 
 ### Other
