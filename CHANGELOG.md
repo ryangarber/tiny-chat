@@ -1,3 +1,14 @@
+## 0.10.22 (2026-11-24)
+
+### Features
+
+- **tui:** hold alt to limit scroll to inner view ([b4e74fe](https://github.com/ryangarber/tiny-chat/commit/b4e74fe3f7bff665c200245bf05002641239befb))
+- scroll to bottom buttons in gui, tui ([b4e74fe](https://github.com/ryangarber/tiny-chat/commit/b4e74fe3f7bff665c200245bf05002641239befb))
+
+### Performance Improvements
+
+- drop older partial tool results ([b4e74fe](https://github.com/ryangarber/tiny-chat/commit/b4e74fe3f7bff665c200245bf05002641239befb))
+
 ## 0.10.21 (2026-11-23)
 
 ### Bug Fixes
