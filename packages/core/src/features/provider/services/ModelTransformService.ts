@@ -266,6 +266,24 @@ export const ModelTransformService = {
 		return sdkMessages;
 	},
 
+	/**
+	 * Adds `event` to a generation's `events`. A call's result replaces any it
+	 * had before: a provider's preliminary results, as a subagent's progress
+	 * is, each repeat everything so far, and kept would grow with its square.
+	 */
+	addSdkEvent: (
+		events: TextStreamPart<any>[],
+		event: TextStreamPart<any>,
+	): void => {
+		if (event.type === "tool-result") {
+			const earlier = events.findLastIndex(
+				(e) => e.type === "tool-result" && e.toolCallId === event.toolCallId,
+			);
+			if (earlier >= 0) events.splice(earlier, 1);
+		}
+		events.push(event);
+	},
+
 	fromSdkEvent: ({
 		user,
 		provider,

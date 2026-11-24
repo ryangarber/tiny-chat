@@ -80,14 +80,66 @@
 	margin-right: 1px;
 }
 
+/* The chat's end: a chevron pointing down, flush with the bottom of the track. */
+.mark[data-type="end"] {
+	height: 14px;
+	margin-top: -14px;
+	justify-content: center;
+	animation: chapter-in 160ms ease-out;
+}
+
+.mark[data-type="end"]::after {
+	width: 7px;
+	height: 7px;
+	margin-top: -4px;
+	border-radius: 0;
+	background: none;
+	border-right: 2px solid var(--mantine-color-dimmed);
+	border-bottom: 2px solid var(--mantine-color-dimmed);
+	transform: rotate(45deg);
+	transition: border-color 120ms ease;
+}
+
+.mark[data-type="end"]:hover::after,
+.mark[data-type="end"]:focus-visible::after {
+	width: 7px;
+	background: none;
+	border-color: var(--mantine-color-blue-filled);
+}
+
+/* Under a finger: hit areas as tall as the marks are spaced, and wider to the left. */
+@media (pointer: coarse) {
+	.mark {
+		width: 32px;
+		height: 24px;
+		margin-top: -12px;
+	}
+
+	.mark[data-type="end"] {
+		width: 32px;
+		height: 32px;
+		margin-top: -32px;
+		justify-content: flex-end;
+		padding-right: 3px;
+	}
+}
+
 @keyframes chapter-pulse {
 	50% {
 		opacity: 0.35;
 	}
 }
 
+@keyframes chapter-in {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.mark[data-type="toolCall"]::after {
+	.mark[data-type="toolCall"]::after,
+	.mark[data-type="end"] {
 		animation: none;
 	}
 }

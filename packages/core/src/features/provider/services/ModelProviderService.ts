@@ -143,7 +143,7 @@ export const ModelProviderService = {
 		if (!config.schema) Promise.resolve(output).catch(() => {});
 
 		for await (const event of stream) {
-			events.push(event);
+			ModelTransformService.addSdkEvent(events, event);
 
 			if (event.type === "start-step") {
 				yield {

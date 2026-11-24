@@ -16,19 +16,33 @@ const LABEL_WIDTH = 60;
 /** Rows between marks, where the track has room for them: one left blank. */
 const GAP = 2;
 
+/** Rows kept clear above the end's mark on the last row. */
+const END_ROOM = GAP;
+
 /** Rows below the top of the viewport a chapter counts as the one being read from. */
 const READING_LINE = 2;
 
 /** Which mark is drawn on a row more than one falls on: the one that matters most. */
 const weight = (chapter: Chapter, current: boolean) =>
-	chapter.type === "toolCall" ? 2 : current ? 1 : 0;
+	chapter.type === "end"
+		? 3
+		: chapter.type === "toolCall"
+			? 2
+			: current
+				? 1
+				: 0;
 
 const captionOf = (chapter: Chapter) =>
 	chapter.type === "message"
 		? "You"
-		: chapter.state === "feedback"
-			? "Waiting on you"
-			: "Running";
+		: chapter.type === "end"
+			? "Latest"
+			: chapter.state === "feedback"
+				? "Waiting on you"
+				: "Running";
+
+const glyphOf = (chapter: Chapter) =>
+	chapter.type === "toolCall" ? "•" : chapter.type === "end" ? "↓" : "━";
 
 /**
  * The chat's chapters, listed in order in the column beside the transcript's
@@ -40,22 +54,29 @@ const captionOf = (chapter: Chapter) =>
  * app's are: messages out of view are only estimated until drawn, so
  * positions taken from the layout would shift every time scrolling draws one.
  * Shown whenever there is a chapter, scrolling or not.
+ *
+ * The chat's end is kept apart, on the last row, and shown while the view is
+ * away from the bottom; its row is kept either way, so the rest don't move as
+ * it comes and goes.
  */
 export default function ChapterRail({
 	rail,
 	chapters,
+	end = null,
 	onChapter,
 }: {
 	rail: ScrollRail;
 	chapters: Chapter[];
+	end?: Chapter | null;
 	onChapter: (chapter: Chapter) => void;
 }) {
 	const columns = useWidth();
 
 	// Over the rows between the first and the last, so both ends can be used.
+	const last = Math.max(0, rail.viewport - 1);
 	const positions = ChapterUtils.stack({
 		count: chapters.length,
-		track: Math.max(0, rail.viewport - 1),
+		track: Math.max(0, last - END_ROOM),
 		gap: GAP,
 	}).map(Math.round);
 	// The view lays out every child, drawn or not, so the one under the reading
@@ -64,21 +85,23 @@ export default function ChapterRail({
 	const atBottom = rail.offset >= rail.content - rail.viewport;
 	const current = ChapterUtils.getCurrent({
 		tops: chapters.map((chapter) => rail.tops[chapter.index] ?? 0),
-		at: rail.offset + (atBottom ? rail.viewport - 1 : READING_LINE),
+		at: rail.offset + (atBottom ? last : READING_LINE),
 	});
 
 	// One mark to a row.
 	const rows = new Map<number, { chapter: Chapter; current: boolean }>();
-	chapters.forEach((chapter, index) => {
-		const row = positions[index] ?? 0;
-		const isCurrent = index === current;
+	const hold = (row: number, chapter: Chapter, isCurrent: boolean) => {
 		const held = rows.get(row);
 		if (
 			!held ||
 			weight(chapter, isCurrent) > weight(held.chapter, held.current)
 		)
 			rows.set(row, { chapter, current: isCurrent });
+	};
+	chapters.forEach((chapter, index) => {
+		hold(positions[index] ?? 0, chapter, index === current);
 	});
+	if (end && chapters.length && !atBottom) hold(last, end, false);
 	const marks = [...rows].map(([row, mark]) => ({ row, ...mark }));
 
 	const [hovered, setHovered] = useState<number | null>(null);
@@ -134,7 +157,7 @@ export default function ChapterRail({
 										: "textSubtle"
 							}
 						>
-							{mark.chapter.type === "toolCall" ? "•" : "━"}
+							{glyphOf(mark.chapter)}
 						</Text>
 					</InkBox>
 				))}
@@ -143,7 +166,7 @@ export default function ChapterRail({
 				// Beside the mark, over the transcript, and out of the mouse's way.
 				<InkBox
 					position="absolute"
-					top={Math.min(shown.row, Math.max(0, rail.viewport - 1))}
+					top={Math.min(shown.row, last)}
 					right={3}
 					width={width}
 					justifyContent="flex-end"

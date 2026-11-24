@@ -82,8 +82,12 @@ export const useChapters = ({ messages }: { messages: MessageState[] }) => {
 		ChapterUtils.isSame,
 	);
 
+	const end = useMemo(() => ChapterUtils.getEnd(messages), [messages]);
+
 	return {
 		chapters,
+		/** The chat's end, which the renderer draws apart from the rest. */
+		end,
 		/**
 		 * Opens the way to a call and brings it into view, once the renderer
 		 * has scrolled its message far enough in to draw it.

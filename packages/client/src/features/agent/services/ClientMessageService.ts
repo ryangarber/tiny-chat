@@ -443,8 +443,9 @@ export const ClientMessageService = {
 	},
 
 	/**
-	 * The reply could not be saved as generated. The server keeps why, and the
-	 * open chat keeps what was generated on top of that until it is reloaded.
+	 * The reply could not be saved as generated. It is saved again ending on
+	 * why, or failing that, only why; the open chat keeps all of it until it
+	 * is reloaded.
 	 */
 	_saveFailed: async (
 		client: Client,
@@ -456,37 +457,51 @@ export const ClientMessageService = {
 		const [[abort]] = failure;
 		if (abort.type === "abort")
 			abort.message = `This reply could not be saved: ${abort.message}`;
-		try {
-			await client.api.message.updateMessage.mutate({
-				message: working.id,
-				author: working.author,
-				config: working.config,
-				data: failure,
-				truncate: false,
-			});
-		} catch (error) {
-			console.error("[ClientMessageService] could not save failure:", error);
+		const data = [...working.data, ...failure];
+		for (const attempt of [data, failure]) {
+			try {
+				await client.api.message.updateMessage.mutate({
+					message: working.id,
+					author: working.author,
+					config: working.config,
+					data: attempt,
+					truncate: false,
+				});
+				break;
+			} catch (error) {
+				console.error("[ClientMessageService] could not save failure:", error);
+			}
 		}
-		await MessageQueryService.write(client, {
-			...working,
-			data: [...working.data, ...failure],
-		});
+		await MessageQueryService.write(client, { ...working, data });
 	},
 
-	/** Persist the final reply state to the server. */
+	/**
+	 * Persist the final reply state to the server. Its metadata can outgrow
+	 * what the server or a proxy before it accepts, so the reply is saved
+	 * without it rather than not at all.
+	 */
 	_finalize: async (
 		client: Client,
 		response: MessageState,
 		metadata: zMetadata,
 	): Promise<void> => {
 		console.log("[ClientMessageService] finalizing", response);
-		const saved = await client.api.message.updateMessage.mutate({
-			message: response.id,
-			author: response.author,
-			config: response.config,
-			data: response.data,
-			appendMetadata: metadata,
-			truncate: false,
+		const save = (appendMetadata: zMetadata) =>
+			client.api.message.updateMessage.mutate({
+				message: response.id,
+				author: response.author,
+				config: response.config,
+				data: response.data,
+				appendMetadata,
+				truncate: false,
+			});
+		const saved = await save(metadata).catch((error) => {
+			if (!metadata.length) throw error;
+			console.warn(
+				"[ClientMessageService] could not save reply with metadata:",
+				error,
+			);
+			return save([]);
 		});
 		await MessageQueryService.write(client, saved);
 		await ChatService.fetchChatList({ client });

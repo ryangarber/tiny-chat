@@ -8,7 +8,7 @@ import {
 	Transition,
 } from "@mantine/core";
 import { useElementSize, useMergedRef } from "@mantine/hooks";
-import { ArrowClockwiseIcon, CaretDoubleDownIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useIsMutating } from "@tanstack/react-query";
 import {
 	useContext,
@@ -169,10 +169,16 @@ export default function Chat() {
 		if (node) scrollToNode(node, "instant");
 	};
 
-	const { chapters, focusToolCall } = useChapters({ messages: messageList });
+	const { chapters, end, focusToolCall } = useChapters({
+		messages: messageList,
+	});
 	// A call's message is brought close enough to be drawn, and the call, once
 	// it is, brings itself the rest of the way.
 	const goToChapter = (chapter: Chapter) => {
+		if (chapter.type === "end") {
+			scrollToBottom("smooth");
+			return;
+		}
 		const node = viewportNode.current?.querySelector(
 			`[data-message-slot="${CSS.escape(chapter.messageId)}"]`,
 		);
@@ -303,10 +309,12 @@ export default function Chat() {
 						</Box>
 					</Stack>
 				</ScrollArea>
-				{!isNewChat && !isMobile && (
+				{!isNewChat && (
 					<ChapterRail
 						viewport={viewport}
 						chapters={chapters}
+						end={end}
+						atBottom={isAtBottom}
 						top={isMobile ? 70 : 40}
 						bottom={inputHeight + inputEffectsHeight + 60}
 						onChapter={goToChapter}
@@ -355,26 +363,6 @@ export default function Chat() {
 								disabled={chat.isFetching}
 							>
 								<ArrowClockwiseIcon size={20} />
-							</ActionIcon>
-						)}
-					</Transition>
-					<Transition
-						mounted={!isAtBottom && !isNewChat}
-						transition="slide-up"
-						duration={200}
-						timingFunction="ease"
-					>
-						{(styles) => (
-							<ActionIcon
-								className="glass"
-								radius="xl"
-								size="lg"
-								style={styles}
-								onClick={() => {
-									scrollToBottom("smooth");
-								}}
-							>
-								<CaretDoubleDownIcon size={20} />
 							</ActionIcon>
 						)}
 					</Transition>

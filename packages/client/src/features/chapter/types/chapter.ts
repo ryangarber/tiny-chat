@@ -1,8 +1,8 @@
 /**
- * A place in a chat that can be gone to: something the user said, or a tool
+ * A place in a chat that can be gone to: something the user said, a tool
  * call that is still going — running with its output streaming, as a dev
  * server started in the background does until it exits, or waiting on the
- * user to approve or answer it.
+ * user to approve or answer it — or the end of the chat.
  */
 export type Chapter = {
 	/** Unique among a chat's chapters. */
@@ -20,4 +20,6 @@ export type Chapter = {
 			id: string;
 			state: "running" | "feedback";
 	  }
+	/** The bottom of the chat, where it follows what is being written. */
+	| { type: "end" }
 );

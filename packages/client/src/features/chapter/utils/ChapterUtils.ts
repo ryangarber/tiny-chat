@@ -123,6 +123,24 @@ export const ChapterUtils = {
 		}),
 
 	/**
+	 * The chat's end, in its last message, or none for an empty chat.
+	 * Renderers keep it apart from the rest, flush with the bottom of the
+	 * rail, and show it while the view is scrolled away from the bottom.
+	 */
+	getEnd: (messages: Pick<ChapterMessage, "id">[]): Chapter | null => {
+		const last = messages.at(-1);
+		return last
+			? {
+					type: "end",
+					key: "end",
+					messageId: last.id,
+					index: messages.length - 1,
+					label: "Scroll to the bottom",
+				}
+			: null;
+	},
+
+	/**
 	 * Whether two lists mark the same places, so a reply streaming in only
 	 * moves the rail when what it shows has actually changed.
 	 */

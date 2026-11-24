@@ -1,3 +1,4 @@
+import type { TextStreamPart } from "ai";
 import { zConfig } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
@@ -83,5 +84,30 @@ it("tells the model of a checkpoint as a note from the user", async () => {
 			type: "text",
 			text: DataUtils.getCheckpointNotice(),
 		}),
+	]);
+});
+
+it("keeps only a call's latest result among a generation's events", () => {
+	const result = (toolCallId: string, output: unknown) =>
+		({
+			type: "tool-result",
+			toolCallId,
+			toolName: "Agent",
+			input: {},
+			output,
+		}) as TextStreamPart<any>;
+	const events: TextStreamPart<any>[] = [];
+	for (const event of [
+		result("a", { type: "subagent", messages: [1] }),
+		result("b", "other"),
+		result("a", { type: "subagent", messages: [1, 2] }),
+		{ type: "text-delta", id: "t", text: "hi" } as TextStreamPart<any>,
+		result("a", "report"),
+	])
+		ModelTransformService.addSdkEvent(events, event);
+	expect(events).toEqual([
+		result("b", "other"),
+		{ type: "text-delta", id: "t", text: "hi" },
+		result("a", "report"),
 	]);
 });

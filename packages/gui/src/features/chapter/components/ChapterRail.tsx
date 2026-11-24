@@ -1,4 +1,5 @@
 import { Text, Tooltip } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import type { Chapter } from "#client/features/chapter/types/chapter.ts";
 import { ChapterUtils } from "#client/features/chapter/utils/ChapterUtils.ts";
@@ -6,6 +7,9 @@ import classes from "#gui/features/chapter/styles/chapters.module.css";
 
 /** Pixels between marks, where the track has room for them. */
 const GAP = 12;
+
+/** Pixels between marks under a finger, as far apart as their hit areas are tall. */
+const TOUCH_GAP = 24;
 
 /**
  * Pixels below the covered top of the viewport a chapter counts as the one
@@ -29,9 +33,11 @@ const topOf = (viewport: HTMLElement, id: string) => {
 const captionOf = (chapter: Chapter) =>
 	chapter.type === "message"
 		? "You"
-		: chapter.state === "feedback"
-			? "Waiting on you"
-			: "Running";
+		: chapter.type === "end"
+			? "Latest"
+			: chapter.state === "feedback"
+				? "Waiting on you"
+				: "Running";
 
 /**
  * The chat's chapters, listed in order beside its scrollbar: a tick for every
@@ -42,16 +48,25 @@ const captionOf = (chapter: Chapter) =>
  * out of view are only estimated until drawn, so positions taken from the
  * layout would shift every time scrolling draws one. Shown whenever there is
  * a chapter, scrolling or not.
+ *
+ * The chat's end is kept apart, flush with the bottom of the track, and shown
+ * while the view is away from the bottom; its slot is kept either way, so the
+ * rest don't move as it comes and goes.
  */
 export default function ChapterRail({
 	viewport,
 	chapters,
+	end,
+	atBottom,
 	top = 0,
 	bottom = 0,
 	onChapter,
 }: {
 	viewport: HTMLElement | null;
 	chapters: Chapter[];
+	end: Chapter | null;
+	/** Whether the view is at, or following, the bottom. */
+	atBottom: boolean;
 	/** Pixels of the viewport covered at its top, which the rail keeps clear of. */
 	top?: number;
 	/** Pixels covered at its bottom, such as by the editor. */
@@ -101,9 +116,17 @@ export default function ChapterRail({
 		};
 	}, [viewport, chapters, top, bottom]);
 
+	const touch = useMediaQuery("(pointer: coarse)") ?? false;
+	const gap = touch ? TOUCH_GAP : GAP;
 	const positions = useMemo(
-		() => ChapterUtils.stack({ count: chapters.length, track, gap: GAP }),
-		[chapters.length, track],
+		() =>
+			ChapterUtils.stack({
+				count: chapters.length,
+				// Clear of the end's mark at the bottom of the track.
+				track: Math.max(0, track - gap * 3),
+				gap,
+			}),
+		[chapters.length, track, gap],
 	);
 
 	if (track <= 0 || !chapters.length) return null;
@@ -120,9 +143,19 @@ export default function ChapterRail({
 					chapter={chapter}
 					top={positions[index] ?? 0}
 					current={index === current}
+					touch={touch}
 					onClick={() => onChapter(chapter)}
 				/>
 			))}
+			{end && !atBottom && (
+				<Mark
+					chapter={end}
+					top={track}
+					current={false}
+					touch={touch}
+					onClick={() => onChapter(end)}
+				/>
+			)}
 		</nav>
 	);
 }
@@ -131,17 +164,21 @@ function Mark({
 	chapter,
 	top,
 	current,
+	touch,
 	onClick,
 }: {
 	chapter: Chapter;
 	top: number;
 	current: boolean;
+	/** Under a finger, where a tooltip would only open on a tap and stay. */
+	touch: boolean;
 	onClick: () => void;
 }) {
 	const caption = captionOf(chapter);
 
 	return (
 		<Tooltip
+			disabled={touch}
 			position="left"
 			withinPortal
 			openDelay={80}

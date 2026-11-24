@@ -66,7 +66,7 @@ function Transcript({
 	messages?: MessageState[];
 }) {
 	const ref = useRef<ScrollViewRef>(null);
-	const { chapters } = useChapters({ messages: list });
+	const { chapters, end } = useChapters({ messages: list });
 	return (
 		<Box height={10} flexDirection="column">
 			<ScrollView
@@ -76,8 +76,11 @@ function Transcript({
 					<ChapterRail
 						rail={rail}
 						chapters={chapters}
+						end={end}
 						onChapter={(chapter) =>
-							ref.current?.scrollToIndex(chapter.index, "top")
+							chapter.type === "end"
+								? ref.current?.scrollToBottom()
+								: ref.current?.scrollToIndex(chapter.index, "top")
 						}
 					/>
 				)}
@@ -107,25 +110,26 @@ describe("ChapterRail", () => {
 		const screen = await render(<Transcript />);
 		await screen.idle();
 
-		// Listed evenly down the middle of the 10-row track, whatever the
-		// content beneath: rows 4 and 6.
+		// Listed evenly down the middle of the track above the end's row,
+		// whatever the content beneath: rows 3 and 5. Scrolled to the top, the
+		// end is shown on the last row.
 		expect(railOf(plain(screen))).toEqual([
 			" ",
 			" ",
 			" ",
-			" ",
 			"━",
 			" ",
 			"━",
 			" ",
 			" ",
 			" ",
+			"↓",
 		]);
 
 		ToolStreamService.start("dev");
 		await screen.idle();
-		// Between the messages, as its reply is: rows 3, 5 and 7.
-		expect(railOf(plain(screen))[5]).toBe("•");
+		// Between the messages, as its reply is: rows 2, 4 and 6.
+		expect(railOf(plain(screen))[4]).toBe("•");
 
 		ToolStreamService.clear("dev");
 		await screen.idle();
@@ -139,7 +143,7 @@ describe("ChapterRail", () => {
 		expect(plain(screen).split("\n")[0]).toContain("a-first");
 
 		// The tree is drawn against the bottom of the 24-row terminal.
-		screen.stdin.write(press(99, 6 + 15));
+		screen.stdin.write(press(99, 5 + 15));
 		await screen.idle();
 		expect(plain(screen).split("\n")[0]).toContain("c-first");
 		screen.cleanup();
@@ -150,8 +154,24 @@ describe("ChapterRail", () => {
 		await screen.idle();
 		const rail = railOf(plain(screen));
 		expect(rail.filter((mark) => mark === "━")).toHaveLength(1);
-		// Centered: row 4.5 of the 10-row track, rounded.
-		expect(rail[5]).toBe("━");
+		// Centered above the end's row: row 3.5, rounded.
+		expect(rail[4]).toBe("━");
+		// At the bottom already, so no end.
+		expect(rail).not.toContain("↓");
+		screen.cleanup();
+	});
+
+	it("scrolls to the bottom from the end's mark, which then goes", async () => {
+		const screen = await render(<Transcript />);
+		await screen.idle();
+		expect(plain(screen).split("\n")[0]).toContain("a-first");
+
+		screen.stdin.write(press(99, 9 + 15));
+		await screen.idle();
+		const frame = plain(screen);
+		// 32 rows of content in a 10-row view: d starts on its third row.
+		expect(frame.split("\n")[2]).toContain("d-first");
+		expect(railOf(frame)).not.toContain("↓");
 		screen.cleanup();
 	});
 });

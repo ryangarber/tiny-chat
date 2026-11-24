@@ -511,8 +511,8 @@ importers:
         specifier: ^5.108.3
         version: 5.108.3(@types/react@19.3.0)(react@19.3.1)
       better-ink-ui:
-        specifier: ^0.1.1
-        version: 0.1.1(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
+        specifier: ^0.1.2
+        version: 0.1.2(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
       client:
         specifier: workspace:*
         version: link:../../packages/client
@@ -912,8 +912,8 @@ importers:
         specifier: ^5.108.3
         version: 5.108.3(@types/react@19.3.0)(react@19.3.1)
       better-ink-ui:
-        specifier: ^0.1.1
-        version: 0.1.1(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
+        specifier: ^0.1.2
+        version: 0.1.2(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
       chalk:
         specifier: ^6.0.1
         version: 6.0.1
@@ -4562,8 +4562,8 @@ packages:
       zod:
         optional: true
 
-  better-ink-ui@0.1.1:
-    resolution: {integrity: sha512-Sm+/Vluo7hLgVSx4WByAnmsWIVxSfkwpaAsugUYeC8o1H0bjmhZ1WVpj5YQTszLbpg2wLmlPauoQkZK8AAvmLQ==}
+  better-ink-ui@0.1.2:
+    resolution: {integrity: sha512-KLHBKkhWa9av+M+oAO76Lm9CJUnrR6wZ1uVvyuPNuYXaukALnt5bUuUkf9MMfVei/JIX8lQmvty99jW8laJRGA==}
     peerDependencies:
       ink: '>=8'
       react: '>=19'
@@ -12147,7 +12147,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  better-ink-ui@0.1.1(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6)):
+  better-ink-ui@0.1.2(ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6)):
     dependencies:
       ink: ink-nightly@8.0.1-nightly.9(@types/react@19.3.0)(react-devtools-core@8.0.0)(react@19.3.1)
       jpeg-js: 0.4.4

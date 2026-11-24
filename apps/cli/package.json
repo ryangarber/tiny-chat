@@ -24,7 +24,7 @@
 		"@babel/core": "^8.1.3",
 		"@napi-rs/keyring": "^2.1.2",
 		"@tanstack/react-query": "^5.108.3",
-		"better-ink-ui": "^0.1.1",
+		"better-ink-ui": "^0.1.2",
 		"client": "workspace:*",
 		"core": "workspace:*",
 		"ink": "^8.0.0",

@@ -37,7 +37,9 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 		if (index >= 0) ref.current?.scrollToIndex(index, "auto");
 	});
 
-	const { chapters, focusToolCall } = useChapters({ messages: messageList });
+	const { chapters, end, focusToolCall } = useChapters({
+		messages: messageList,
+	});
 
 	// The page keys are the transcript's while the chat has the focus, but for
 	// a list or shell output drawn over the editor, which scrolls itself.
@@ -93,9 +95,11 @@ export default function Chat({ compaction }: { compaction?: Compaction }) {
 				<ChapterRail
 					rail={rail}
 					chapters={chapters}
+					end={end}
 					// A call's message is brought in far enough to be drawn, and the
 					// call, once it is, brings itself the rest of the way.
 					onChapter={(chapter) => {
+						if (chapter.type === "end") return ref.current?.scrollToBottom();
 						ref.current?.scrollToIndex(chapter.index, "top");
 						if (chapter.type === "toolCall") focusToolCall(chapter.id);
 					}}
