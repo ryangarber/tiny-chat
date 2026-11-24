@@ -73,10 +73,13 @@ namespace Task {
 		emoji,
 		status,
 		parts,
+		elapsed,
 	}: {
 		emoji?: string;
 		status: "pending" | "success" | "error";
 		parts: StatusPart[];
+		/** How long it has taken, kept whole at the end of the line. */
+		elapsed?: string;
 	}) {
 		const { colorScheme, colorPalette } = useContext(ThemeContext);
 
@@ -158,6 +161,13 @@ namespace Task {
 					<Text color="textSubtle">{emoji ?? " "}</Text>
 				</Box>
 				<Text>{text}</Text>
+				{elapsed && (
+					<Box flexShrink={0} marginLeft={1}>
+						<Text color="textSubtle" dimColor>
+							{elapsed}
+						</Text>
+					</Box>
+				)}
 			</Box>
 		);
 	}

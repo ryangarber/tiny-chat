@@ -9,9 +9,21 @@ export const zSignature = z.object({
 });
 export type zSignature = z.infer<typeof zSignature>;
 
+/**
+ * When a part was produced, in epoch milliseconds: `end` is unset while it is
+ * still going. A thought spans its thinking, a tool call from the model
+ * writing it (or the user answering it) to its result.
+ */
+export const zPartTime = z.object({
+	start: z.number(),
+	end: z.number().optional(),
+});
+export type zPartTime = z.infer<typeof zPartTime>;
+
 const _zDataPart = z.object({
 	id: z.string(),
 	signature: zSignature.optional(),
+	time: zPartTime.optional(),
 });
 
 export const zTextPart = _zDataPart.extend({

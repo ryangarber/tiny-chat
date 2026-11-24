@@ -180,7 +180,12 @@ describe("message", () => {
 		expect(messages).toHaveLength(1);
 		expect(edited.id).not.toBe(first.id);
 		expect(
-			(await api.message.getMessages.query({ chat: first.chatId })).messages,
+			(
+				await api.message.getMessages.query({
+					chat: first.chatId,
+					branches: { "": first.id },
+				})
+			).messages,
 		).toHaveLength(2);
 	});
 

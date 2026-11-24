@@ -63,8 +63,14 @@ describe("MessageService", () => {
 		const original = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
+			branches: { "": root.id, [root.id]: a.id },
 		});
 		expect(original.messages.map((m) => m.id)).toEqual([root.id, a.id]);
+		// Unselected, the chat opens on the edit, its latest message.
+		expect(
+			(await MessageService.getMessages({ user, chat: root.chatId }))
+				.messages[0].id,
+		).toBe(edited.id);
 		const cloned = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
@@ -83,7 +89,7 @@ describe("MessageService", () => {
 		const suffix = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
-			branches: { [root.id]: b.id },
+			branches: { "": root.id, [root.id]: b.id },
 			after: root.id,
 		});
 		expect(suffix.messages.map((m) => m.id)).toEqual([b.id, leaf.id]);
@@ -92,7 +98,7 @@ describe("MessageService", () => {
 		const whole = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
-			branches: { [root.id]: b.id },
+			branches: { "": root.id, [root.id]: b.id },
 			after: a.id,
 		});
 		expect(whole.messages.map((m) => m.id)).toEqual([root.id, b.id, leaf.id]);
@@ -166,11 +172,12 @@ describe("MessageService", () => {
 			data: [[{ id: "text", type: "text", value: "Generated" }]],
 		});
 		expect(updated.createdAt).toEqual(a.createdAt);
+		// Generating into `a` does not make it the latest branch.
 		expect(
 			(
 				await MessageService.getMessages({ user, chat: root.chatId })
 			).messages.at(-1)?.id,
-		).toBe(a.id);
+		).toBe(edited.id);
 		const source = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
@@ -240,22 +247,26 @@ describe("MessageService", () => {
 		});
 		const located = await MessageService.locateMessage({
 			user,
-			message: leaf.id,
+			message: a.id,
 		});
 		expect(located).toEqual({
 			chatId: root.chatId,
-			branches: { "": root.id, [root.id]: b.id, [b.id]: leaf.id },
+			branches: { "": root.id, [root.id]: a.id },
 		});
 		const path = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
 			branches: located.branches,
 		});
-		expect(path.messages.map((m) => m.id)).toEqual([root.id, b.id, leaf.id]);
+		expect(path.messages.map((m) => m.id)).toEqual([root.id, a.id]);
 		const fallback = await MessageService.getMessages({
 			user,
 			chat: root.chatId,
 		});
-		expect(fallback.messages.map((m) => m.id)).toEqual([root.id, a.id]);
+		expect(fallback.messages.map((m) => m.id)).toEqual([
+			root.id,
+			b.id,
+			leaf.id,
+		]);
 	});
 });

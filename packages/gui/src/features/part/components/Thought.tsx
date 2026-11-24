@@ -4,6 +4,7 @@ import {
 	useFindRevealed,
 } from "#client/features/find/hooks/useFindScope.ts";
 import { useAutoExpand } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useElapsed } from "#client/features/part/hooks/useElapsed.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import Markdown from "#gui/features/message/components/Markdown.tsx";
 import Tail from "#gui/features/part/components/Tail.tsx";
@@ -25,6 +26,7 @@ export default function Thought({
 	hold?: boolean;
 }) {
 	const pending = thoughts.some((thought) => thought.active);
+	const elapsed = useElapsed(thoughts);
 
 	const thoughtText = thoughts.map((thought) => thought.value).join("\n\n");
 
@@ -48,6 +50,7 @@ export default function Thought({
 					}
 					status={pending ? "pending" : "success"}
 					parts={[{ text: pending ? "Thinking..." : "Thought" }]}
+					elapsed={elapsed}
 				/>
 				<Task.Details pr="lg">
 					<Tail follow={auto} height={TAIL_HEIGHT} content={thoughtText}>

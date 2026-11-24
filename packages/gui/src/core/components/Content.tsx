@@ -464,6 +464,10 @@ export default function Content<T extends string>({
 
 	// The text being edited, while the block is.
 	const [draft, setDraft] = useState<string | null>(null);
+	// The modal sizes to what it shows, so the editor is held at least as tall
+	// as the viewer was when editing began.
+	const viewer = useRef<HTMLDivElement | null>(null);
+	const [editorHeight, setEditorHeight] = useState<number | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const editable = edit && !streaming ? edit : undefined;
@@ -564,7 +568,12 @@ export default function Content<T extends string>({
 						flexDirection: "column",
 						overflow: "hidden",
 					},
-					body: { display: "flex", flex: 1, minHeight: 0, padding: 0 },
+					body: {
+						display: "flex",
+						flex: 1,
+						minHeight: editing ? (editorHeight ?? 0) : 0,
+						padding: 0,
+					},
 				}}
 			>
 				<Affix
@@ -583,6 +592,9 @@ export default function Content<T extends string>({
 							editable
 								? () => {
 										setSaveError(null);
+										setEditorHeight(
+											viewer.current?.getBoundingClientRect().height ?? null,
+										);
 										setDraft(editable.value);
 									}
 								: undefined
@@ -622,7 +634,10 @@ export default function Content<T extends string>({
 						pos="relative"
 					>
 						<Box
-							ref={setScroller}
+							ref={(element: HTMLDivElement | null) => {
+								viewer.current = element;
+								setScroller(element);
+							}}
 							flex={1}
 							miw={0}
 							style={scrollerStyle}

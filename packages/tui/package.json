@@ -17,7 +17,7 @@
 	},
 	"dependencies": {
 		"@crosscopy/clipboard": "^0.3.6",
-		"@tanstack/react-query": "^5.108.3",
+		"@tanstack/react-query": "^5.108.4",
 		"better-ink-ui": "^0.1.2",
 		"chalk": "^6.0.1",
 		"client": "workspace:*",

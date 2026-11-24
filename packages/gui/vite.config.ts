@@ -32,7 +32,10 @@ export function defineGuiConfig({ root }: { root: string }) {
 		clearScreen: false,
 		build: {
 			rolldownOptions: {
-				external: [/^(node:)?(path|fs)$/, /^@cursor\/sdk$/],
+				onLog: (level, log, defaultHandler) => {
+					if (log.code === "MODULE_LEVEL_DIRECTIVE") return;
+					defaultHandler(level, log);
+				},
 			},
 			outDir: dist,
 			emptyOutDir: true,

@@ -221,6 +221,32 @@ describe("AgentService", () => {
 		expect(data.flat().some((part) => part.type === "abort")).toBe(true);
 	});
 
+	it("times each part, a thought over its thinking and a call to its result", async () => {
+		const before = Date.now();
+		const { data, events } = run(
+			JSON.stringify([
+				{ thought: "Let me think about this one", delay: 20 },
+				{ tool: "read_files", input: { reads: [{ path: "a.txt" }] } },
+				"Done.",
+			]),
+		);
+		for await (const _ of events);
+		const parts = data.flat();
+
+		for (const part of parts) {
+			expect(part.time?.start).toBeGreaterThanOrEqual(before);
+		}
+		const thought = parts.find((part) => part.type === "thought");
+		const call = parts.find((part) => part.type === "toolCall");
+		const result = parts.find((part) => part.type === "toolResult");
+		expect(thought?.time?.end).toBeDefined();
+		expect(
+			(thought?.time?.end ?? 0) - (thought?.time?.start ?? 0),
+		).toBeGreaterThanOrEqual(80);
+		expect(call?.time?.end).toBeGreaterThanOrEqual(call?.time?.start ?? 0);
+		expect(call?.time?.end).toBeGreaterThanOrEqual(result?.time?.start ?? 0);
+	});
+
 	describe("interrupting a tool call", () => {
 		/** The calls the test model makes, never settling or looking at a signal. */
 		const hang = () => {
@@ -231,7 +257,7 @@ describe("AgentService", () => {
 					({
 						name,
 						description: "",
-						input: z.object({ path: z.string() }).loose(),
+						input: z.object({}).loose(),
 						output: z.unknown(),
 						capabilities: undefined,
 						execute: () => {
@@ -345,7 +371,7 @@ describe("AgentService", () => {
 					({
 						name,
 						description: "",
-						input: z.object({ path: z.string() }).loose(),
+						input: z.object({}).loose(),
 						output: z.unknown(),
 						capabilities: undefined,
 						sequential: options.sequential?.includes(name),
@@ -485,6 +511,53 @@ describe("AgentService", () => {
 			]);
 		});
 
+		it("answers a call whose input fails its schema without running it", async () => {
+			const ran: unknown[] = [];
+			const validated: unknown[] = [];
+			const toolset: Toolset<void> = {
+				name: "gated",
+				tools: [
+					{
+						name: "run",
+						description: "",
+						input: z.object({ mnt: z.boolean(), limit: z.number().default(5) }),
+						output: z.unknown(),
+						capabilities: undefined,
+						validate: async ({ input }) => {
+							validated.push(input);
+							return { approval: false };
+						},
+						execute: async ({ input }) => {
+							ran.push(input);
+							return [{ type: "text", value: "ran" }];
+						},
+					} satisfies Tool<any, void>,
+				],
+				capabilities: undefined,
+				status: { valid: true },
+			};
+			const prompt = JSON.stringify([
+				[{ tool: "run", input: { command: "ls" } }],
+				[{ tool: "run", input: { mnt: true } }],
+				["Done."],
+			]);
+			const { data, events } = generate(prompt, toolset);
+			await drain(events);
+
+			// Only the valid call ran, and with its defaults filled in.
+			expect(validated).toEqual([{ mnt: true, limit: 5 }]);
+			expect(ran).toEqual([{ mnt: true, limit: 5 }]);
+			const [invalid] = data
+				.flat()
+				.filter((part) => part.type === "toolResult" && part.error);
+			expect(invalid?.type === "toolResult" && invalid.output).toEqual([
+				expect.objectContaining({
+					type: "text",
+					value: expect.stringMatching(/Invalid input for tool run:.*\n.*mnt/s),
+				}),
+			]);
+		});
+
 		it("carries on while a background call runs, then reports it", async () => {
 			const { toolset, log, release } = gated({ background: ["edit_files"] });
 			const { data, events } = generate(script.tasks, toolset);
@@ -527,6 +600,13 @@ describe("AgentService", () => {
 			expect(report?.value).toMatchObject([
 				{ type: "text", value: "edit_files done" },
 			]);
+			// Its time runs to its report, not to its placeholder.
+			const call = parts.find(
+				(part) => part.type === "toolCall" && part.name === "edit_files",
+			);
+			expect(call?.time?.end).toBeGreaterThanOrEqual(
+				report?.time?.start ?? Number.POSITIVE_INFINITY,
+			);
 			// The model answers once more, after it has been told.
 			expect(parts.at(-1)?.type).toBe("text");
 			// biome-ignore lint/complexity/useIndexOf: types don't match
@@ -643,6 +723,34 @@ describe("AgentService", () => {
 				expect(result(data, "read_files")).toMatchObject({
 					output: [{ type: "text", value: "read_files done" }],
 				});
+			});
+
+			it("times a call from its answer to its result, leaving out the wait", async () => {
+				const { toolset, release } = gated({ approval: ["edit_files"] });
+				const { toolFeedback, answer } = answering();
+				const { data, events } = generate(script.tools(), toolset, undefined, {
+					toolFeedback,
+				});
+				const done = drain(events);
+
+				await new Promise((r) => setTimeout(r, 150));
+				const answered = Date.now();
+				await answer("edit_files", { approved: true });
+				await new Promise((r) => setTimeout(r, 100));
+				await release("edit_files");
+				await release("read_files");
+				await done;
+
+				const call = data
+					.flat()
+					.find(
+						(part): part is zToolCallPart =>
+							part.type === "toolCall" && part.name === "edit_files",
+					);
+				expect(call?.time?.start).toBeGreaterThanOrEqual(answered);
+				const took = (call?.time?.end ?? 0) - (call?.time?.start ?? 0);
+				expect(took).toBeGreaterThanOrEqual(90);
+				expect(took).toBeLessThan(150);
 			});
 
 			it("rejects a call the user denies", async () => {

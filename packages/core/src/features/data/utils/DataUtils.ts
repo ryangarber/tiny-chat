@@ -5,6 +5,7 @@ import type {
 	zData,
 	zDataPart,
 	zInterjectionPart,
+	zPartTime,
 	zThoughtPart,
 	zToolCallPart,
 	zToolResultPart,
@@ -252,6 +253,40 @@ export const DataUtils = {
 		}
 
 		return renderedParts;
+	},
+
+	/**
+	 * How long parts took, in milliseconds: the time their spans cover, with
+	 * overlaps — calls run together — counted once. A part still going runs to
+	 * `now`; one that settled without an end is left out. Unset with nothing
+	 * to count.
+	 */
+	getElapsed: (
+		spans: { time?: zPartTime; active?: boolean }[],
+		now = Date.now(),
+	): number | undefined => {
+		const ranges = spans
+			.flatMap(({ time, active }): [number, number][] => {
+				if (!time) return [];
+				const end = active ? Math.max(now, time.end ?? now) : time.end;
+				return end === undefined
+					? []
+					: [[time.start, Math.max(end, time.start)]];
+			})
+			.sort((a, b) => a[0] - b[0]);
+		if (!ranges.length) return undefined;
+
+		let total = 0;
+		let [start, end] = ranges[0];
+		for (const [from, to] of ranges.slice(1)) {
+			if (from > end) {
+				total += end - start;
+				[start, end] = [from, to];
+			} else {
+				end = Math.max(end, to);
+			}
+		}
+		return total + end - start;
 	},
 
 	isGroupedPart: <T extends RenderedPart["type"][]>(

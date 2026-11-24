@@ -11,12 +11,14 @@ import {
 	useAutoExpand,
 	useExpandScope,
 } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useElapsed } from "#client/features/part/hooks/useElapsed.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 import type { RenderedPart } from "#core/features/data/utils/DataUtils.ts";
 import type { ToolStatusPart } from "#core/features/tool/types/display.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
+import { ToolCallUtils } from "#core/features/tool/utils/ToolCallUtils.ts";
 import Button from "#tui/core/components/Button.tsx";
 import FindSegment from "#tui/features/find/components/FindSegment.tsx";
 import Tail from "#tui/features/part/components/Tail.tsx";
@@ -62,6 +64,9 @@ function ToolCallBody({
 	toolsets,
 }: ToolCallProps) {
 	const display = useToolCall({ part, toolsets });
+	const elapsed = useElapsed([
+		ToolCallUtils.getSpan({ part, state: display.state }),
+	]);
 	const controls = message && display.controls;
 	const { interrupt } = display;
 	const empty = !display.input.length && !display.output.length && !controls;
@@ -100,6 +105,7 @@ function ToolCallBody({
 						}
 						emoji="🔧"
 						parts={toStatusParts(display.status)}
+						elapsed={elapsed}
 					/>
 					{interrupt && <Button label="stop" onClick={interrupt} />}
 				</Box>

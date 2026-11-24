@@ -10,6 +10,7 @@ import {
 	useAutoExpand,
 	useExpandScope,
 } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useElapsed } from "#client/features/part/hooks/useElapsed.ts";
 import { useToolCall } from "#client/features/part/hooks/useToolCall.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
@@ -56,6 +57,9 @@ function ToolCallBody({
 	toolsets,
 }: ToolCallProps) {
 	const display = useToolCall({ part, toolsets });
+	const elapsed = useElapsed([
+		ToolCallUtils.getSpan({ part, state: display.state }),
+	]);
 	const controls = message && display.controls;
 	const empty = !display.input.length && !display.output.length && !controls;
 
@@ -111,6 +115,7 @@ function ToolCallBody({
 							: "success"
 				}
 				parts={display.status}
+				elapsed={elapsed}
 			>
 				<Task.Thumbnails images={images} />
 				{display.interrupt && <Task.Stop onClick={display.interrupt} />}

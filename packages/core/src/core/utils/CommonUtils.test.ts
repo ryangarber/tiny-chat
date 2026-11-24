@@ -246,3 +246,11 @@ describe("CommonUtils.formatTimespan", () => {
 		).toBe("1 day");
 	});
 });
+
+describe("CommonUtils.formatElapsed", () => {
+	it("writes seconds, then minutes and seconds, then hours and minutes", () => {
+		expect(CommonUtils.formatElapsed(4999)).toBe("4s");
+		expect(CommonUtils.formatElapsed(125_000)).toBe("2m 5s");
+		expect(CommonUtils.formatElapsed(4_330_000)).toBe("1h 12m");
+	});
+});

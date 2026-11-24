@@ -1,6 +1,8 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { ClientContext } from "#client/client.ts";
+import { getPartsKey } from "#client/core/hooks/useStableKey.ts";
+import { useStableValue } from "#client/core/hooks/useStableValue.ts";
 import { useSubagents } from "#client/features/agent/hooks/useSubagents.ts";
 import { useTools } from "#client/features/agent/hooks/useTools.ts";
 import { useChatFiles } from "#client/features/chat/hooks/useChatFiles.ts";
@@ -13,9 +15,13 @@ import type {
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
+import type { zData } from "#core/features/data/types/part.ts";
 
 /** How often a repository is asked what changed, while its files are shown. */
 const GIT_INTERVAL = 5000;
+
+const sourcesKey = (data: zData) =>
+	getPartsKey(data.flat().filter((part) => part.type !== "text"));
 
 // Kept outside the hook so the list only changes when a status does.
 const combine = (results: { data?: GitRepo }[]) =>
@@ -37,7 +43,14 @@ export const useChatSources = () => {
 	const { messages } = useMessages();
 	const { subagents } = useSubagents();
 	const { toolsets } = useTools();
-	const draftData = useComposerStore((state) => state.data);
+	// Only the draft's other parts name sources. Its text changes on every
+	// keystroke, and a new tree then has the file tree reset its state in an
+	// effect each time, which piles up behind fast typing.
+	const draftData = useStableValue(
+		useComposerStore((state) => state.data),
+		(a, b) => sourcesKey(a) === sourcesKey(b),
+	);
+	const draft = useMemo(() => ({ data: draftData }), [draftData]);
 	const chatId = useChatStore((state) => state.active.chatId);
 	const projectId = useChatStore((state) => state.active.project?.id ?? null);
 
@@ -68,7 +81,7 @@ export const useChatSources = () => {
 				mounted: chatFiles.data ?? [],
 				folders: folders.data,
 				messages: messageList,
-				draft: { data: draftData },
+				draft,
 				loaded: loaded.chatId === chatId ? loaded.files : [],
 				toolsets,
 			}),
@@ -76,7 +89,7 @@ export const useChatSources = () => {
 			chatFiles.data,
 			folders.data,
 			messageList,
-			draftData,
+			draft,
 			loaded,
 			chatId,
 			toolsets,
@@ -86,10 +99,10 @@ export const useChatSources = () => {
 	const webSources = useMemo(
 		() =>
 			ChatSourcesUtils.webSources({
-				messages: [...messageList, { data: draftData }],
+				messages: [...messageList, draft],
 				toolsets,
 			}),
-		[messageList, draftData, toolsets],
+		[messageList, draft, toolsets],
 	);
 
 	// Every folder a file on the machine is in, which is where git is asked.

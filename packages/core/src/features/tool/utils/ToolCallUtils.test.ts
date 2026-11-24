@@ -138,6 +138,31 @@ describe("ToolCallUtils", () => {
 			expect(group.pending).toBe(false);
 			expect(text(group.status)).toBe("Read file a.txt");
 		});
+
+		it("times its calls, but not one waiting on the user or turned down", () => {
+			const time = { start: 0, end: 1000 };
+			const read = result(
+				call("read_files", { reads: [{ path: "a.txt" }] }, { time }),
+				[],
+			);
+			const asking = call(
+				"ask_question",
+				{ questions: [{ question: "Which?" }] },
+				{ time: { start: 0 } },
+			);
+			const rejected = result(
+				call("shell_exec", { command: "rm -rf /" }, { time }),
+				ToolCallUtils.getRejection(),
+			);
+			expect(
+				ToolCallUtils.getGroup({ parts: [read, asking, rejected], toolsets })
+					.spans,
+			).toEqual([
+				{ time, active: false },
+				{ active: false },
+				{ active: false },
+			]);
+		});
 	});
 
 	describe("displays", () => {

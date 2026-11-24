@@ -11,6 +11,7 @@ import {
 	useAutoExpand,
 	useExpandKey,
 } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useElapsed } from "#client/features/part/hooks/useElapsed.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
@@ -55,6 +56,7 @@ export default function ToolGroup({
 	const pendingFeedbackIds = useMessageStore((s) => s.pendingFeedbackIds);
 
 	const group = ToolCallUtils.getGroup({ parts, toolsets });
+	const elapsed = useElapsed(group.spans);
 	// Open for find showing a match in one of its calls, or in a run of them
 	// inside a segment, such as a subagent's.
 	const revealing = useFindRevealing(parts.map((part) => part.id));
@@ -103,6 +105,7 @@ export default function ToolGroup({
 						status={group.pending ? "pending" : "success"}
 						emoji="🔧"
 						parts={toStatusParts(group.status)}
+						elapsed={elapsed}
 					/>
 					<Task.Details
 						paddingY={0}

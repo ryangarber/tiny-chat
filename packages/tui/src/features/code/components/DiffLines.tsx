@@ -1,9 +1,14 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: lines stay in order */
 
+import { Pressable } from "better-ink-ui";
 import chalk from "chalk";
 import { Text } from "ink";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useCode } from "#client/core/hooks/useCode.ts";
+import {
+	useFindHidden,
+	useFindRevealed,
+} from "#client/features/find/hooks/useFindScope.ts";
 import { type CodeResult, CodeUtils } from "#core/core/utils/CodeUtils.ts";
 import {
 	type DiffContext,
@@ -20,26 +25,57 @@ export default function DiffLines({
 	highlighted: CodeResult;
 	language: string | null | undefined;
 }) {
-	return diff.map((change, index) => (
-		<Block key={index} type={change.type} highlighted={highlighted}>
-			{change.type === "unchanged" &&
-				` ⋮ ${change.lines.length} unchanged line${change.lines.length === 1 ? "" : "s"}`}
-			{change.type !== "unchanged" && (
-				<>
-					{change.type === "changed" && (
-						<ChangedLines change={change} language={language} />
+	const [expanded, setExpanded] = useState<number[]>([]);
+	// Unfolded whole while find shows a match somewhere in it.
+	const revealed = useFindRevealed();
+	const isExpanded = (index: number) => revealed || expanded.includes(index);
+	useFindHidden(
+		diff.some(
+			(change, index) => change.type === "unchanged" && !isExpanded(index),
+		),
+	);
+
+	return diff.map((change, index) =>
+		change.type === "unchanged" ? (
+			isExpanded(index) ? (
+				change.lines.map((line, lineIndex) => (
+					<Block
+						key={`${index}:${lineIndex}`}
+						type="context"
+						highlighted={highlighted}
+					>
+						<CodeLines code={line} language={language} lineNumbers={false} />
+					</Block>
+				))
+			) : (
+				<Pressable
+					key={index}
+					onPress={() => setExpanded((previous) => [...previous, index])}
+				>
+					{({ isHovered }) => (
+						<Block type={change.type} highlighted={highlighted}>
+							<Text dimColor={isHovered}>
+								{` ⋮ ${change.lines.length} unchanged line${change.lines.length === 1 ? "" : "s"}`}
+							</Text>
+						</Block>
 					)}
-					{change.type !== "changed" && (
-						<CodeLines
-							code={change.line}
-							language={language}
-							lineNumbers={false}
-						/>
-					)}
-				</>
-			)}
-		</Block>
-	));
+				</Pressable>
+			)
+		) : (
+			<Block key={index} type={change.type} highlighted={highlighted}>
+				{change.type === "changed" && (
+					<ChangedLines change={change} language={language} />
+				)}
+				{change.type !== "changed" && (
+					<CodeLines
+						code={change.line}
+						language={language}
+						lineNumbers={false}
+					/>
+				)}
+			</Block>
+		),
+	);
 }
 
 function ChangedLines({

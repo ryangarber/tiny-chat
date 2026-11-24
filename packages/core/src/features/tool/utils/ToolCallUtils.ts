@@ -2,6 +2,7 @@ import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type {
 	zDataSimplePart,
 	zInterjectionPart,
+	zPartTime,
 	zTextPart,
 	zToolCallPart,
 } from "#core/features/data/types/part.ts";
@@ -34,6 +35,13 @@ type ToolCallPart = Extract<RenderedPart, { type: "toolCall" }>;
 export interface ToolCallStatus {
 	pieces: ToolStatusPiece[];
 	pending: boolean;
+	state: ToolCallState;
+}
+
+/** A call's time as `DataUtils.getElapsed` counts it. */
+export interface ToolCallSpan {
+	time?: zPartTime;
+	active: boolean;
 }
 
 /** How an agent's own tool (Claude Code's, Codex's, Cursor's) is shown, if it is one. */
@@ -294,6 +302,7 @@ export const ToolCallUtils = {
 		const status: ToolCallStatus = {
 			pieces: display.status(ToolCallUtils.getContext({ part, state })),
 			pending: isPending(state),
+			state,
 		};
 
 		cache.set(part.id, {
@@ -437,8 +446,26 @@ export const ToolCallUtils = {
 			status: statuses.length ? ToolCallUtils.resolveSummary(statuses) : [],
 			pending: statuses.some((status) => status.pending),
 			images: parts.flatMap((part) => ToolCallUtils.getImages(part)),
+			spans: parts.map((part, index) =>
+				ToolCallUtils.getSpan({ part, state: statuses[index].state }),
+			),
 		};
 	},
+
+	/**
+	 * A call's time, toward how long it took. Waiting on the user does not
+	 * count, and a call they turned down took no time of its own.
+	 */
+	getSpan: ({
+		part,
+		state,
+	}: {
+		part: ToolCallPart;
+		state: ToolCallState;
+	}): ToolCallSpan =>
+		state === "feedback" || state === "rejected"
+			? { active: false }
+			: { time: part.time, active: isPending(state) },
 
 	/**
 	 * The images a call produced — a screenshot, an image file it read. Every
@@ -461,7 +488,10 @@ export const ToolCallUtils = {
 	},
 
 	/** One call's status line. */
-	resolveStatus: ({ pieces, pending }: ToolCallStatus): ToolStatusPart[] => {
+	resolveStatus: ({
+		pieces,
+		pending,
+	}: Pick<ToolCallStatus, "pieces" | "pending">): ToolStatusPart[] => {
 		return pieces.flatMap((piece): ToolStatusPart | [] => {
 			if (typeof piece === "string") return { text: piece };
 			if (Array.isArray(piece)) return { text: piece[pending ? 0 : 1] };

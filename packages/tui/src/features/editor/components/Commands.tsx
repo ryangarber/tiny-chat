@@ -39,6 +39,7 @@ export default function Commands({
 	const setFocus = useAppStore((state) => state.setFocus);
 	const togglePanel = useAppStore((state) => state.togglePanel);
 	const openPanel = useAppStore((state) => state.openPanel);
+	const setPickingProject = useAppStore((state) => state.setPickingProject);
 	const setStatus = useAppStore((state) => state.setStatus);
 	const unsetStatus = useAppStore((state) => state.unsetStatus);
 
@@ -46,9 +47,15 @@ export default function Commands({
 
 	const { commands } = useCommands({
 		onOpenSettings: () => setFocus("settings"),
-		onOpenChats: () => openPanel("chats"),
+		onOpenChats: () => {
+			setPickingProject(false);
+			openPanel("chats");
+		},
 		onOpenFiles: () => togglePanel("files"),
-		onOpenProjects: () => openPanel("chats"),
+		onOpenProjects: () => {
+			setPickingProject(true);
+			openPanel("chats");
+		},
 		onOpenConfig: () => setFocus("config"),
 		onOpenUploads: () => setFocus("uploads"),
 		onOpenGitHub: () => setFocus("github"),

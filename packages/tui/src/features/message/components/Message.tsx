@@ -1,9 +1,10 @@
 import { Box, Text, useMouseInput } from "better-ink-ui";
 import Spinner from "ink-spinner";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ClientContext } from "#client/client.ts";
 import type { AgentStreamEvent } from "#client/core/services/StreamService.ts";
 import { useStream } from "#client/features/agent/hooks/useStream.ts";
+import { useMessaging } from "#client/features/chat/hooks/useMessaging.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
 import { useComposerStore } from "#client/features/editor/stores/useComposerStore.ts";
@@ -35,6 +36,12 @@ export default function Message({
 	const editing = useComposerStore((state) =>
 		state.mode.kind === "edit" ? state.mode.message : null,
 	);
+
+	// A first press arms the delete, which a second within a moment puts through.
+	const { deleteMessage } = useMessaging();
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
+	const confirmTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+	useEffect(() => () => clearTimeout(confirmTimeout.current), []);
 
 	const branch = useMessageBranches(message);
 	const [branchHover, setBranchHover] = useState<number | null>(null);
@@ -141,6 +148,30 @@ export default function Message({
 						}}
 					/>
 				)}
+				<Button
+					marginLeft={2}
+					label={
+						deleteMessage.isPending
+							? "deleting…"
+							: confirmingDelete
+								? "confirm delete"
+								: "delete"
+					}
+					disabled={deleteMessage.isPending}
+					onClick={() => {
+						clearTimeout(confirmTimeout.current);
+						if (!confirmingDelete) {
+							setConfirmingDelete(true);
+							confirmTimeout.current = setTimeout(
+								() => setConfirmingDelete(false),
+								3000,
+							);
+							return;
+						}
+						setConfirmingDelete(false);
+						deleteMessage.mutate(message);
+					}}
+				/>
 				{branch.count > 1 && (
 					<Box marginLeft={2} gap={1}>
 						<Box ref={(element) => branchRef(element, 0)}>

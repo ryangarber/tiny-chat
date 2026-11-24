@@ -11,6 +11,7 @@ import {
 	useAutoExpand,
 	useExpandKey,
 } from "#client/features/part/hooks/useAutoExpand.ts";
+import { useElapsed } from "#client/features/part/hooks/useElapsed.ts";
 import { useExpandStore } from "#client/features/part/stores/useExpandStore.ts";
 import type { Compaction } from "#core/features/agent/services/AgentTokensService.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
@@ -46,6 +47,7 @@ export default function ToolGroup({
 	const pendingFeedbackIds = useMessageStore((s) => s.pendingFeedbackIds);
 
 	const group = ToolCallUtils.getGroup({ parts, toolsets });
+	const elapsed = useElapsed(group.spans);
 	const groupKey = `group:${parts[0]?.id}`;
 	const scopedKey = useExpandKey(groupKey);
 	// Open for find showing a match in one of its calls, or in a run of them
@@ -96,6 +98,7 @@ export default function ToolGroup({
 						}
 						status={group.pending ? "pending" : "success"}
 						parts={group.status}
+						elapsed={elapsed}
 					>
 						<Task.Thumbnails images={group.images} />
 					</Task.Status>

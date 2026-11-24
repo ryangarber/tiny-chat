@@ -113,6 +113,10 @@ interface AppStore {
 	openPanel: (panel: Panel) => void;
 	closePanel: (panel: Panel) => void;
 
+	/** Whether the chats panel lists the projects in place of the chats. */
+	pickingProject: boolean;
+	setPickingProject: (pickingProject: boolean) => void;
+
 	/**
 	 * The row a first `d` armed for removal, which a second puts through. Kept
 	 * here so that going back cancels it rather than leaving the page.
@@ -150,6 +154,9 @@ export const useAppStore = create<AppStore>((set) => ({
 		useLayoutStore.getState().setPanel(panel, false);
 		if (getFocus() === panel) focusManager.focus("editor");
 	},
+
+	pickingProject: false,
+	setPickingProject: (pickingProject) => set({ pickingProject }),
 
 	armed: null,
 	setArmed: (armed) => set({ armed }),

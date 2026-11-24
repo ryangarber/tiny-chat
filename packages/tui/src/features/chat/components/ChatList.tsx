@@ -95,7 +95,8 @@ export default function ChatList({
 	const fetchOlder = useSentinel(projects);
 
 	// The projects open in place of the chats, from the switcher above them.
-	const [picking, setPicking] = useState(false);
+	const picking = useAppStore((state) => state.pickingProject);
+	const setPicking = useAppStore((state) => state.setPickingProject);
 
 	const { focused } = usePanel();
 	const closePanel = useAppStore((state) => state.closePanel);

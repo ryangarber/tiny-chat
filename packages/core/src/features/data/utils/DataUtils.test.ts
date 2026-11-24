@@ -3,6 +3,40 @@ import type { zData } from "#core/features/data/types/part.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 
 describe("DataUtils", () => {
+	describe("getElapsed", () => {
+		it("counts time run together once, and leaves out gaps between", () => {
+			expect(
+				DataUtils.getElapsed([
+					{ time: { start: 0, end: 1000 } },
+					{ time: { start: 500, end: 2000 } },
+					{ time: { start: 5000, end: 6000 } },
+				]),
+			).toBe(3000);
+		});
+
+		it("runs what is still going to now, and leaves out what never ended", () => {
+			expect(
+				DataUtils.getElapsed(
+					[
+						{ time: { start: 1000, end: 1500 }, active: true },
+						{ time: { start: 0 } },
+						{},
+					],
+					4000,
+				),
+			).toBe(3000);
+			expect(DataUtils.getElapsed([{ time: { start: 0 } }, {}])).toBe(
+				undefined,
+			);
+		});
+
+		it("never counts back from a stale now", () => {
+			expect(
+				DataUtils.getElapsed([{ time: { start: 2000 }, active: true }], 1000),
+			).toBe(0);
+		});
+	});
+
 	describe("getCheckpoint", () => {
 		it("ends a copy on a checkpoint, settling running calls but not awaited ones", () => {
 			const data: zData = [

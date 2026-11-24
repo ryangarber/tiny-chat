@@ -1,5 +1,5 @@
 import { parsePartialJson } from "ai";
-import type { z } from "zod";
+import { z } from "zod";
 import type { Capabilities } from "#core/core/types/capability.ts";
 import type { zClientEnv } from "#core/core/types/env.ts";
 import type { StreamMutation } from "#core/core/types/stream.ts";
@@ -294,6 +294,19 @@ export const AgentService = {
 
 		let parts = data[data.length - 1];
 
+		/** A call's time ends once its result is in. */
+		const end = (id: string) => {
+			const call = AgentService.findCall(data, id);
+			if (!call) return;
+			const now = Date.now();
+			call.time = { start: call.time?.start ?? now, end: now };
+		};
+
+		/** A call's time restarts once the user answers it, leaving out the wait. */
+		const restart = (call: zToolCallPart) => {
+			call.time = { start: Date.now() };
+		};
+
 		const push = (part: zDataPart): zAgentEvent => {
 			if (!parts) {
 				console.warn(
@@ -302,6 +315,14 @@ export const AgentService = {
 				data.push([]);
 				parts = data[data.length - 1];
 			}
+			part.time ??= { start: Date.now() };
+			// A background call's placeholder is not the end of it: its report is.
+			if (
+				part.type === "toolResult" &&
+				!ToolCallUtils.isBackground(part.output)
+			)
+				end(part.id);
+			else if (part.type === "interjection" && part.task) end(part.task.id);
 			parts.push(part);
 			return { type: "data", value: part };
 		};
@@ -655,6 +676,7 @@ export const AgentService = {
 							...call.toolCall.validation,
 							approved: !!settled.answer.approved,
 						};
+						if (settled.answer.approved) restart(call.toolCall);
 						yield { type: "data", value: call.toolCall };
 						return;
 					}
@@ -667,11 +689,13 @@ export const AgentService = {
 							output: ToolCallUtils.getRejection(),
 						});
 					} else {
+						restart(call.toolCall);
 						queue.push({
 							toolCall: call.toolCall,
 							tool: call.tool,
 							feedback: settled.answer.feedback,
 						});
+						yield { type: "data", value: call.toolCall };
 					}
 				};
 
@@ -867,7 +891,15 @@ export const AgentService = {
 						},
 					});
 
+					/**
+					 * When the model last showed anything. A thought or call that
+					 * arrives whole was being written since then.
+					 */
+					let lastEventAt = Date.now();
+
 					for await (const event of stream) {
+						const now = Date.now();
+
 						if (event.type === "start") {
 							console.log("[AgentService] starting step", {
 								warnings: event.warnings,
@@ -885,6 +917,7 @@ export const AgentService = {
 									name: event.name,
 									input: {},
 									partial: true,
+									time: { start: now },
 								});
 							} else if (event.delta) {
 								const raw = toolInputs.get(event.id);
@@ -956,7 +989,12 @@ export const AgentService = {
 									existing.value += event.value.value;
 									if (event.value?.signature)
 										existing.signature = event.value.signature;
+									existing.time = {
+										start: existing.time?.start ?? now,
+										end: now,
+									};
 								} else {
+									event.value.time ??= { start: now, end: now };
 									parts.push(event.value);
 								}
 							} else if (event.value.type === "thought") {
@@ -970,13 +1008,21 @@ export const AgentService = {
 									existing.value += event.value.value;
 									if (event.value?.signature)
 										existing.signature = event.value.signature;
+									existing.time = {
+										start: existing.time?.start ?? now,
+										end: now,
+									};
 								} else {
+									// Thinking that shows nothing until it is done began before.
+									event.value.time ??= { start: lastEventAt, end: now };
 									parts.push(event.value);
 								}
 							} else if (
 								event.value.type === "toolCall" &&
 								event.value.providerExecuted
 							) {
+								event.value.time ??= AgentService.findCall(data, event.value.id)
+									?.time ?? { start: lastEventAt };
 								// Streamed again with an approval asked for later: it moves
 								// to the step that asks.
 								for (const slot of data) {
@@ -998,7 +1044,20 @@ export const AgentService = {
 									toolsets: lookupToolsets,
 									part: event.value,
 								});
-								if (tool?.validate) {
+								// The SDK checks input against the schema too, but only flags
+								// a call that fails rather than dropping it.
+								const parsed = tool?.input.safeParse(event.value.input);
+								if (parsed && !parsed.success) {
+									toolValidationErrors.set(
+										event.value.id,
+										new Error(
+											`Invalid input for tool ${event.value.name}:\n${z.prettifyError(parsed.error)}`,
+										),
+									);
+								} else if (parsed) {
+									event.value.input = parsed.data;
+								}
+								if (tool?.validate && parsed?.success) {
 									try {
 										event.value.validation = await tool.validate({
 											input: event.value.input,
@@ -1024,9 +1083,14 @@ export const AgentService = {
 								const partial = parts.findIndex(
 									(p) => p.type === "toolCall" && p.id === event.value.id,
 								);
+								event.value.time ??= (partial === -1
+									? undefined
+									: parts[partial].time) ?? { start: lastEventAt };
 								if (partial === -1) parts.push(event.value);
 								else parts[partial] = event.value;
 							} else if (event.value.type === "toolResult") {
+								event.value.time ??= { start: now };
+								end(event.value.id);
 								await watched(event.value);
 								// A provider may report a call's result again.
 								const existing = parts.findIndex(
@@ -1035,6 +1099,7 @@ export const AgentService = {
 								if (existing === -1) parts.push(event.value);
 								else parts[existing] = event.value;
 							} else {
+								event.value.time ??= { start: now };
 								parts.push(event.value);
 							}
 						}
@@ -1043,6 +1108,7 @@ export const AgentService = {
 							metadata.push(event.metadata);
 						}
 
+						lastEventAt = now;
 						yield event;
 					}
 

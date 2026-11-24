@@ -39,8 +39,8 @@ export async function compile({
 } = {}): Promise<BuildResult | null> {
 	const define = Object.fromEntries(
 		Object.entries(environment).flatMap(([key, value]) => {
-			if (key === "process.env.DEV") {
-				return dev ? [] : [["process.env.DEV", ""]];
+			if (key === "process.env.DEV" && !dev) {
+				return [["process.env.DEV", ""]];
 			}
 			return [[key, value]];
 		}),

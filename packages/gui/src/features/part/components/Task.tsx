@@ -88,6 +88,7 @@ namespace Task {
 		icon,
 		status,
 		parts,
+		elapsed,
 		children,
 		style,
 		...props
@@ -95,6 +96,8 @@ namespace Task {
 		icon: ReactNode;
 		status: "pending" | "success" | "error";
 		parts: ToolStatusPart[];
+		/** How long it has taken, kept whole when the rest is cut short. */
+		elapsed?: string;
 		/** Drawn after the status, such as thumbnails or a stop button. */
 		children?: ReactNode;
 	}) {
@@ -122,6 +125,15 @@ namespace Task {
 						</span>
 					))}
 				</Text>
+				{elapsed && (
+					<Text
+						size="sm"
+						className="shrink-0 opacity-75"
+						style={{ fontVariantNumeric: "tabular-nums" }}
+					>
+						{elapsed}
+					</Text>
+				)}
 				{setExpanded && (
 					<CaretRightIcon
 						size={14}

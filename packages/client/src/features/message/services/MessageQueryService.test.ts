@@ -23,6 +23,7 @@ let root: MessageState;
 let a: MessageState;
 let b: MessageState;
 let leaf: MessageState;
+const onA = () => ({ [root.id]: a.id });
 const ids = () =>
 	MessageQueryService.getCurrent(client, root.chatId)?.messages.map(
 		(m) => m.id,
@@ -81,7 +82,9 @@ beforeEach(async () => {
 	});
 	useChatStore.getState().open(root.chatId);
 	await client.workingDirectory.ready();
-	await MessageQueryService.ensure(client, root.chatId, {});
+	// Opened on `a`, which is not the latest branch the chat would open on.
+	useChatStore.getState().selectBranch(root.id, a.id);
+	await MessageQueryService.ensure(client, root.chatId, onA());
 });
 
 afterEach(async () => {
@@ -115,7 +118,7 @@ describe("MessageQueryService with persisted branches", () => {
 
 	it("replaces cached content on every branch while keeping an invalidated history stale", async () => {
 		await MessageQueryService.selectBranch(client, root.id, b.id);
-		const oldOptions = MessageQueryService.options(client, root.chatId, {});
+		const oldOptions = MessageQueryService.options(client, root.chatId, onA());
 		await client.queryClient.invalidateQueries({
 			queryKey: oldOptions.queryKey,
 			exact: true,
@@ -127,7 +130,7 @@ describe("MessageQueryService with persisted branches", () => {
 			data: [[{ id: crypto.randomUUID(), type: "text", value: "updated" }]],
 		});
 		await MessageQueryService.write(client, updated);
-		for (const branches of [{}, { [root.id]: b.id }]) {
+		for (const branches of [onA(), { [root.id]: b.id }]) {
 			const history = client.queryClient.getQueryData(
 				MessageQueryService.options(client, root.chatId, branches).queryKey,
 			);
@@ -175,13 +178,14 @@ describe("MessageQueryService with persisted branches", () => {
 	it("waits for a pending history read before installing newer saved content", async () => {
 		const gate = Promise.withResolvers<void>();
 		const started = Promise.withResolvers<void>();
-		const options = MessageQueryService.options(client, root.chatId, {});
+		const options = MessageQueryService.options(client, root.chatId, onA());
 		const pending = client.queryClient.fetchQuery({
 			...options,
 			staleTime: 0,
 			queryFn: async () => {
 				const history = await client.api.message.getMessages.query({
 					chat: root.chatId,
+					branches: onA(),
 				});
 				started.resolve();
 				await gate.promise;

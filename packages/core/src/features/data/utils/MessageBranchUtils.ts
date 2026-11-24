@@ -25,13 +25,15 @@ export const MessageBranchUtils = {
 	},
 
 	/** Recreate the path through start, including its ancestors, then selected
-	 * descendants. Unspecified (or deleted) selections always use branch 0. */
+	 * descendants. Unspecified (or deleted) selections follow the branch holding
+	 * the latest message. */
 	getBranch: <T extends BranchMessage>(
 		messages: readonly T[],
 		start?: string | null,
 		branches: MessageBranches = {},
 	): T[] => {
 		const { byId, children } = MessageBranchUtils.index(messages);
+		const latest = MessageBranchUtils.latest(messages, children);
 		const path: T[] = [];
 		const seen = new Set<string>();
 		let current = start ? byId.get(start) : undefined;
@@ -48,7 +50,14 @@ export const MessageBranchUtils = {
 		while (true) {
 			const siblings = children.get(parent) ?? [];
 			const next =
-				siblings.find((m) => m.id === branches[parent ?? ""]) ?? siblings[0];
+				siblings.find((m) => m.id === branches[parent ?? ""]) ??
+				siblings.reduce<T | undefined>(
+					(best, m) =>
+						!best || (latest.get(m.id) ?? 0) >= (latest.get(best.id) ?? 0)
+							? m
+							: best,
+					undefined,
+				);
 			if (!next) break;
 			if (seen.has(next.id)) throw new Error("Message cycle detected");
 			seen.add(next.id);
@@ -56,6 +65,34 @@ export const MessageBranchUtils = {
 			parent = next.id;
 		}
 		return path;
+	},
+
+	/** Each message's id -> the time of the latest message in its subtree. */
+	latest: <T extends BranchMessage>(
+		messages: readonly T[],
+		children: Map<string | null, T[]>,
+	) => {
+		const order: T[] = [];
+		const seen = new Set<string>();
+		const queue: (string | null)[] = [null];
+		for (let i = 0; i < queue.length; i++) {
+			for (const child of children.get(queue[i]) ?? []) {
+				if (seen.has(child.id)) continue;
+				seen.add(child.id);
+				order.push(child);
+				queue.push(child.id);
+			}
+		}
+		const latest = new Map(
+			messages.map((m) => [m.id, CommonUtils.toDate(m.createdAt).getTime()]),
+		);
+		for (const message of order.reverse()) {
+			if (!message.previousId) continue;
+			const own = latest.get(message.id) ?? 0;
+			if (own > (latest.get(message.previousId) ?? 0))
+				latest.set(message.previousId, own);
+		}
+		return latest;
 	},
 
 	/** Every descendant, in parent-before-child order, excluding start. */
