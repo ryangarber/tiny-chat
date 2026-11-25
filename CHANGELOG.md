@@ -1,3 +1,23 @@
+## 0.10.23 (2026-11-25)
+
+### Features
+
+- **tui:** delete message button ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- chats open to latest branch and message ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- **tui:** collapsed lines in diffs can be expanded ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- tasks show elapsed time ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- better tool input validation and errors ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+
+### Bug Fixes
+
+- **tui:** 'more' in /projects opens project list directly ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- **gui:** file viewer shrinks when editing ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+
+### Performance Improvements
+
+- stop updating chat sources on text parts ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+- **gui:** trim agent sdks from bundle ([825bd08](https://github.com/ryangarber/tiny-chat/commit/825bd08dbd419ee152115260570fc3922e523305))
+
 ## 0.10.22 (2026-11-24)
 
 ### Features
