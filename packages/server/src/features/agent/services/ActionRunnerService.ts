@@ -1,5 +1,6 @@
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { ServerAgentService } from "#server/features/agent/services/ServerAgentService.ts";
+import { ChatEventService } from "#server/features/chat/services/ChatEventService.ts";
 import { ChatService } from "#server/features/chat/services/ChatService.ts";
 import { MessageService } from "#server/features/message/services/MessageService.ts";
 import { MessageUtils } from "#server/features/message/utils/MessageUtils.ts";
@@ -94,6 +95,13 @@ export const ActionRunnerService = {
 							return { userMessage, modelMessage };
 						},
 					);
+					// Nobody wrote the prompt: it is news unless the chat is open.
+					await ChatEventService.activity({
+						userId: user.id,
+						chatId: chat.id,
+						at: modelMessage.createdAt,
+						list: true,
+					});
 
 					const { data, metadata } = await ServerAgentService.runAgent({
 						chat,
@@ -110,7 +118,16 @@ export const ActionRunnerService = {
 					await globalThis.db.orm.public.Message.where({
 						id: modelMessage.id,
 						userId: user.id,
-					}).update({ data, metadata });
+					}).update({
+						data,
+						metadata,
+						updatedAt: Temporal.Now.plainDateTimeISO("UTC"),
+					});
+					await ChatEventService.activity({
+						userId: user.id,
+						chatId: chat.id,
+						at: Temporal.Now.plainDateTimeISO("UTC"),
+					});
 
 					console.log(
 						`[ActionRunnerService] action complete:`,

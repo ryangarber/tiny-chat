@@ -1,8 +1,8 @@
 import {
 	ActionIcon,
+	Box,
 	Button,
 	Group,
-	Indicator,
 	Loader,
 	Modal,
 	NavLink,
@@ -167,64 +167,64 @@ function Chat({
 	const isMobile = useAppStore((state) => state.isMobile);
 	const setPanel = useLayoutStore((state) => state.setPanel);
 	const setCurrentModal = useAppStore((state) => state.setCurrentModal);
-	const status = useChatStatus(chat.id);
+	const status = useChatStatus(chat);
 
 	return (
-		<Indicator
-			size={8}
-			disabled={!chat.unseen || !!status}
-			color={active ? "white" : "blue"}
-			position="middle-start"
-			offset={20}
-		>
-			<NavLink
-				key={chat.id}
-				label={chat.title ?? "Sending..."}
-				variant="filled"
-				active={active}
-				leftSection={
-					status === "generating" ? (
-						<Loader
-							size={12}
-							color={active ? "white" : "blue"}
-							aria-label="Generating"
-						/>
-					) : status === "waiting" ? (
-						<PauseCircleIcon
-							size={16}
-							weight="fill"
-							color={active ? "white" : "var(--mantine-color-yellow-filled)"}
-							aria-label="Waiting for you"
-						/>
-					) : undefined
-				}
-				className={`right-section-hover${active || isMobile ? " hover" : ""}`}
-				onClick={() => {
-					ChatService.setChat(chat);
-					if (isMobile) setPanel("chats", false);
-				}}
-				h={40}
-				draggable
-				onDragStart={(event) => dragHandlers.onDragStart(event, chat)}
-				onDragEnd={dragHandlers.onDragEnd}
-				style={{ cursor: "grab" }}
-				{...(chat.unseen && !status && { pl: 35 })}
-				rightSection={
-					<ActionIcon
-						size={24}
-						radius="xl"
-						variant={active ? "white" : "light"}
-						onClick={(e) => {
-							e.stopPropagation();
-							setEditing(chat);
-							setCurrentModal("edit-chat");
-						}}
-					>
-						<DotsThreeIcon size={20} />
-					</ActionIcon>
-				}
-			/>
-		</Indicator>
+		<NavLink
+			key={chat.id}
+			label={chat.title ?? "Sending..."}
+			variant="filled"
+			active={active}
+			leftSection={
+				status === "generating" ? (
+					<Loader
+						size={12}
+						color={active ? "white" : "blue"}
+						aria-label="Generating"
+					/>
+				) : status === "waiting" ? (
+					<PauseCircleIcon
+						size={16}
+						weight="fill"
+						color={active ? "white" : "var(--mantine-color-yellow-filled)"}
+						aria-label="Waiting for you"
+					/>
+				) : status === "unread" ? (
+					<Box
+						w={8}
+						h={8}
+						mx={2}
+						bg={active ? "white" : "blue"}
+						style={{ borderRadius: "50%" }}
+						aria-label="Unread"
+					/>
+				) : undefined
+			}
+			className={`right-section-hover${active || isMobile ? " hover" : ""}`}
+			onClick={() => {
+				ChatService.setChat(chat);
+				if (isMobile) setPanel("chats", false);
+			}}
+			h={40}
+			draggable
+			onDragStart={(event) => dragHandlers.onDragStart(event, chat)}
+			onDragEnd={dragHandlers.onDragEnd}
+			style={{ cursor: "grab" }}
+			rightSection={
+				<ActionIcon
+					size={24}
+					radius="xl"
+					variant={active ? "white" : "light"}
+					onClick={(e) => {
+						e.stopPropagation();
+						setEditing(chat);
+						setCurrentModal("edit-chat");
+					}}
+				>
+					<DotsThreeIcon size={20} />
+				</ActionIcon>
+			}
+		/>
 	);
 }
 

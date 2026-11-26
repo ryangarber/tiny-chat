@@ -13,10 +13,13 @@ import {
 	type MessageBranches,
 	MessageBranchUtils,
 } from "#core/features/data/utils/MessageBranchUtils.ts";
+import { ChatEventService } from "#server/features/chat/services/ChatEventService.ts";
 import { MemoryRetrievalService } from "#server/features/chat/services/MemoryRetrievalService.ts";
 import { MessageUtils } from "#server/features/message/utils/MessageUtils.ts";
 
 type Content = {
+	/** The client instance making the write, told to the user's others. */
+	origin?: string | null;
 	author: Enum["Author"];
 	config: zConfig;
 	data: zData;
@@ -143,6 +146,7 @@ export const MessageService = {
 		previous,
 		temporary,
 		incognito,
+		origin,
 		...content
 	}: Content & {
 		user: zUser;
@@ -192,7 +196,7 @@ export const MessageService = {
 		let chatId = chat?.id ?? null;
 		let previousId = previous?.id ?? null;
 
-		return await globalThis.db.transaction(async (tx) => {
+		const message = await globalThis.db.transaction(async (tx) => {
 			if (chat?.id) {
 				const existing = requireRow(
 					await tx.orm.public.Chat.where({
@@ -263,6 +267,16 @@ export const MessageService = {
 			}
 			return MessageUtils.toMessageState(created);
 		});
+		// A prompt is read by whoever wrote it; a reply by whoever has it open.
+		await ChatEventService.activity({
+			userId: user.id,
+			chatId: message.chatId,
+			at: message.createdAt,
+			origin,
+			read: message.author === "USER",
+			list: true,
+		});
+		return message;
 	},
 
 	/** An edit is a sibling. Retaining newer messages clones the entire subtree. */
@@ -270,6 +284,7 @@ export const MessageService = {
 		user,
 		message,
 		truncate = false,
+		origin,
 		...content
 	}: Content & {
 		user: zUser;
@@ -301,7 +316,7 @@ export const MessageService = {
 				})
 			: { memories: [], embedding: undefined };
 
-		return await globalThis.db.transaction(async (tx) => {
+		const result = await globalThis.db.transaction(async (tx) => {
 			const edited = await tx.orm.public.Message.select(
 				...MessageUtils.columns,
 			).create({
@@ -368,6 +383,15 @@ export const MessageService = {
 			}
 			return MessageUtils.toMessageState(edited);
 		});
+		await ChatEventService.activity({
+			userId: user.id,
+			chatId: result.chatId,
+			at: result.createdAt,
+			origin,
+			read: true,
+			list: true,
+		});
+		return result;
 	},
 
 	/**
@@ -381,6 +405,7 @@ export const MessageService = {
 		truncate: _truncate,
 		appendMetadata,
 		metadata,
+		origin,
 		...content
 	}: Content & {
 		user: zUser;
@@ -412,6 +437,12 @@ export const MessageService = {
 					: {}),
 			}),
 		);
+		await ChatEventService.activity({
+			userId: user.id,
+			chatId: updated.chatId,
+			at: updated.updatedAt,
+			origin,
+		});
 		return MessageUtils.toMessageState(updated);
 	},
 
@@ -419,19 +450,23 @@ export const MessageService = {
 	deleteMessage: async ({
 		user,
 		message,
+		origin,
 	}: {
 		user: zUser;
 		message: MessageLike;
+		origin?: string | null;
 	}) => {
 		if (typeof message === "string") message = { id: message };
 
-		return await globalThis.db.transaction(async (tx) => {
+		let chatId: string | undefined;
+		const deletedChat = await globalThis.db.transaction(async (tx) => {
 			const existing = requireRow(
 				await tx.orm.public.Message.where({
 					id: message.id,
 					userId: user.id,
 				}).first(),
 			);
+			chatId = existing.chatId;
 			const rows = await tx.orm.public.Message.where({
 				chatId: existing.chatId,
 				userId: user.id,
@@ -485,5 +520,16 @@ export const MessageService = {
 			}
 			return false;
 		});
+		if (deletedChat) ChatEventService.list(user.id);
+		else if (chatId)
+			await ChatEventService.activity({
+				userId: user.id,
+				chatId,
+				at: null,
+				origin,
+				read: true,
+				list: true,
+			});
+		return deletedChat;
 	},
 } as const;

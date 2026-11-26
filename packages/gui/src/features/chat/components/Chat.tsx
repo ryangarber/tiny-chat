@@ -1,28 +1,15 @@
 import {
-	ActionIcon,
 	Box,
 	type DefaultMantineColor,
-	Group,
 	ScrollArea,
 	Stack,
-	Transition,
 } from "@mantine/core";
 import { useElementSize, useMergedRef } from "@mantine/hooks";
-import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useIsMutating } from "@tanstack/react-query";
-import {
-	useContext,
-	useEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import { ClientContext } from "#client/client.ts";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useChapters } from "#client/features/chapter/hooks/useChapters.ts";
 import type { Chapter } from "#client/features/chapter/types/chapter.ts";
 import { useChat } from "#client/features/chat/hooks/useChat.ts";
-import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
 import { useDisabled } from "#client/features/editor/hooks/useDisabled.ts";
 import { useEstimatedTokens } from "#client/features/editor/hooks/useEstimatedTokens.ts";
@@ -58,8 +45,6 @@ function FindMessages({
 }
 
 export default function Chat() {
-	const client = useContext(ClientContext);
-
 	const { chat } = useChat();
 	const { messages } = useMessages();
 	const draft = useComposerStore((state) => state.data);
@@ -333,40 +318,6 @@ export default function Chat() {
 							isMobile || chat.data ? "var(--mantine-color-body)" : undefined,
 					}}
 				/>
-
-				<Group
-					gap={5}
-					style={{
-						position: "absolute",
-						bottom: inputHeight + inputEffectsHeight + 16,
-						right: 20,
-						zIndex: "calc(var(--mantine-z-index-app) + 1)",
-					}}
-				>
-					<Transition
-						mounted={!isNewChat && !!chat.data?.unseen}
-						transition="pop"
-						duration={200}
-						timingFunction="ease"
-					>
-						{(styles) => (
-							<ActionIcon
-								className="glass"
-								radius="xl"
-								size="lg"
-								style={styles}
-								onClick={() =>
-									chat.data &&
-									void ChatService.fetchChat({ client, id: chat.data.id })
-								}
-								loading={chat.isFetching}
-								disabled={chat.isFetching}
-							>
-								<ArrowClockwiseIcon size={20} />
-							</ActionIcon>
-						)}
-					</Transition>
-				</Group>
 
 				<ChatEffects
 					inputEffectsRef={inputEffectsRef}

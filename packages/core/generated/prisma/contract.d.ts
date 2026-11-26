@@ -25,7 +25,7 @@ import type {
 } from '@prisma/orm-postgres/contract-types';
 
 export type StorageHash =
-  StorageHashBase<'308cff4a25d99fec950f55c3607e3204a27cdd0a417d49488270c666310721de'>;
+  StorageHashBase<'fc38c12f519691b04f842e7ec53874864fa8a67f54d4d42d3850e6cf2fc0f90c'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -528,6 +528,7 @@ export namespace Models {
     id: FieldOutputTypes['public']['Chat']['id'];
     incognito: FieldOutputTypes['public']['Chat']['incognito'];
     projectId: FieldOutputTypes['public']['Chat']['projectId'];
+    readAt: FieldOutputTypes['public']['Chat']['readAt'];
     temporary: FieldOutputTypes['public']['Chat']['temporary'];
     title: FieldOutputTypes['public']['Chat']['title'];
     userId: FieldOutputTypes['public']['Chat']['userId'];
@@ -1025,6 +1026,14 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly readAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly temporary: {
@@ -2529,6 +2538,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly readAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-temporal@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly temporary: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -2592,6 +2609,7 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly incognito: { readonly column: 'incognito' };
                 readonly projectId: { readonly column: 'projectId' };
+                readonly readAt: { readonly column: 'readAt' };
                 readonly temporary: { readonly column: 'temporary' };
                 readonly title: { readonly column: 'title' };
                 readonly userId: { readonly column: 'userId' };

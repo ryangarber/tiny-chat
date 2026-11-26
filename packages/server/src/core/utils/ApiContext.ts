@@ -19,7 +19,17 @@ export const ApiContext = async ({
 			message: `Not authenticated.`,
 		});
 	}
-	return { req, res, session };
+	const instance = req.headers[ApiContext.instanceHeader];
+	return {
+		req,
+		res,
+		session,
+		/** The client instance calling, so its own writes can be told apart. */
+		origin: typeof instance === "string" ? instance : null,
+	};
 };
+
+/** Names the client instance a call comes from. */
+ApiContext.instanceHeader = "x-tiny-chat-instance" as const;
 
 export type ApiContext = Awaited<ReturnType<typeof ApiContext>>;

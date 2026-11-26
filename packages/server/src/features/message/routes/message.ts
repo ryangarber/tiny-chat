@@ -63,6 +63,7 @@ export const message = router({
 		.mutation(async ({ ctx, input }) => {
 			return await MessageService.createMessage({
 				user: ctx.session.user,
+				origin: ctx.origin,
 				chat: input.chat,
 				projectId: input.projectId,
 				author: input.author,
@@ -89,6 +90,7 @@ export const message = router({
 		.mutation(async ({ ctx, input }) => {
 			return await MessageService.editMessage({
 				user: ctx.session.user,
+				origin: ctx.origin,
 				message: input.message,
 				author: input.author,
 				config: input.config,
@@ -115,6 +117,7 @@ export const message = router({
 		.mutation(async ({ ctx, input }) => {
 			return await MessageService.updateMessage({
 				user: ctx.session.user,
+				origin: ctx.origin,
 				message: input.message,
 				author: input.author,
 				config: input.config,
@@ -130,6 +133,7 @@ export const message = router({
 		.mutation(async ({ ctx, input }) => {
 			return await MessageService.deleteMessage({
 				user: ctx.session.user,
+				origin: ctx.origin,
 				message: input,
 			});
 		}),

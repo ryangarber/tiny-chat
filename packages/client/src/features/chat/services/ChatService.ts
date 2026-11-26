@@ -2,7 +2,6 @@ import { matchQuery } from "@tanstack/react-query";
 import type { Client } from "#client/client.ts";
 import { useConfigStore } from "#client/features/agent/stores/useConfigStore.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
-import { useSeenStore } from "#client/features/chat/stores/useSeenStore.ts";
 import type {
 	NewChatOptions,
 	ProjectRef,
@@ -104,13 +103,6 @@ export const ChatService = {
 		focusMessage(id, branches);
 	},
 
-	fetchChat: async ({ client, id }: { client: Client; id: string }) => {
-		useSeenStore.getState().setLastSeen(id, Date.now());
-		await client.queryClient.invalidateQueries({
-			queryKey: client.query.chat.getChat.pathKey(),
-		});
-	},
-
 	fetchChatList: async ({ client }: { client: Client }) => {
 		await client.queryClient.invalidateQueries({
 			queryKey: client.query.chat.getChatList.pathKey(),
@@ -124,7 +116,6 @@ export const ChatService = {
 		client: Client;
 		chatId: string;
 	}) => {
-		if (chatId) useSeenStore.getState().setLastSeen(chatId, Date.now());
 		await MessageQueryService.invalidate(client, chatId);
 	},
 

@@ -31,7 +31,7 @@ if (import.meta.main) {
 		);
 		res.setHeader(
 			"Access-Control-Allow-Headers",
-			"Content-Type, Transfer-Encoding, Authorization, X-Requested-With, Accept, tRPC-Accept, X-Antigravity-Account, X-Mcp-Url, Mcp-Protocol-Version, Mcp-Session-Id, Mcp-Method, Mcp-Name",
+			"Content-Type, Transfer-Encoding, Authorization, X-Requested-With, Accept, tRPC-Accept, X-Antigravity-Account, X-Mcp-Url, Mcp-Protocol-Version, Mcp-Session-Id, Mcp-Method, Mcp-Name, Cache-Control, Last-Event-ID, X-Tiny-Chat-Instance",
 		);
 
 		if (req.method === "OPTIONS") {

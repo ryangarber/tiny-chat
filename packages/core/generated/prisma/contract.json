@@ -436,6 +436,16 @@
                   "kind": "scalar"
                 }
               },
+              "readAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "temporary": {
                 "nullable": false,
                 "type": {
@@ -535,6 +545,9 @@
                 },
                 "projectId": {
                   "column": "projectId"
+                },
+                "readAt": {
+                  "column": "readAt"
                 },
                 "temporary": {
                   "column": "temporary"
@@ -2768,6 +2781,18 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "readAt": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "temporary": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -4343,7 +4368,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "308cff4a25d99fec950f55c3607e3204a27cdd0a417d49488270c666310721de"
+    "storageHash": "fc38c12f519691b04f842e7ec53874864fa8a67f54d4d42d3850e6cf2fc0f90c"
   },
   "capabilities": {
     "postgres": {

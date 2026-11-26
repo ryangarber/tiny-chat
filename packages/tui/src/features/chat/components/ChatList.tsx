@@ -76,7 +76,6 @@ export default function ChatList({
 }) {
 	const { projects, deleteChat } = useChatList();
 	useWorkingStatus(projects, deleteChat);
-	const statuses = useChatStatuses();
 
 	const project = useChatStore((state) => state.active.project);
 	const projectList =
@@ -89,6 +88,8 @@ export default function ChatList({
 						.flatMap((other) => other.chats)
 				: page.chats,
 		) ?? [];
+
+	const statuses = useChatStatuses(chats);
 
 	// Older chats are appended below the list, so reaching the bottom is what
 	// asks for the next page.
@@ -147,19 +148,28 @@ export default function ChatList({
 					})),
 				},
 			]}
-			renderItem={({ item }) => (
-				<>
-					{statuses[item.value] === "generating" && (
-						<Text color="primary">
-							<Spinner type="circleQuarters" />
-						</Text>
-					)}
-					{statuses[item.value] === "waiting" && (
-						<Text color="yellowBright">‖</Text>
-					)}
-					<Text wrap="truncate-end">{item.name}</Text>
-				</>
-			)}
+			renderItem={({ item }) => {
+				const status = statuses[item.value];
+				return (
+					<>
+						{status && (
+							// Kept whole, or a long title squeezes it into the gap.
+							<Box flexShrink={0}>
+								{status === "generating" ? (
+									<Text color="primary">
+										<Spinner type="circleQuarters" />
+									</Text>
+								) : status === "waiting" ? (
+									<Text color="yellowBright">‖</Text>
+								) : (
+									<Text color="primary">●</Text>
+								)}
+							</Box>
+						)}
+						<Text wrap="truncate-end">{item.name}</Text>
+					</>
+				);
+			}}
 			bindings={{
 				primary: {
 					name: "open",

@@ -92,3 +92,35 @@ describe("file tool content", () => {
 		}
 	});
 });
+
+describe("subagent content", () => {
+	it("spaces its parts apart as a message's own are", async () => {
+		const screen = await render(
+			<ToolBlock
+				block={{
+					type: "messages",
+					data: [
+						[
+							{ id: "a", type: "thought", value: "Planning the work" },
+							{ id: "b", type: "text", value: "Halfway there." },
+							{ id: "c", type: "thought", value: "Wrapping up" },
+						],
+					],
+				}}
+				active={false}
+			/>,
+		);
+		try {
+			const lines = stripVTControlCharacters(screen.lastFrame() ?? "")
+				.split("\n")
+				.map((line) => line.trim());
+			const middle = lines.findIndex((line) => line.includes("Halfway"));
+			expect(middle).toBeGreaterThan(1);
+			expect(lines[middle - 1]).toBe("");
+			expect(lines[middle + 1]).toBe("");
+		} finally {
+			screen.unmount();
+			screen.cleanup();
+		}
+	});
+});

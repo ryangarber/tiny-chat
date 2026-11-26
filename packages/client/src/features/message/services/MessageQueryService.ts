@@ -1,7 +1,6 @@
 import type { QueryFilters } from "@tanstack/react-query";
 import type { Client } from "#client/client.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
-import { useSeenStore } from "#client/features/chat/stores/useSeenStore.ts";
 import { ActiveChatUtils } from "#client/features/chat/utils/ActiveChatUtils.ts";
 import type { MessageState } from "#core/features/data/types/message.ts";
 
@@ -84,7 +83,6 @@ export const MessageQueryService = {
 
 	/** Install persisted content before changing the selected query key. */
 	write: async (client: Client, message: MessageState, select = false) => {
-		useSeenStore.getState().setLastSeen(message.chatId, Date.now());
 		const filters = filtersOf(client, message.chatId);
 		const queries = client.queryClient.getQueryCache().findAll(filters);
 		// Let existing reads settle before writing, including an in-flight branch

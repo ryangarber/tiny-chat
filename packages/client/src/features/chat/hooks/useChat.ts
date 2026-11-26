@@ -5,17 +5,14 @@ import { useShallow } from "zustand/react/shallow";
 import { ClientContext } from "#client/client.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
-import { useSeenStore } from "#client/features/chat/stores/useSeenStore.ts";
 import { ActiveChatUtils } from "#client/features/chat/utils/ActiveChatUtils.ts";
 import { useSettings } from "#client/features/settings/hooks/useSettings.ts";
 import type { zAgentChat } from "#core/features/agent/types/agent.ts";
-import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 
 export const useChat = () => {
 	const client = useContext(ClientContext);
 
 	const chatId = useChatStore((s) => s.active.chatId);
-	const lastSeen = useSeenStore((s) => s.lastSeen);
 	const { temporary, incognito } = useChatStore(
 		useShallow((s) => ActiveChatUtils.options(s.active)),
 	);
@@ -34,16 +31,7 @@ export const useChat = () => {
 					ChatService.setChat({ id: null });
 				return null;
 			});
-			if (!data) return null;
-			if (!(data.id in lastSeen)) {
-				useSeenStore
-					.getState()
-					.setLastSeen(data.id, ChatUtils.getTimestamp(data));
-			}
-			return {
-				...data,
-				unseen: ChatUtils.getTimestamp(data) > lastSeen[data.id],
-			};
+			return data;
 		},
 		initialData: client.queryClient
 			.getQueryData(

@@ -219,7 +219,8 @@ function ToolBlockBody({ block, active, tail = true }: ToolBlockProps) {
 					? "thinking"
 					: "generating";
 			return (
-				<Box flexDirection="column">
+				// Spaced as a message's own parts are.
+				<Box flexDirection="column" gap={1}>
 					<MessageParts data={block.data} status={status} />
 				</Box>
 			);

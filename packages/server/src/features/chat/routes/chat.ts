@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { zId } from "#core/core/types/common.ts";
+import type { ChatEvent } from "#core/features/data/types/chat.ts";
 import { ChatLike, ProjectLike } from "#core/features/data/types/chat.ts";
+import { ChatEventService } from "#server/features/chat/services/ChatEventService.ts";
 import { ChatSearchService } from "#server/features/chat/services/ChatSearchService.ts";
 import { ChatService } from "#server/features/chat/services/ChatService.ts";
 import { FileService } from "#server/features/file/services/FileService.ts";
@@ -22,6 +24,32 @@ export const chat = router({
 			});
 			if (input.chatId) FileService.activate(ctx.session.user.id, input.chatId);
 			return project;
+		}),
+
+	/**
+	 * What changes among the user's chats, as it happens. The chat an instance
+	 * has open is named by `viewing`: it is caught up on as it is written to,
+	 * for as long as this is listened to.
+	 */
+	onEvent: procedure
+		.input(z.object({ viewing: z.string().nullish() }))
+		.subscription(async function* ({
+			ctx,
+			input,
+			signal,
+		}): AsyncGenerator<ChatEvent> {
+			const userId = ctx.session.user.id;
+			const release = input.viewing
+				? await ChatEventService.view(userId, input.viewing)
+				: undefined;
+			try {
+				yield* ChatEventService.listen(userId, signal);
+			} catch (error) {
+				// Ending the subscription aborts the wait for the next event.
+				if (!signal?.aborted) throw error;
+			} finally {
+				release?.();
+			}
 		}),
 
 	createProject: procedure.mutation(({ ctx }) =>

@@ -1,5 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpLink } from "@trpc/client";
+import {
+	createTRPCClient,
+	httpLink,
+	httpSubscriptionLink,
+	splitLink,
+} from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import {
 	anonymousClient,
@@ -7,9 +12,11 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { inferAuthClient } from "better-auth-prisma-orm/client";
+import { EventSource } from "eventsource";
 import { createContext } from "react";
 import type { ClientComputah } from "#client/features/agent/types/computah.ts";
 import type { ClientTransports } from "#client/features/agent/types/transport.ts";
+import { ChatEventService } from "#client/features/chat/services/ChatEventService.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { WorkingDirectoryService } from "#client/features/chat/services/WorkingDirectoryService.ts";
 import type { ClientInput } from "#client/features/editor/services/ComposerService.ts";
@@ -103,8 +110,12 @@ export const createClient = ({
 		getToken()
 			? Promise.resolve()
 			: new Promise<void>((resolve) => tokenWaiters.add(resolve));
+	let events: ReturnType<typeof ChatEventService.watch> | undefined;
 	const setClientToken = (token: string | null | undefined) => {
+		const changed = token !== getToken();
 		setToken(token);
+		// What is listened to is the session's, so another session listens anew.
+		if (changed) events?.restart();
 		if (!token) return;
 		for (const resolve of tokenWaiters) resolve();
 		tokenWaiters.clear();
@@ -124,17 +135,51 @@ export const createClient = ({
 		}),
 	);
 
+	// This instance, told apart from the user's others in what they hear of
+	// its writes.
+	const instance = CommonUtils.getRandomId();
+	const headers = async () => {
+		await waitForToken();
+		const token = getToken();
+		return {
+			Authorization: token ? `Bearer ${token}` : undefined,
+			"X-Tiny-Chat-Instance": instance,
+		};
+	};
+
+	const url = `${serverUrl}${CommonUtils.endpoints.api}`;
 	const api = createTRPCClient<ApiRouter>({
 		links: [
-			httpLink({
-				url: `${serverUrl}${CommonUtils.endpoints.api}`,
-				transformer: JsonService.transformer,
-				headers: async () => {
-					await waitForToken();
-					const token = getToken();
-					return { Authorization: token ? `Bearer ${token}` : undefined };
-				},
-				methodOverride: "POST",
+			splitLink({
+				condition: (op) => op.type === "subscription",
+				// Server-sent events, by a fetch that can send the session along.
+				true: httpSubscriptionLink({
+					url,
+					transformer: JsonService.transformer,
+					EventSource,
+					eventSourceOptions: async () => {
+						const sent = await headers();
+						return {
+							fetch: (input, init) =>
+								fetch(input, {
+									...init,
+									headers: {
+										...init?.headers,
+										...(sent.Authorization && {
+											Authorization: sent.Authorization,
+										}),
+										"X-Tiny-Chat-Instance": sent["X-Tiny-Chat-Instance"],
+									},
+								}),
+						};
+					},
+				}),
+				false: httpLink({
+					url,
+					transformer: JsonService.transformer,
+					headers,
+					methodOverride: "POST",
+				}),
 			}),
 		],
 	});
@@ -178,6 +223,7 @@ export const createClient = ({
 	};
 
 	ChatService.watch({ client });
+	events = ChatEventService.watch({ client, instance });
 
 	return client;
 };

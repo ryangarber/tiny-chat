@@ -9,6 +9,7 @@ import type {
 	ProjectState,
 } from "#core/features/data/types/chat.ts";
 import type { zUser } from "#core/features/data/types/user.ts";
+import { ChatEventService } from "#server/features/chat/services/ChatEventService.ts";
 import { ChatUtils } from "#server/features/chat/utils/ChatUtils.ts";
 
 export const ChatService = {
@@ -33,7 +34,9 @@ export const ChatService = {
 					chat.messages.some((message) => message.id.eq(chatLike.id)),
 				),
 			)
-			.include("messages", (message) => message.select("createdAt"))
+			.include("messages", (message) =>
+				message.select("createdAt", "updatedAt"),
+			)
 			.include("project", (project) => project.select("title", "settings"))
 			.first();
 
@@ -67,7 +70,9 @@ export const ChatService = {
 						.include("chats", (chat) =>
 							chat
 								.where({ temporary: false })
-								.include("messages", (message) => message.select("createdAt"))
+								.include("messages", (message) =>
+									message.select("createdAt", "updatedAt"),
+								)
 								.include("project", (project) =>
 									project.select("title", "settings"),
 								),
@@ -79,7 +84,9 @@ export const ChatService = {
 				projectId: null,
 				temporary: false,
 			})
-				.include("messages", (message) => message.select("createdAt"))
+				.include("messages", (message) =>
+					message.select("createdAt", "updatedAt"),
+				)
 				.include("project", (project) => project.select("title", "settings"))
 				.all(),
 		]);
@@ -153,6 +160,7 @@ export const ChatService = {
 			chat,
 		});
 		await globalThis.db.orm.public.Chat.where({ id }).update({ title });
+		ChatEventService.list(user.id);
 	},
 
 	setChatProject: async ({
@@ -175,6 +183,7 @@ export const ChatService = {
 			if (!project) throw new Error(`no project with id ${projectId}`);
 		}
 		await globalThis.db.orm.public.Chat.where({ id }).update({ projectId });
+		ChatEventService.list(user.id);
 	},
 
 	/**
@@ -205,14 +214,17 @@ export const ChatService = {
 			}
 			await tx.orm.public.Chat.where({ userId: user.id, id }).delete();
 		});
+		ChatEventService.list(user.id);
 	},
 
 	createProject: async ({ user, title }: { user: zUser; title?: string }) => {
-		return globalThis.db.orm.public.Project.create({
+		const project = await globalThis.db.orm.public.Project.create({
 			id: CommonUtils.getRandomId(),
 			userId: user.id,
 			title,
 		});
+		ChatEventService.list(user.id);
+		return project;
 	},
 
 	getWorkingDirectory: async ({
@@ -256,6 +268,7 @@ export const ChatService = {
 			userId: user.id,
 			id: project.id,
 		}).update({ title });
+		ChatEventService.list(user.id);
 	},
 
 	deleteProject: async ({
@@ -278,5 +291,6 @@ export const ChatService = {
 			userId: user.id,
 			id: project.id,
 		}).delete();
+		ChatEventService.list(user.id);
 	},
 } as const;

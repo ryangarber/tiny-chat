@@ -213,6 +213,11 @@ body:not(.unselectable) .selectable * {
 	display: flex;
 }
 
+[data-mantine-color-scheme="light"]
+	.mantine-Combobox-option[data-combobox-selected="true"] {
+	color: #000;
+}
+
 [data-mantine-color-scheme="dark"]
 	.mantine-NavLink-root:hover:not([data-active="true"]),
 [data-mantine-color-scheme="dark"]
@@ -247,11 +252,6 @@ body:not(.unselectable) .selectable * {
 
 .nav-link-like.filled[data-active="true"] * {
 	color: var(--mantine-color-white);
-}
-
-[data-mantine-color-scheme="light"]
-	.mantine-Combobox-option[data-combobox-selected="true"] {
-	color: #000;
 }
 
 [contenteditable] {

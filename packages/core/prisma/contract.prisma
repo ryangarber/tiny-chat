@@ -79,6 +79,8 @@ namespace public {
     createdAt TimestampTemporal(3) @default(now())
     temporary Boolean              @default(false)
     incognito Boolean              @default(false)
+    /// When the chat was last caught up on; activity after this is unread.
+    readAt    TimestampTemporal(3) @default(now())
     files     File[]
     messages  Message[]
     project   Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "chat_projectId_fkey")

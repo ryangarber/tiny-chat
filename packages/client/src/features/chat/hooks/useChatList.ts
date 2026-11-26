@@ -3,45 +3,18 @@ import { useContext } from "react";
 import { ClientContext } from "#client/client.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { useChatStore } from "#client/features/chat/stores/useChatStore.ts";
-import { useSeenStore } from "#client/features/chat/stores/useSeenStore.ts";
 import type { ChatState, ProjectLike } from "#core/features/data/types/chat.ts";
-import { ChatUtils } from "#core/features/data/utils/ChatUtils.ts";
 
 export const useChatList = () => {
 	const client = useContext(ClientContext);
 
-	const lastSeen = useSeenStore((s) => s.lastSeen);
 	const chatId = useChatStore((s) => s.active.chatId);
-
-	const markSeen = (chat: ChatState): ChatState => {
-		if (!(chat.id in lastSeen))
-			useSeenStore
-				.getState()
-				.setLastSeen(chat.id, ChatUtils.getTimestamp(chat));
-		return {
-			...chat,
-			unseen: ChatUtils.getTimestamp(chat) > lastSeen[chat.id],
-		};
-	};
 
 	const projects = useInfiniteQuery({
 		...client.query.chat.getChatList.infiniteQueryOptions(
 			{ limit: 10 },
 			{
 				getNextPageParam: (lastPage, _pages) => lastPage.nextCursor,
-				select: (data) => {
-					return {
-						pages: data.pages.map((page) => ({
-							...page,
-							chats: page.chats.map(markSeen),
-							projects: page.projects.map((project) => ({
-								...project,
-								chats: project.chats.map(markSeen),
-							})),
-						})),
-						pageParams: data.pageParams,
-					};
-				},
 				staleTime: 600000,
 				refetchOnWindowFocus: false,
 				refetchOnReconnect: false,

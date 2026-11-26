@@ -54,7 +54,7 @@ catalogs:
   react:
     "react": "^19.3.1"
     "react-dom": "^19.3.1"
-    "@types/react": "^19.3.0"
+    "@types/react": ^19.3.1
     "@types/react-dom": "^19.3.0"
     "react-devtools-core": "^8.0.0"
     "babel-plugin-react-compiler": "^1.0.0"
@@ -66,16 +66,16 @@ catalogs:
     "prisma-orm-extension-zod": 0.3.3
     "better-auth-prisma-orm": 0.2.2
   ai:
-    "ai": ^7.0.180
-    "@ai-sdk/amazon-bedrock": ^5.0.146
-    "@ai-sdk/anthropic": ^4.0.107
-    "@ai-sdk/azure": ^4.0.130
-    "@ai-sdk/google": ^4.0.124
-    "@ai-sdk/openai": ^4.0.122
+    "ai": ^7.0.181
+    "@ai-sdk/amazon-bedrock": ^5.0.147
+    "@ai-sdk/anthropic": ^4.0.108
+    "@ai-sdk/azure": ^4.0.131
+    "@ai-sdk/google": ^4.0.126
+    "@ai-sdk/openai": ^4.0.123
     "@ai-sdk/openai-compatible": ^3.0.94
     "@ai-sdk/provider": ^4.0.39
-    "@anthropic-ai/sdk": ^1.13.0
-    "openai": ^7.63.0
+    "@anthropic-ai/sdk": ^1.14.0
+    "openai": ^7.64.0
     "voyage-ai-provider": "^5.0.0"
     "@ryangarber/ai-sdk-providers": ^0.2.0
     "@afmize/node": "^1.1.0"
