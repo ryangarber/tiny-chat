@@ -8,6 +8,7 @@ import type { CodexChannelMessage } from "@ryangarber/ai-sdk-providers/codex";
 import type { CursorChannelMessage } from "@ryangarber/ai-sdk-providers/cursor";
 import type { InstallProgress } from "computah/schema";
 import type { ComputahRequest } from "#client/features/agent/types/computah.ts";
+import type { LaunchRequest } from "#client/features/launch/types/launch.ts";
 
 /** The name the plugin is registered under, on both sides. */
 export const DESKTOP_PLUGIN = "Desktop";
@@ -151,6 +152,9 @@ export type DesktopMethods = {
 	computah: { params: ComputahRequest; response: unknown };
 	/** The call still answers, with however far it got. */
 	computahAbort: { params: { id: string }; response: void };
+
+	/** One method of the projects' launches, which run in the main process. */
+	launch: { params: LaunchRequest; response: unknown };
 
 	updateCheck: {
 		params: undefined;

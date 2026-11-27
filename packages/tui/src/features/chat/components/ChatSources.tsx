@@ -35,15 +35,18 @@ import type {
 } from "#client/features/chat/types/chatFiles.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
 import { ComposerService } from "#client/features/editor/services/ComposerService.ts";
+import { useLaunches } from "#client/features/launch/hooks/useLaunches.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useActions } from "#client/features/user/hooks/useActions.ts";
 import { useMemories } from "#client/features/user/hooks/useMemories.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import type { ActionState } from "#core/features/data/types/action.ts";
 import type { MemoryState } from "#core/features/data/types/memory.ts";
+import type { zLaunch } from "#core/features/data/types/user.ts";
 import { FileTypeUtils } from "#core/features/file/utils/FileTypeUtils.ts";
 import { PathUtils } from "#core/features/file/utils/PathUtils.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
+import { LaunchUtils } from "#core/features/tool/utils/LaunchUtils.ts";
 import Anchor from "#tui/core/components/Anchor.tsx";
 import Completions from "#tui/core/components/Completions.tsx";
 import Content, {
@@ -58,6 +61,12 @@ import { usePage } from "#tui/core/hooks/usePage.ts";
 import { WidthContext } from "#tui/core/hooks/useWidth.ts";
 import { useWorkingStatus } from "#tui/core/hooks/useWorkingStatus.ts";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
+import {
+	type Launches,
+	LaunchPreview,
+	LaunchRow,
+	useNow,
+} from "#tui/features/chat/components/ChatLaunches.tsx";
 import { Code } from "#tui/features/code/components/Code.tsx";
 import Diff from "#tui/features/code/components/Diff.tsx";
 import Markdown from "#tui/features/message/components/Markdown.tsx";
@@ -70,15 +79,18 @@ type Preview =
 	| { type: "file"; file: ChatFile }
 	| { type: "web"; source: zWebContext }
 	| { type: "memory"; memory: MemoryState }
-	| { type: "action"; action: ActionState };
+	| { type: "action"; action: ActionState }
+	| { type: "launch"; launch: zLaunch };
 
 type Row =
 	| { type: "node"; node: ChatFileNode; depth: number }
 	| { type: "web"; source: zWebContext }
 	| { type: "memory"; memory: MemoryState }
-	| { type: "action"; action: ActionState };
+	| { type: "action"; action: ActionState }
+	| { type: "launch"; launch: zLaunch };
 
 const rowValue = (row: Row) => {
+	if (row.type === "launch") return `launch:${row.launch.id}`;
 	if (row.type === "node") return row.node.value;
 	if (row.type === "web") return `web:${row.source.url}`;
 	if (row.type === "memory") return `memory:${row.memory.id}`;
@@ -97,6 +109,8 @@ const viewed = (preview: Preview): Omit<ViewedFile, "chatId"> => {
 		};
 	if (preview.type === "memory")
 		return { path: `memory:${preview.memory.id}`, directory: false };
+	if (preview.type === "launch")
+		return { path: `launch:${preview.launch.id}`, directory: false };
 	return { path: `action:${preview.action.id}`, directory: false };
 };
 
@@ -330,11 +344,13 @@ function ActionPreview({ action }: { action: ActionState }) {
 function PreviewPane({
 	preview,
 	repos,
+	launches,
 	fill,
 	width,
 }: {
 	preview: Preview;
 	repos: GitRepo[];
+	launches: Launches;
 	fill: boolean;
 	width?: number;
 }) {
@@ -363,6 +379,17 @@ function PreviewPane({
 				openRecord("memories", preview.memory.id);
 			if (input === "e" && preview.type === "action")
 				openRecord("actions", preview.action.id);
+			if (preview.type === "launch" && launches.supported) {
+				const { launch } = preview;
+				const active = LaunchUtils.isActive(launches.statusOf(launch).state);
+				if (input === "s" && !launches.isPending(launch))
+					launches.control.mutate({
+						launch,
+						action: active ? "stop" : "start",
+					});
+				if (input === "r" && active && !launches.isPending(launch))
+					launches.control.mutate({ launch, action: "restart" });
+			}
 			if (key.upArrow) ref.current?.scrollBy(-1);
 			if (key.downArrow) ref.current?.scrollBy(1);
 		},
@@ -410,6 +437,9 @@ function PreviewPane({
 	} else if (preview.type === "action") {
 		title = "action";
 		body = <ActionPreview action={preview.action} />;
+	} else if (preview.type === "launch") {
+		title = preview.launch.name;
+		body = <LaunchPreview launch={preview.launch} launches={launches} />;
 	} else {
 		title =
 			preview.source.title ||
@@ -445,7 +475,9 @@ function PreviewPane({
 								? preview.source.url
 								: preview.type === "memory"
 									? preview.memory.id
-									: preview.action.id
+									: preview.type === "launch"
+										? preview.launch.id
+										: preview.action.id
 					}
 					{...(fill
 						? { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0 }
@@ -472,6 +504,25 @@ function PreviewPane({
 						name: "edit",
 						when: preview.type === "memory" || preview.type === "action",
 					},
+					...(preview.type === "launch" && launches.supported
+						? [
+								{
+									key: "s",
+									name: LaunchUtils.isActive(
+										launches.statusOf(preview.launch).state,
+									)
+										? "stop"
+										: "start",
+								},
+								{
+									key: "r",
+									name: "restart",
+									when: LaunchUtils.isActive(
+										launches.statusOf(preview.launch).state,
+									),
+								},
+							]
+						: []),
 					"back",
 				]}
 			/>
@@ -514,7 +565,13 @@ function ChatSourcesList({
 	const { chatActions: ownActions } = useChatActions();
 	const { memories } = useMemories();
 	const { actions } = useActions();
-	useWorkingStatus(chatFiles);
+	const launches = useLaunches();
+	const now = useNow(
+		launches.launches.some((launch) =>
+			LaunchUtils.isActive(launches.statusOf(launch).state),
+		),
+	);
+	useWorkingStatus(chatFiles, launches.control);
 
 	// What is previewed is shared with the source chips, which open it from
 	// anywhere, as the app's are.
@@ -569,15 +626,22 @@ function ChatSourcesList({
 			),
 		[files, viewedFile],
 	);
-	const preview: Preview | null = viewedWeb
-		? { type: "web", source: viewedWeb }
-		: viewedMemory
-			? { type: "memory", memory: viewedMemory }
-			: viewedAction
-				? { type: "action", action: viewedAction }
-				: viewedChatFile
-					? { type: "file", file: viewedChatFile }
-					: null;
+	const viewedLaunch = viewedFile?.path.startsWith("launch:")
+		? launches.launches.find(
+				(launch) => viewedFile.path === `launch:${launch.id}`,
+			)
+		: undefined;
+	const preview: Preview | null = viewedLaunch
+		? { type: "launch", launch: viewedLaunch }
+		: viewedWeb
+			? { type: "web", source: viewedWeb }
+			: viewedMemory
+				? { type: "memory", memory: viewedMemory }
+				: viewedAction
+					? { type: "action", action: viewedAction }
+					: viewedChatFile
+						? { type: "file", file: viewedChatFile }
+						: null;
 	// Folders the reader opened or closed. The rest are open only when they are
 	// just the way down to something, so the files themselves show at first.
 	const [toggled, setToggled] = useState<Map<string, boolean>>(() => new Map());
@@ -608,6 +672,7 @@ function ChatSourcesList({
 
 	const rows = useMemo<Row[]>(
 		() => [
+			...launches.launches.map((launch): Row => ({ type: "launch", launch })),
 			...ChatSourcesUtils.flatten({
 				nodes: tree,
 				expanded: (node) =>
@@ -618,7 +683,15 @@ function ChatSourcesList({
 			...chatMemories.map((memory): Row => ({ type: "memory", memory })),
 			...chatActions.map((action): Row => ({ type: "action", action })),
 		],
-		[tree, toggled, viewedParents, webSources, chatMemories, chatActions],
+		[
+			launches.launches,
+			tree,
+			toggled,
+			viewedParents,
+			webSources,
+			chatMemories,
+			chatActions,
+		],
 	);
 	const byValue = useMemo(
 		() => new Map(rows.map((row) => [rowValue(row), row])),
@@ -688,6 +761,13 @@ function ChatSourcesList({
 				selectFirstOnChange={false}
 				groups={[
 					{
+						name: "launches",
+						items: launches.launches.map((launch) => ({
+							name: launch.name,
+							value: `launch:${launch.id}`,
+						})),
+					},
+					{
 						name: "files",
 						items: rows.flatMap((row) =>
 							row.type === "node"
@@ -720,6 +800,11 @@ function ChatSourcesList({
 				itemProps={{ flexGrow: 1, minWidth: 0 }}
 				renderItem={({ item }) => {
 					const row = byValue.get(item.value);
+					if (row?.type === "launch") {
+						return (
+							<LaunchRow launch={row.launch} launches={launches} now={now} />
+						);
+					}
 					if (row?.type === "memory") {
 						return <Text wrap="truncate-end">{row.memory.fact}</Text>;
 					}
@@ -760,6 +845,10 @@ function ChatSourcesList({
 				onInput={({ item, key }) => {
 					const row = item && byValue.get(item.value);
 					if (!row) return;
+					if (row.type === "launch") {
+						if (key.return) setPreview({ type: "launch", launch: row.launch });
+						return;
+					}
 					if (row.type === "web") {
 						if (key.return) setPreview({ type: "web", source: row.source });
 						return;
@@ -783,6 +872,41 @@ function ChatSourcesList({
 						setPreview({ type: "file", file: node.file });
 				}}
 				bindings={{
+					// Space starts or stops a launch, `r` restarts it.
+					toggle: {
+						run: (item) => {
+							const row = byValue.get(item.value);
+							if (row?.type !== "launch" || launches.isPending(row.launch))
+								return;
+							const active = LaunchUtils.isActive(
+								launches.statusOf(row.launch).state,
+							);
+							launches.control.mutate({
+								launch: row.launch,
+								action: active ? "stop" : "start",
+							});
+						},
+						when: (item) =>
+							launches.supported && item.value.startsWith("launch:"),
+					},
+					refresh:
+						launches.launches.length && launches.supported
+							? {
+									name: "restart launch",
+									run: (item) => {
+										const row = item && byValue.get(item.value);
+										if (
+											row?.type !== "launch" ||
+											launches.isPending(row.launch)
+										)
+											return;
+										launches.control.mutate({
+											launch: row.launch,
+											action: "restart",
+										});
+									},
+								}
+							: undefined,
 					edit: {
 						run: (item) => {
 							const row = byValue.get(item.value);
@@ -805,6 +929,7 @@ function ChatSourcesList({
 					<PreviewPane
 						preview={preview}
 						repos={repos}
+						launches={launches}
 						fill={fill}
 						width={width}
 					/>

@@ -30,6 +30,7 @@ import { StyleUtils } from "#gui/core/utils/StyleUtils.ts";
 import CommandSettings from "#gui/features/sidebar/components/CommandSettings.tsx";
 import ContextSettings from "#gui/features/sidebar/components/ContextSettings.tsx";
 import FolderSettings from "#gui/features/sidebar/components/FolderSettings.tsx";
+import LaunchSettings from "#gui/features/sidebar/components/LaunchSettings.tsx";
 
 export default function ChatSettings({
 	embeddingStatus,
@@ -69,6 +70,12 @@ export default function ChatSettings({
 			<Space />
 			<CommandSettings project={project} />
 			<Space />
+			{project && (
+				<>
+					<LaunchSettings project={project} />
+					<Space />
+				</>
+			)}
 			<Box>
 				<Text size="sm">Retrieval</Text>
 				<Text size="xs" c="dimmed">

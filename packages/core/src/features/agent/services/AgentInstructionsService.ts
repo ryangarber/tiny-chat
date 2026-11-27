@@ -5,6 +5,7 @@ import type { zConfig } from "#core/features/data/types/message.ts";
 import { DataUtils } from "#core/features/data/utils/DataUtils.ts";
 import type { zSkill } from "#core/features/skill/types/skill.ts";
 import type { Toolset } from "#core/features/tool/types/tool.ts";
+import { LaunchUtils } from "#core/features/tool/utils/LaunchUtils.ts";
 import { ToolUtils } from "#core/features/tool/utils/ToolUtils.ts";
 
 export const AgentInstructionsService = {
@@ -94,6 +95,14 @@ ${citeExamples.map((r) => `- ${r}`).join("\n")}`;
 			enabledToolsets.some((toolset) => toolset.name === "shell") &&
 			!!capabilities.shell?.cwd;
 
+		// Listed as they are set up, never with whether they are running: that
+		// changes under the prompt, and the tool is where to read it.
+		const launches = enabledToolsets.some(
+			(toolset) => toolset.name === "launch",
+		)
+			? LaunchUtils.of(context.chat?.project)
+			: [];
+
 		if (
 			actions?.length ||
 			enabledToolsets.length ||
@@ -143,6 +152,13 @@ The user works in these folders. A primary project folder is where the shell sta
 <folders>
 ${folders.map((folder) => `<folder scope="${folder.project ? "project" : "user"}"${folder.path === primary ? " primary" : ""}>${folder.local}</folder>`).join("\n")}
 </folders>`;
+			}
+
+			if (launches.length) {
+				instructions += `\n
+<launches>
+${launches.map((launch) => `<launch name="${launch.name.replaceAll('"', "&quot;")}">\n${launch.script}\n</launch>`).join("\n")}
+</launches>`;
 			}
 
 			if (actions?.length) {

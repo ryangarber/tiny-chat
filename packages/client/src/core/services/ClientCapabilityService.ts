@@ -5,6 +5,7 @@ import { createChatShellCapability } from "#client/core/capabilities/createChatS
 import { createComputerCapability } from "#client/core/capabilities/createComputerCapability.ts";
 import { createEmbeddingCapability } from "#client/core/capabilities/createEmbeddingCapability.ts";
 import { createGitHubCapability } from "#client/core/capabilities/createGitHubCapability.ts";
+import { createLaunchCapability } from "#client/core/capabilities/createLaunchCapability.ts";
 import { createLegiscanCapability } from "#client/core/capabilities/createLegiscanCapability.ts";
 import { createMemoriesCapability } from "#client/core/capabilities/createMemoriesCapability.ts";
 import { createShellCapability } from "#client/core/capabilities/createShellCapability.ts";
@@ -115,6 +116,11 @@ export const ClientCapabilityService = {
 			if (enabled.computer) {
 				capabilities.computer = await createComputerCapability({ client });
 			}
+		}
+
+		// Only a host that can run processes holds launches.
+		if (enabled.launch && client.launch) {
+			capabilities.launch = await createLaunchCapability({ client });
 		}
 
 		if (enabled.actions) {

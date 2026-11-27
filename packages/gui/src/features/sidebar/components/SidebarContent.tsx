@@ -49,6 +49,7 @@ import scrollable from "#gui/core/styles/scrollable.module.css";
 import CommandSettings from "#gui/features/sidebar/components/CommandSettings.tsx";
 import ContextSettings from "#gui/features/sidebar/components/ContextSettings.tsx";
 import FolderSettings from "#gui/features/sidebar/components/FolderSettings.tsx";
+import LaunchSettings from "#gui/features/sidebar/components/LaunchSettings.tsx";
 
 type ChatDragHandlers = {
 	onDragEnd: () => void;
@@ -121,6 +122,8 @@ function ProjectEditor({ editing }: { editing: ProjectState }) {
 					<FolderSettings project={editing.id} />
 					<Space />
 					<CommandSettings project={editing.id} />
+					<Space />
+					<LaunchSettings project={editing.id} />
 					<Space />
 					<ContextSettings project={editing.id} />
 					<Button.Group mt="lg">

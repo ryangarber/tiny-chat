@@ -28,8 +28,13 @@ import type {
 	MessageSearchResult,
 } from "#core/features/data/types/message.ts";
 import type { zData } from "#core/features/data/types/part.ts";
+import type { zLaunch } from "#core/features/data/types/user.ts";
 import type { FileNode } from "#core/features/file/types/file.ts";
 import type { zWebContext } from "#core/features/provider/types/web.ts";
+import type {
+	zLaunchSignal,
+	zLaunchStatus,
+} from "#core/features/tool/types/launch.ts";
 import type {
 	zLegiscanBill,
 	zLegiscanBillInput,
@@ -359,6 +364,42 @@ export interface ComputerCapability extends SurfaceCapability<ComputerStatus> {
 	windows: (_?: { app?: string }) => Promise<ComputerWindow[]>;
 }
 
+/**
+ * A project's launches, run on the user's machine. Processes belong to the
+ * host rather than a message, so they outlive the call that started them and
+ * keep running until stopped or the host quits. Calls name launches as the
+ * project keeps them; where they run is the host's business.
+ */
+export interface LaunchCapability {
+	/** One per launch, in the order asked for; never starts anything. */
+	status: (_: { launches: zLaunch[] }) => Promise<zLaunchStatus[]>;
+
+	/** Starts a launch that is not running; one that is is left as it is. */
+	start: (_: { launch: zLaunch }) => Promise<zLaunchStatus>;
+
+	/** Stops a launch if it is running, then starts it again. */
+	restart: (_: { launch: zLaunch }) => Promise<zLaunchStatus>;
+
+	/**
+	 * Asks a launch to stop with `signal` (SIGTERM by default), and kills
+	 * whatever is left after `timeout` milliseconds.
+	 */
+	stop: (_: {
+		launch: zLaunch;
+		signal?: zLaunchSignal;
+		timeout?: number;
+	}) => Promise<zLaunchStatus>;
+
+	/** Sends a signal to the launch and everything it started. */
+	signal: (_: {
+		launch: zLaunch;
+		signal: zLaunchSignal;
+	}) => Promise<zLaunchStatus>;
+
+	/** The end of what its current or last run wrote, stdout and stderr together. */
+	logs: (_: { launch: zLaunch; lines?: number }) => Promise<string>;
+}
+
 export interface Capabilities {
 	web?: WebCapability;
 	github?: GitHubCapability;
@@ -372,6 +413,7 @@ export interface Capabilities {
 	browser?: BrowserCapability;
 	terminal?: TerminalCapability;
 	computer?: ComputerCapability;
+	launch?: LaunchCapability;
 	persistence?: boolean;
 }
 

@@ -29,6 +29,7 @@ import {
 } from "#app-electron-plugin/core/types/plugin.ts";
 import { ComputahRemoteService } from "#client/features/agent/services/ComputahRemoteService.ts";
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
+import { LaunchRemoteService } from "#client/features/launch/services/LaunchRemoteService.ts";
 import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { FileUtils } from "#core/features/file/utils/FileUtils.ts";
 import { createAFMProvider } from "#core/features/provider/providers/model/AFMProvider.ts";
@@ -290,6 +291,9 @@ function create(desktop: DesktopPlugin): DesktopRuntime {
 				}),
 		},
 		computah: remote.computah,
+		launch: LaunchRemoteService.create({
+			call: (request) => desktop.launch(request),
+		}),
 		update: {
 			check: () => desktop.updateCheck(),
 			install: async ({ onProgress }) => {

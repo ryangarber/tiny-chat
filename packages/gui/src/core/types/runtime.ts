@@ -1,5 +1,6 @@
 import type {
 	ClientComputah,
+	ClientLaunch,
 	ClientShell,
 	ClientTransports,
 } from "#client/client.ts";
@@ -83,6 +84,9 @@ export interface ClientRuntime {
 	 * desktop has them.
 	 */
 	computah?: ClientComputah;
+
+	/** Projects' launches, run where the shell is; only a desktop has them. */
+	launch?: ClientLaunch;
 
 	/** MCP transports for servers the webview cannot reach itself. */
 	transports?: ClientTransports;

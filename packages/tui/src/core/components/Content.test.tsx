@@ -12,7 +12,7 @@ const rows = (screen: { lastFrame: () => string | undefined }) =>
 
 /** The row of the frame the block's buttons are drawn on. */
 const buttonsRow = (screen: { lastFrame: () => string | undefined }) =>
-	rows(screen).findIndex((row) => row.includes("[copy]"));
+	rows(screen).findIndex((row) => row.includes(" copy "));
 
 describe("Content", () => {
 	it("keeps its buttons on the top row shown of it as it scrolls", async () => {
@@ -67,8 +67,8 @@ describe("ContentFullscreen", () => {
 		label: string,
 	) => {
 		const frame = rows(screen);
-		const row = frame.findIndex((line) => line.includes(`[${label}]`));
-		const column = frame[row].indexOf(`[${label}]`) + 2;
+		const row = frame.findIndex((line) => line.includes(` ${label} `));
+		const column = frame[row].indexOf(` ${label} `) + 2;
 		const top = 24 - frame.length;
 		const at = `${column};${top + row + 1}`;
 		screen.stdin.write(`\x1b[<0;${at}M\x1b[<0;${at}m`);
@@ -98,21 +98,21 @@ describe("ContentFullscreen", () => {
 		const screen = render(editable(saved));
 		await screen.idle();
 		// Only offered once opened over the screen.
-		expect(rows(screen).join("\n")).not.toContain("[edit]");
+		expect(rows(screen).join("\n")).not.toContain(" edit ");
 
 		await pressButton(screen, "+");
-		expect(rows(screen).join("\n")).toContain("[edit]");
+		expect(rows(screen).join("\n")).toContain(" edit ");
 
 		screen.stdin.write("e");
 		await screen.idle();
-		expect(rows(screen).join("\n")).toContain("[save]");
+		expect(rows(screen).join("\n")).toContain(" save ");
 
 		screen.stdin.write("> ");
 		await screen.idle();
 		screen.stdin.write(CTRL_S);
 		await screen.idle();
 		expect(saved).toEqual(["> hello"]);
-		expect(rows(screen).join("\n")).toContain("[edit]");
+		expect(rows(screen).join("\n")).toContain(" edit ");
 		screen.cleanup();
 	});
 
@@ -132,7 +132,7 @@ describe("ContentFullscreen", () => {
 		);
 
 		screen.stdin.write(ESCAPE);
-		await vi.waitFor(() => expect(rows(screen).join("\n")).toContain("[edit]"));
+		await vi.waitFor(() => expect(rows(screen).join("\n")).toContain(" edit "));
 		expect(rows(screen).join("\n")).not.toContain("xhello");
 		expect(saved).toEqual([]);
 		screen.cleanup();

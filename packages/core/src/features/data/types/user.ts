@@ -44,6 +44,18 @@ export const zFolder = z.object({
 });
 export type zFolder = z.infer<typeof zFolder>;
 
+/**
+ * A project's script that the app runs and keeps alive on request: a dev
+ * server, a watcher, a worker. `id` names its process on every host, so a
+ * launch keeps its process across renames.
+ */
+export const zLaunch = z.object({
+	id: z.string().min(1),
+	name: z.string().trim().min(1),
+	script: z.string().trim().min(1),
+});
+export type zLaunch = z.infer<typeof zLaunch>;
+
 export const zHiddenModels = z.partialRecord(
 	zModelFeature.exclude(["language:tools"]),
 	z.array(zConfig.pick({ model: true, provider: true })),
@@ -62,6 +74,8 @@ export const zSettings = z
 		instructions: z.array(z.string()),
 		commands: z.array(zCommand),
 		folders: z.array(zFolder),
+		/** A project's own: launches never come from the user's settings. */
+		launches: z.array(zLaunch),
 		memoryBudget: z.number(),
 		useEmbeddingSearch: z.boolean(),
 		embeddingConfig: zConfig.nullable(),

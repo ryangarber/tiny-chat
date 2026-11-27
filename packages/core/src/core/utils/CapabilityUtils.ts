@@ -62,6 +62,7 @@ export const CapabilityUtils = {
 			browser: desktop,
 			terminal: desktop,
 			computer: desktop,
+			launch: desktop && !!project?.settings?.launches?.length,
 			actions: !incognito && message,
 			memories: !incognito,
 			web: (["search", "view"] satisfies zWebFeature[]).some(

@@ -116,6 +116,7 @@ export const SettingsUtils = {
 			instructions: from?.instructions ?? [],
 			commands: from?.commands ?? [],
 			folders: from?.folders ?? [],
+			launches: from?.launches ?? [],
 			memoryBudget: from?.memoryBudget ?? 2500,
 			embeddingConfig: from?.embeddingConfig ?? null,
 			dreamConfig: from?.dreamConfig ?? null,

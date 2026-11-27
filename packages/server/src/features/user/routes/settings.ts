@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CommonUtils } from "#core/core/utils/CommonUtils.ts";
 import { ThemeUtils } from "#core/core/utils/ThemeUtils.ts";
 import { ProjectLike } from "#core/features/data/types/chat.ts";
 import { zConfig } from "#core/features/data/types/message.ts";
@@ -6,6 +7,7 @@ import {
 	zCommand,
 	zFolder,
 	zHiddenModels,
+	zLaunch,
 	zMCPServers,
 	zTuiImages,
 } from "#core/features/data/types/user.ts";
@@ -297,6 +299,64 @@ export const settings = router({
 				update: (settings) => ({
 					...settings,
 					folders: settings.folders?.filter((_, i) => i !== input.index) ?? [],
+				}),
+			});
+		}),
+
+	// Launches are a project's alone, so these take no user-level form.
+	addLaunch: procedure
+		.input(
+			z.object({
+				launch: zLaunch.omit({ id: true }),
+				project: ProjectLike,
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			return SettingsService.setSettings({
+				user: ctx.session.user,
+				project: input.project,
+				update: (settings) => ({
+					...settings,
+					launches: [
+						...(settings.launches ?? []),
+						{ ...input.launch, id: CommonUtils.getRandomId() },
+					],
+				}),
+			});
+		}),
+
+	updateLaunch: procedure
+		.input(
+			z.object({
+				id: z.string(),
+				launch: zLaunch.omit({ id: true }).partial(),
+				project: ProjectLike,
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			return SettingsService.setSettings({
+				user: ctx.session.user,
+				project: input.project,
+				update: (settings) => ({
+					...settings,
+					launches: (settings.launches ?? []).map((launch) =>
+						launch.id === input.id ? { ...launch, ...input.launch } : launch,
+					),
+				}),
+			});
+		}),
+
+	removeLaunch: procedure
+		.input(z.object({ id: z.string(), project: ProjectLike }))
+		.mutation(async ({ ctx, input }) => {
+			return SettingsService.setSettings({
+				user: ctx.session.user,
+				project: input.project,
+				update: (settings) => ({
+					...settings,
+					launches: (settings.launches ?? []).filter(
+						(launch) => launch.id !== input.id,
+					),
 				}),
 			});
 		}),

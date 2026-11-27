@@ -4,6 +4,7 @@ import { createActionsToolset } from "#core/features/tool/tools/actions.ts";
 import { createBrowserToolset } from "#core/features/tool/tools/browser.ts";
 import { createComputerToolset } from "#core/features/tool/tools/computer.ts";
 import { createGitHubToolset } from "#core/features/tool/tools/github.ts";
+import { createLaunchToolset } from "#core/features/tool/tools/launch.ts";
 import { createLegiscanToolset } from "#core/features/tool/tools/legiscan.ts";
 import { createMemoriesToolset } from "#core/features/tool/tools/memories.ts";
 import { createPlanToolset } from "#core/features/tool/tools/plan.ts";
@@ -120,6 +121,15 @@ export const ToolService = {
 					needs: ["terminal"],
 					instructions:
 						"You can run and drive interactive terminal programs on the user's machine — TUIs, REPLs, prompts, anything you have to type into or watch — in tmux sessions. Use `terminal` for those rather than a plain shell command or tmux by hand, and keep commands that just print and exit to the shell. Wait for what you expect rather than sleeping. When you open a session the user may want to watch, tell them its attach command.",
+				}),
+			),
+
+			await createLaunchToolset(
+				forToolset({
+					capabilities,
+					needs: ["launch"],
+					instructions:
+						"The project's launches (listed in <launches>) are scripts the user set up for it — dev servers, watchers, workers — that run on their machine and outlive any one message. Use the `launch` tool to start, stop, restart or signal them, and to see whether they are running, on which ports, and what they printed, rather than running the same scripts through the shell. The listing says nothing about whether they are running: ask the tool, every time it matters, since the user can start and stop them too.",
 				}),
 			),
 

@@ -22,6 +22,8 @@ import {
 	type DesktopSend,
 } from "#app-electron-plugin/core/types/plugin.ts";
 import { ComputahHostService } from "#client/features/agent/services/ComputahHostService.ts";
+import { LaunchHostService } from "#client/features/launch/services/LaunchHostService.ts";
+import { LaunchRemoteService } from "#client/features/launch/services/LaunchRemoteService.ts";
 import workspace from "../../../../package.json" with { type: "json" };
 
 /** Every method, as the platform bridges only those it is told of. */
@@ -54,6 +56,7 @@ const methods = [
 	"cursorSignIn",
 	"computah",
 	"computahAbort",
+	"launch",
 	"updateCheck",
 	"updateInstall",
 ] as const satisfies (keyof DesktopMethods)[];
@@ -83,6 +86,12 @@ class DesktopImpl {
 			onProgress: (payload) => send.computahProgress(payload),
 		});
 
+		// Projects' launches, in the user's login shell environment as the
+		// webview's shell commands are; stopped when the app quits.
+		const launch = LaunchRemoteService.serve({
+			launch: LaunchHostService.create({ login: true }),
+		});
+
 		const handlers: DesktopHandlers<(typeof methods)[number]> = {
 			open: async ({ url }) => {
 				await shell.openExternal(url);
@@ -107,6 +116,7 @@ class DesktopImpl {
 			...UpdateHostService.create({ send }),
 			computah: (request) => computah.call(request),
 			computahAbort: (request) => computah.abort(request),
+			launch: (request) => launch(request),
 		};
 		Object.assign(this, handlers);
 

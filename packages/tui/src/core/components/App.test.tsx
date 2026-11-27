@@ -118,8 +118,8 @@ it("keeps equal-width panels visible across terminal resizing and closes them by
 			.find((line) => line.includes("chats") && line.includes("files"));
 		expect(header).toBeDefined();
 		const line = header ?? "";
-		expect(line.indexOf("[×]") - line.indexOf("chats")).toBe(
-			line.lastIndexOf("[×]") - line.indexOf("files"),
+		expect(line.indexOf(" × ") - line.indexOf("chats")).toBe(
+			line.lastIndexOf(" × ") - line.indexOf("files"),
 		);
 		expect(useLayoutStore.getState().panels).toEqual({
 			chats: true,
@@ -130,7 +130,7 @@ it("keeps equal-width panels visible across terminal resizing and closes them by
 	const row = lines.findIndex(
 		(line) => line.includes("chats") && line.includes("files"),
 	);
-	const column = lines[row].lastIndexOf("[×]") + 2;
+	const column = lines[row].lastIndexOf(" × ") + 2;
 	screen.stdin.write(
 		`\x1b[<0;${column};${row + 1}M\x1b[<0;${column};${row + 1}m`,
 	);

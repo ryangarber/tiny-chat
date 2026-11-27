@@ -7,6 +7,7 @@ import { CodexRunService } from "#client/features/agent/services/CodexRunService
 import { ComputahHostService } from "#client/features/agent/services/ComputahHostService.ts";
 import { CursorRunService } from "#client/features/agent/services/CursorRunService.ts";
 import { NodeTransportService } from "#client/features/agent/services/NodeTransportService.ts";
+import { LaunchHostService } from "#client/features/launch/services/LaunchHostService.ts";
 import { NodeShellService } from "#client/features/shell/services/NodeShellService.ts";
 import type { CodeWorker } from "#core/core/utils/CodeUtils.ts";
 import { createClaudeCodeProvider } from "#core/features/provider/providers/model/ClaudeCodeProvider.ts";
@@ -66,5 +67,6 @@ export const client = createClient({
 	input: EditorInputService,
 	shell: NodeShellService.create(),
 	computah: ComputahHostService.create(),
+	launch: LaunchHostService.create(),
 	desktop: true,
 });

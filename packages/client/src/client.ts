@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { environmentManager, QueryClient } from "@tanstack/react-query";
 import {
 	createTRPCClient,
 	httpLink,
@@ -20,6 +20,7 @@ import { ChatEventService } from "#client/features/chat/services/ChatEventServic
 import { ChatService } from "#client/features/chat/services/ChatService.ts";
 import { WorkingDirectoryService } from "#client/features/chat/services/WorkingDirectoryService.ts";
 import type { ClientInput } from "#client/features/editor/services/ComposerService.ts";
+import type { ClientLaunch } from "#client/features/launch/types/launch.ts";
 import {
 	type HostShellPrimitives,
 	HostShellService,
@@ -55,7 +56,16 @@ export type { ClientTransports };
 
 export type ClientShell = HostShellPrimitives;
 
-export type { ClientComputah };
+export type { ClientComputah, ClientLaunch };
+
+/**
+ * Every host this runs in is a client, the CLI included. Query takes a runtime
+ * without a `window` (Bun, Node, Vitest) for a server, where it never schedules
+ * `refetchInterval`, does not retry, and keeps every query forever: right for
+ * one render of a page, wrong for a terminal app that stays open. This is
+ * global to Query, and nothing renders on a server through this package.
+ */
+environmentManager.setIsServer(() => false);
 
 export const createClient = ({
 	env,
@@ -68,6 +78,7 @@ export const createClient = ({
 	input,
 	shell: primitives,
 	computah,
+	launch,
 	desktop,
 	highlighter,
 	queryClient = new QueryClient(),
@@ -87,6 +98,11 @@ export const createClient = ({
 	 * process.
 	 */
 	computah?: ClientComputah;
+	/**
+	 * Projects' launches, as the host runs them: the CLI itself, the desktop
+	 * app over its main process.
+	 */
+	launch?: ClientLaunch;
 	desktop?: boolean;
 	/** Starts the runtime's bundle of `HighlightWorker.ts`, where Shiki runs. */
 	highlighter?: () => CodeWorker;
@@ -219,6 +235,7 @@ export const createClient = ({
 		input,
 		shell,
 		computah,
+		launch,
 		desktop,
 	};
 

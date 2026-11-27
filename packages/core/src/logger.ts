@@ -63,7 +63,7 @@ export function createLogger({
 	 */
 	exitOnUncaught?: boolean;
 } = {}) {
-	if (!silent) console.log(":: creating logger...");
+	if (!silent) console.log("⁝ Initializing logs");
 
 	const levels = Object.values(LogLevel);
 
@@ -98,13 +98,13 @@ export function createLogger({
 							`[${time}] ${level.toUpperCase()}: ${data.join(" ")}\n`,
 						);
 					} catch (error) {
-						original("⁝ INTERNAL ⁝", error);
+						original("⁝ INTERNAL:", error);
 					}
 				};
 				const modules = loadNodeModules();
 				if (modules instanceof Promise)
 					void modules.then(write, (error: unknown) =>
-						original("⁝ INTERNAL ⁝", error),
+						original("⁝ INTERNAL:", error),
 					);
 				else write(modules);
 			}
@@ -124,7 +124,7 @@ export function createLogger({
 			) {
 				console.log("⁝ Using browser logging");
 				globals.window?.addEventListener("error", (error: unknown) =>
-					console.error("⁝ UNCAUGHT ⁝", error),
+					console.error("⁝ UNCAUGHT:", error),
 				);
 				globals.window?.addEventListener(
 					"unhandledrejection",
@@ -138,13 +138,13 @@ export function createLogger({
 			) {
 				console.log("⁝ Using native logging");
 				globals.process?.on("uncaughtException", (error: unknown) => {
-					console.error("⁝ UNCAUGHT ⁝", error);
+					console.error("⁝ UNCAUGHT:", error);
 					if (exitOnUncaught) globals.process.exit(1);
 				});
 				globals.process?.on(
 					"unhandledRejection",
 					(reason: unknown, promise: Promise<unknown>) => {
-						console.error("⁝ UNCAUGHT ⁝", promise, reason);
+						console.error("⁝ UNCAUGHT:", promise, reason);
 					},
 				);
 			}

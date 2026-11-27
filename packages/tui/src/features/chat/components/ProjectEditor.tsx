@@ -3,6 +3,7 @@ import { ClientContext } from "#client/client.ts";
 import { useChatList } from "#client/features/chat/hooks/useChatList.ts";
 import type { CompletionGroup } from "#client/features/editor/types/completion.ts";
 import { useInstructions } from "#client/features/settings/hooks/useInstructions.ts";
+import { useLaunchSettings } from "#client/features/settings/hooks/useLaunchSettings.ts";
 import { useShellSettings } from "#client/features/settings/hooks/useShellSettings.ts";
 import type { ProjectState } from "#core/features/data/types/chat.ts";
 import { usePanel } from "#tui/core/components/Panel.tsx";
@@ -14,6 +15,7 @@ import Details, {
 } from "#tui/features/settings/components/Details.tsx";
 import FolderSettings from "#tui/features/settings/components/FolderSettings.tsx";
 import InstructionSettings from "#tui/features/settings/components/InstructionSettings.tsx";
+import LaunchSettings from "#tui/features/settings/components/LaunchSettings.tsx";
 import MemoryBudgetSettings from "#tui/features/settings/components/MemoryBudgetSettings.tsx";
 import TextList, {
 	type Draft,
@@ -34,6 +36,7 @@ export default function ProjectEditor({
 
 	const { instructions, memoryBudget } = useInstructions({ project });
 	const { commands, folders } = useShellSettings({ project });
+	const { launches } = useLaunchSettings({ project });
 
 	const [path, setPath] = useState<string[]>([]);
 	const route = path.at(-1) ?? null;
@@ -84,6 +87,11 @@ export default function ProjectEditor({
 			<CommandSettings project={project} draft={draft} setDraft={setDraft} />
 		);
 	}
+	if (route === "launches") {
+		return (
+			<LaunchSettings project={project} draft={draft} setDraft={setDraft} />
+		);
+	}
 	if (route === "folders") {
 		return (
 			<FolderSettings project={project} draft={draft} setDraft={setDraft} />
@@ -119,6 +127,12 @@ export default function ProjectEditor({
 					value: "commands",
 					state: String(commands.length),
 					route: "commands",
+				},
+				{
+					name: "launches",
+					value: "launches",
+					state: String(launches.length),
+					route: "launches",
 				},
 			],
 		},

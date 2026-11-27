@@ -49,6 +49,7 @@ import type {
 	GitRepo,
 } from "#client/features/chat/types/chatFiles.ts";
 import { ChatSourcesUtils } from "#client/features/chat/utils/ChatSourcesUtils.ts";
+import { useLaunches } from "#client/features/launch/hooks/useLaunches.ts";
 import { useMessages } from "#client/features/message/hooks/useMessages.ts";
 import { useActions } from "#client/features/user/hooks/useActions.ts";
 import { useMemories } from "#client/features/user/hooks/useMemories.ts";
@@ -64,6 +65,10 @@ import Content, {
 import ErrorBoundary from "#gui/core/components/ErrorBoundary.tsx";
 import { AppService } from "#gui/core/services/AppService.ts";
 import { useAppStore } from "#gui/core/stores/useAppStore.ts";
+import {
+	LaunchList,
+	LaunchPreview,
+} from "#gui/features/chat/components/ChatLaunches.tsx";
 import Code from "#gui/features/code/components/Code.tsx";
 import Diff from "#gui/features/code/components/Diff.tsx";
 import FindScope from "#gui/features/find/components/FindScope.tsx";
@@ -584,6 +589,8 @@ export default function ChatSources() {
 	const lastMessageId = messages.data?.messages.at(-1)?.id;
 	const chatId = useChatStore((state) => state.active.chatId);
 	const isAsideOpen = useLayoutStore((state) => state.panels.files);
+	// Read again only while the sources are open.
+	const launches = useLaunches({ enabled: isAsideOpen });
 	const setPanel = useLayoutStore((state) => state.setPanel);
 	const viewFile = useChatSourcesStore((state) => state.viewFile);
 	const viewedFile = useChatSourcesStore((state) => {
@@ -637,7 +644,13 @@ export default function ChatSources() {
 				: ownActions,
 		[ownActions, previewedAction],
 	);
-	const previewedItem = previewedWeb ?? previewedMemory ?? previewedAction;
+	const previewedLaunch = viewedFile?.path.startsWith("launch:")
+		? launches.launches.find(
+				(launch) => viewedFile.path === `launch:${launch.id}`,
+			)
+		: undefined;
+	const previewedItem =
+		previewedWeb ?? previewedMemory ?? previewedAction ?? previewedLaunch;
 	const selectionRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		if (viewedFile && previewedItem && isAsideOpen) {
@@ -720,6 +733,29 @@ export default function ChatSources() {
 				<Group justify="center">
 					{chatFiles.isFetching && <Loader size="xs" />}
 				</Group>
+				{launches.launches.length > 0 && (
+					<>
+						<Text size="sm" fw={600} mb="xs">
+							Launches
+						</Text>
+						<LaunchList
+							launches={launches}
+							selected={previewedLaunch?.id}
+							onSelect={(launch) =>
+								viewFile(
+									previewedLaunch?.id === launch.id
+										? null
+										: {
+												path: `launch:${launch.id}`,
+												directory: false,
+												chatId,
+											},
+								)
+							}
+						/>
+						<Box mb="md" />
+					</>
+				)}
 				<Text size="sm" fw={600} mb="xs">
 					Files
 				</Text>
@@ -862,6 +898,11 @@ export default function ChatSources() {
 							lastMessageId={lastMessageId}
 						/>
 					)}
+				</PreviewPane>
+			)}
+			{previewedLaunch && (
+				<PreviewPane title="Launch" onClose={() => viewFile(null)}>
+					<LaunchPreview launch={previewedLaunch} launches={launches} />
 				</PreviewPane>
 			)}
 			{previewedFile && (

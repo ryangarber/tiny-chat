@@ -54,4 +54,33 @@ describe("AgentInstructionsService", () => {
 		expect(await build([])).not.toContain("<folders>");
 		expect(await build()).not.toContain("<folders>");
 	});
+
+	it("lists launches as they are set up, without how they are doing", async () => {
+		const instructions = await AgentInstructionsService.buildInstructions({
+			context: {
+				user: mockUser({ settings: {} }),
+				chat: {
+					id: "chat",
+					project: {
+						title: "P",
+						settings: {
+							launches: [{ id: "l1", name: 'dev "web"', script: "pnpm dev" }],
+						},
+					},
+				},
+				messages: [],
+				timezone: "UTC",
+				interactive: true,
+			} as any,
+			config: mockConfig(),
+			capabilities: {} as any,
+			enabledToolsets: [{ name: "launch", tools: [] } as any],
+			enabledSkills: [],
+		});
+		expect(instructions).toContain(
+			'<launches>\n<launch name="dev &quot;web&quot;">\npnpm dev\n</launch>\n</launches>',
+		);
+		expect(instructions).not.toContain("l1");
+		expect(instructions).not.toMatch(/running|stopped|pid/);
+	});
 });

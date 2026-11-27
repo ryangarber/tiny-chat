@@ -74,6 +74,7 @@ export function createGuiClient({ runtime }: { runtime: ClientRuntime }) {
 		shell: runtime.shell,
 		transports: runtime.transports,
 		computah: runtime.computah,
+		launch: runtime.launch,
 		desktop: !!runtime.shell,
 	});
 }

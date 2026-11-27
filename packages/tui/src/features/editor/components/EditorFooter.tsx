@@ -1,5 +1,4 @@
-import { Box, Text, useMouseInput } from "better-ink-ui";
-import { useState } from "react";
+import { Box, Text } from "better-ink-ui";
 import type { Usage } from "#client/features/editor/hooks/useEstimatedTokens.ts";
 import Button from "#tui/core/components/Button.tsx";
 import { useAppStore } from "#tui/core/stores/useAppStore.ts";
@@ -35,30 +34,22 @@ export default function EditorFooter({
 }) {
 	const setFocus = useAppStore((state) => state.setFocus);
 
-	const [hovered, setHovered] = useState(false);
-	const { mouseRef } = useMouseInput({
-		onHoverStart: () => setHovered(true),
-		onHoverEnd: () => setHovered(false),
-		onClick: () => setFocus("config"),
-	});
-
 	return (
 		<Box justifyContent="flex-end" flexShrink={0}>
 			<TokenUsage usage={usage} onOpenChange={onTokensOpenChange} />
 			<Separator />
-			<Box ref={(element) => mouseRef(element, 0)} minWidth={0}>
-				<Text
-					color={unavailable ? "redBright" : "textSubtle"}
-					dimColor={hovered}
-					wrap="truncate-start"
-				>
-					{!model
+			<Button
+				color={unavailable ? "redBright" : "textSubtle"}
+				wrap="truncate-start"
+				onClick={() => setFocus("config")}
+				label={
+					!model
 						? "config"
 						: model.length > maxModelWidth
 							? `…${model.slice(1 - maxModelWidth)}`
-							: model}
-				</Text>
-			</Box>
+							: model
+				}
+			/>
 			<Separator />
 			{onStop ? (
 				<Button label="stop" onClick={onStop} />

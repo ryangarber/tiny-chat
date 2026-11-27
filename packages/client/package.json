@@ -38,6 +38,7 @@
 		"remark-rehype": "^11.1.2",
 		"remend": "^1.5.1",
 		"server": "workspace:*",
+		"systeminformation": "^5.33.26",
 		"unified": "^11.0.5",
 		"unist-util-visit": "^5.2.0",
 		"zustand": "^5.1.0"

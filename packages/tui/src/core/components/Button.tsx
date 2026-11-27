@@ -44,8 +44,14 @@ export default function Button({
 			}}
 		>
 			{({ isHovered }) => (
-				<Text color="textSubtle" dimColor={disabled || isHovered}>
-					[{clicked && labelOnClick ? labelOnClick : label}]
+				<Text
+					color="text"
+					backgroundColor={disabled || isHovered ? "borderSubtle" : "border"}
+					dimColor={disabled}
+				>
+					{` `}
+					{clicked && labelOnClick ? labelOnClick : label}
+					{` `}
 				</Text>
 			)}
 		</Pressable>
