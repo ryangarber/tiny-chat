@@ -1,3 +1,19 @@
+## 0.10.24 (2026-11-27)
+
+### Features
+
+- project launch settings ([82b2c87](https://github.com/ryangarber/tiny-chat/commit/82b2c879dca3769445f5ade3edc033c7a926faed))
+- real time chat sync ([8df93ea](https://github.com/ryangarber/tiny-chat/commit/8df93eaa982153135c218ef85a79f4ec02feb729))
+
+### Bug Fixes
+
+- **cli:** queries on refetch interval never refetch ([82b2c87](https://github.com/ryangarber/tiny-chat/commit/82b2c879dca3769445f5ade3edc033c7a926faed))
+- **tui:** improved spacing in tools, chat list ([8df93ea](https://github.com/ryangarber/tiny-chat/commit/8df93eaa982153135c218ef85a79f4ec02feb729))
+
+### Other
+
+- **tui:** redesigned buttons ([82b2c87](https://github.com/ryangarber/tiny-chat/commit/82b2c879dca3769445f5ade3edc033c7a926faed))
+
 ## 0.10.23 (2026-11-25)
 
 ### Features
